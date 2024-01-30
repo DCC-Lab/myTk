@@ -42,11 +42,13 @@ class MyTkBaseView:
         if self.main_widget is not None:
             self.main_widget.pack(kwargs)
 
-class MyView(MyTkBaseView):
-    def __init__(self, master, width, height):
-        MyTkBaseView.__init__(self, master)
-        self.frame = ttk.Frame(master, width=width, height=height)
-        self.main_widget = self.frame
+    @property
+    def width(self):
+        return self.main_widget.width
+
+    @property
+    def height(self):
+        return self.main_widget.height
 
 class MyWindow(MyTkBaseView):
     def __init__(self, geometry = None, title="Viewer"):
@@ -58,6 +60,12 @@ class MyWindow(MyTkBaseView):
         self.root.geometry(geometry)
         self.root.title(self.title)
         MyTkBaseView.__init__(self, self.root)
+
+class MyView(MyTkBaseView):
+    def __init__(self, master, width, height):
+        MyTkBaseView.__init__(self, master)
+        self.frame = ttk.Frame(master, width=width, height=height)
+        self.main_widget = self.frame
 
 class MyPopupMenu(MyTkBaseView):
     def __init__(self, master, menu_items = None):
@@ -92,6 +100,11 @@ class MyLabel(MyTkBaseView):
         MyTkBaseView.__init__(self, master)
         self.main_widget = ttk.Label(master, text=text)
 
+class MyEntry(MyTkBaseView):
+    def __init__(self, master, text=""):
+        MyTkBaseView.__init__(self, master)
+        self.main_widget = ttk.Entry(master, text=text)
+
 
 class MyMatplotlibView(MyTkBaseView):
     def __init__(self, master, figure=None):
@@ -113,7 +126,7 @@ if __name__ == "__main__":
     app.root.columnconfigure(0,weight=1)
     app.root.rowconfigure(1,weight=1)
 
-    top_frame = MyView(app.root, width=500,  height=100)
+    top_frame = MyView(app.root, width=1000,  height=100)
     top_frame.grid(column=0, row=0, pady=20)
 
     bottom_frame = MyView(app.root, width=1000,  height=600)
