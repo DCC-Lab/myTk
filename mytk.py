@@ -7,7 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from functools import partial
 
 
-class MyTkApp:
+class App:
     app = None
 
     def __new__(cls, geometry=None):
@@ -16,7 +16,7 @@ class MyTkApp:
         return cls.app
 
     def __init__(self, geometry=None):
-        self.window = MyWindow(geometry)
+        self.window = Window(geometry)
 
     @property
     def main_window(self):
@@ -29,7 +29,7 @@ class MyTkApp:
     def mainloop(self):
         self.root.mainloop()
 
-class MyTkBaseView:
+class BaseView:
     def __init__(self, master):
         self.main_widget = None
         self.parent = master
@@ -50,7 +50,7 @@ class MyTkBaseView:
     def height(self):
         return self.main_widget.height
 
-class MyWindow(MyTkBaseView):
+class Window(BaseView):
     def __init__(self, geometry = None, title="Viewer"):
         if geometry is None:
             geometry = "1020x750"
@@ -59,17 +59,17 @@ class MyWindow(MyTkBaseView):
         self.root = Tk()
         self.root.geometry(geometry)
         self.root.title(self.title)
-        MyTkBaseView.__init__(self, self.root)
+        BaseView.__init__(self, self.root)
 
-class MyView(MyTkBaseView):
+class View(BaseView):
     def __init__(self, master, width, height):
-        MyTkBaseView.__init__(self, master)
+        BaseView.__init__(self, master)
         self.frame = ttk.Frame(master, width=width, height=height)
         self.main_widget = self.frame
 
-class MyPopupMenu(MyTkBaseView):
+class PopupMenu(BaseView):
     def __init__(self, master, menu_items = None):
-        MyTkBaseView.__init__(self, master)
+        BaseView.__init__(self, master)
 
         self.selected_index = None
         self.user_callback = None
@@ -95,20 +95,20 @@ class MyPopupMenu(MyTkBaseView):
         if self.user_callback is not None:
             self.user_callback()
 
-class MyLabel(MyTkBaseView):
+class Label(BaseView):
     def __init__(self, master, text=""):
-        MyTkBaseView.__init__(self, master)
+        BaseView.__init__(self, master)
         self.main_widget = ttk.Label(master, text=text)
 
-class MyEntry(MyTkBaseView):
+class Entry(BaseView):
     def __init__(self, master, text=""):
-        MyTkBaseView.__init__(self, master)
+        BaseView.__init__(self, master)
         self.main_widget = ttk.Entry(master, text=text)
 
 
-class MyMatplotlibView(MyTkBaseView):
+class MatplotlibView(BaseView):
     def __init__(self, master, figure=None):
-        MyTkBaseView.__init__(self, master)
+        BaseView.__init__(self, master)
 
         if figure is None:
             self.figure = Figure(figsize=(10.2, 5.5), dpi=100)
@@ -122,22 +122,22 @@ class MyMatplotlibView(MyTkBaseView):
         self.main_widget = self.canvas.get_tk_widget()
 
 if __name__ == "__main__":
-    app = MyTkApp()
+    app = App()
     app.root.columnconfigure(0,weight=1)
     app.root.rowconfigure(1,weight=1)
 
-    top_frame = MyView(app.root, width=1000,  height=100)
+    top_frame = View(app.root, width=1000,  height=100)
     top_frame.grid(column=0, row=0, pady=20)
 
-    bottom_frame = MyView(app.root, width=1000,  height=600)
+    bottom_frame = View(app.root, width=1000,  height=600)
     bottom_frame.grid(column=0, row=1, pady=20)
 
-    label = MyLabel(top_frame.main_widget, "Testalksdhlak")
+    label = Label(top_frame.main_widget, "Testalksdhlak")
     label.grid(column=0,row=0)
-    menu = MyPopupMenu(top_frame.main_widget, ["aasdasda","basfasdfada","csdfsdfsdfsd"])
+    menu = PopupMenu(top_frame.main_widget, ["aasdasda","basfasdfada","csdfsdfsdfsd"])
     menu.grid(column=1,row=0)
 
-    view = MyMatplotlibView(bottom_frame.main_widget)
+    view = MatplotlibView(bottom_frame.main_widget)
     view.pack()
     plot = view.figure.add_subplot()
     plot.plot([0,1,2,3], [4,5,6,7])
