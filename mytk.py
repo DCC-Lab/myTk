@@ -19,6 +19,10 @@ class App:
         self.window = Window(geometry)
 
     @property
+    def foo(self):
+        return self._foo
+    
+    @property
     def main_window(self):
         return self.window
 
