@@ -110,8 +110,12 @@ class MyMatplotlibView(MyTkBaseView):
 
 if __name__ == "__main__":
     app = MyTkApp()
+    app.root.columnconfigure(0,weight=1)
+    app.root.rowconfigure(1,weight=1)
+
     top_frame = MyView(app.root, width=500,  height=100)
     top_frame.grid(column=0, row=0, pady=20)
+
     bottom_frame = MyView(app.root, width=1000,  height=600)
     bottom_frame.grid(column=0, row=1, pady=20)
 
