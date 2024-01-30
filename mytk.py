@@ -17,10 +17,6 @@ class App:
 
     def __init__(self, geometry=None):
         self.window = Window(geometry)
-
-    @property
-    def foo(self):
-        return self._foo
         
     def mainloop(self):
         self.window.main_widget.mainloop()
@@ -28,27 +24,29 @@ class App:
 class BaseView:
     def __init__(self):
         self.main_widget = None
-        self.master = None
+        self.parent = None
 
     def grid_into(self, parent, **kwargs):
         self.create_widget(parent.main_widget)
+        self.parent = parent
 
         if self.main_widget is not None:
             self.main_widget.grid(kwargs)
 
     def pack_into(self, parent, **kwargs):
         self.create_widget(parent.main_widget)
+        self.parent = parent
 
         if self.main_widget is not None:
             self.main_widget.pack(kwargs)
 
     @property
     def width(self):
-        return self.main_widget.width
+        return self.main_widget["width"]
 
     @property
     def height(self):
-        return self.main_widget.height
+        return self.main_widget["height"]
 
 class Window(BaseView):
     def __init__(self, geometry = None, title="Viewer"):
@@ -63,7 +61,6 @@ class Window(BaseView):
         self.main_widget.title(self.title)
         self.main_widget.columnconfigure(0,weight=1)
         self.main_widget.rowconfigure(1,weight=1)
-
 
 class View(BaseView):
     def __init__(self, width, height):
@@ -143,16 +140,15 @@ class MatplotlibView(BaseView):
 
 if __name__ == "__main__":
     app = App()
-
     top_frame = View(width=1000,  height=100)
     top_frame.grid_into(app.window, column=0, row=0, pady=20)
 
-    bottom_frame = View(width=1000,  height=600)
+    bottom_frame = View(width=1000,  height=700-100)
     bottom_frame.grid_into(app.window, column=0, row=1, pady=20)
 
-    label = Label("Testalksdhlak")
+    label = Label("Choisissez l'option dans le menu: ")
     label.grid_into(top_frame, column=0,row=0)
-    menu = PopupMenu(["aasdasda","basfasdfada","csdfsdfsdfsd"])
+    menu = PopupMenu(["Premiere option","Deuxieme option","Troisieme option"])
     menu.grid_into(top_frame, column=1,row=0)
 
     view = MatplotlibView()
