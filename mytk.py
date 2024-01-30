@@ -21,28 +21,24 @@ class App:
     @property
     def foo(self):
         return self._foo
-    
-    @property
-    def main_window(self):
-        return self.window
-
-    @property
-    def root(self):
-        return self.main_window.root
-    
+        
     def mainloop(self):
-        self.root.mainloop()
+        self.window.main_widget.mainloop()
 
 class BaseView:
-    def __init__(self, master):
+    def __init__(self):
         self.main_widget = None
-        self.parent = master
+        self.master = None
 
-    def grid(self, **kwargs):
+    def grid_into(self, parent, **kwargs):
+        self.create_widget(parent.main_widget)
+
         if self.main_widget is not None:
             self.main_widget.grid(kwargs)
 
-    def pack(self, **kwargs):
+    def pack_into(self, parent, **kwargs):
+        self.create_widget(parent.main_widget)
+
         if self.main_widget is not None:
             self.main_widget.pack(kwargs)
 
@@ -56,35 +52,46 @@ class BaseView:
 
 class Window(BaseView):
     def __init__(self, geometry = None, title="Viewer"):
+        BaseView.__init__(self)
+
         if geometry is None:
             geometry = "1020x750"
         self.title = title
 
-        self.root = Tk()
-        self.root.geometry(geometry)
-        self.root.title(self.title)
-        BaseView.__init__(self, self.root)
+        self.main_widget = Tk()
+        self.main_widget.geometry(geometry)
+        self.main_widget.title(self.title)
+        self.main_widget.columnconfigure(0,weight=1)
+        self.main_widget.rowconfigure(1,weight=1)
+
 
 class View(BaseView):
-    def __init__(self, master, width, height):
-        BaseView.__init__(self, master)
-        self.frame = ttk.Frame(master, width=width, height=height)
-        self.main_widget = self.frame
+    def __init__(self, width, height):
+        BaseView.__init__(self)
+        self.view_width = width
+        self.view_height = height
+        self.main_widget = None
+
+    def create_widget(self, master):
+        self.main_widget  = ttk.Frame(master, width=self.view_width, height=self.view_height)
+
 
 class PopupMenu(BaseView):
-    def __init__(self, master, menu_items = None):
-        BaseView.__init__(self, master)
+    def __init__(self, menu_items = None):
+        BaseView.__init__(self)
 
         self.selected_index = None
         self.user_callback = None
-
+        self.menu_items = menu_items
+        self.menu = None
         self.text = StringVar(value="Select menu item")
+
+    def create_widget(self, master):
         self.menu = Menu(master, tearoff=0)
         self.main_widget = ttk.Menubutton(master, textvariable=self.text, text='All lenses', menu=self.menu)
 
-        if  menu_items is not None:
-            self.add_menu_items(menu_items)
-
+        if self.menu_items is not None:
+            self.add_menu_items(self.menu_items)
 
     def add_menu_items(self, menu_items, user_callback = None):
         self.menu_items = menu_items
@@ -100,25 +107,34 @@ class PopupMenu(BaseView):
             self.user_callback()
 
 class Label(BaseView):
-    def __init__(self, master, text=""):
-        BaseView.__init__(self, master)
-        self.main_widget = ttk.Label(master, text=text)
+    def __init__(self, text=""):
+        BaseView.__init__(self)
+        self.text = text
+
+    def create_widget(self, master):
+        self.main_widget = ttk.Label(master, text=self.text)
 
 class Entry(BaseView):
-    def __init__(self, master, text=""):
-        BaseView.__init__(self, master)
-        self.main_widget = ttk.Entry(master, text=text)
+    def __init__(self, text=""):
+        BaseView.__init__(self)
+        self.value = StringVar()
+
+    def create_widget(self, master):
+        self.main_widget = ttk.Entry(master, textvariable=self.value, text=text)
 
 
 class MatplotlibView(BaseView):
-    def __init__(self, master, figure=None):
-        BaseView.__init__(self, master)
+    def __init__(self, figure=None):
+        BaseView.__init__(self)
 
         if figure is None:
             self.figure = Figure(figsize=(10.2, 5.5), dpi=100)
         else:
             self.figure = figure
 
+        self.canvas = None
+
+    def create_widget(self, master):
         self.canvas = FigureCanvasTkAgg(self.figure, master=master)
         toolbar = NavigationToolbar2Tk(self.canvas, master, pack_toolbar=True)
         toolbar.update()
@@ -127,22 +143,20 @@ class MatplotlibView(BaseView):
 
 if __name__ == "__main__":
     app = App()
-    app.root.columnconfigure(0,weight=1)
-    app.root.rowconfigure(1,weight=1)
 
-    top_frame = View(app.root, width=1000,  height=100)
-    top_frame.grid(column=0, row=0, pady=20)
+    top_frame = View(width=1000,  height=100)
+    top_frame.grid_into(app.window, column=0, row=0, pady=20)
 
-    bottom_frame = View(app.root, width=1000,  height=600)
-    bottom_frame.grid(column=0, row=1, pady=20)
+    bottom_frame = View(width=1000,  height=600)
+    bottom_frame.grid_into(app.window, column=0, row=1, pady=20)
 
-    label = Label(top_frame.main_widget, "Testalksdhlak")
-    label.grid(column=0,row=0)
-    menu = PopupMenu(top_frame.main_widget, ["aasdasda","basfasdfada","csdfsdfsdfsd"])
-    menu.grid(column=1,row=0)
+    label = Label("Testalksdhlak")
+    label.grid_into(top_frame, column=0,row=0)
+    menu = PopupMenu(["aasdasda","basfasdfada","csdfsdfsdfsd"])
+    menu.grid_into(top_frame, column=1,row=0)
 
-    view = MatplotlibView(bottom_frame.main_widget)
-    view.pack()
+    view = MatplotlibView()
+    view.pack_into(bottom_frame)
     plot = view.figure.add_subplot()
     plot.plot([0,1,2,3], [4,5,6,7])
 
