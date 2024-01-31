@@ -1,7 +1,8 @@
 from tkinter import *
 from tkinter.messagebox import showerror, showwarning, showinfo
-
 import tkinter.ttk as ttk
+import tkinter.font as tkFont
+
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from functools import partial
@@ -10,7 +11,10 @@ import raytracing as rt
 import raytracing.thorlabs as thorlabs
 import raytracing.eo as eo
 from raytracing.figure import GraphicOf
+import webbrowser
 
+# debug_kwargs = {'borderwidth':2, 'relief':"groove"}
+debug_kwargs = {}
 
 class App:
     app = None
@@ -78,8 +82,8 @@ class View(BaseView):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Frame(master, width=self.original_width, height=self.original_height)
-
+        self.widget = ttk.Frame(master, width=self.original_width, height=self.original_height, **debug_kwargs)
+        self.widget.grid_propagate(0)
 
 class PopupMenu(BaseView):
     def __init__(self, menu_items=None, user_callback=None):
@@ -114,13 +118,47 @@ class PopupMenu(BaseView):
 
 
 class Label(BaseView):
-    def __init__(self, text=""):
+    def __init__(self, text=None):
         BaseView.__init__(self)
-        self.text = text
+        self.text_var = None
+        self._text = text
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, text=self.text)
+        self.text_var = StringVar()
+        self.widget = ttk.Label(master, textvariable=self.text_var, **debug_kwargs)
+        
+        if self._text is not None:
+            self.text_var.set(self._text)
+
+    @property
+    def text(self):
+        return self.text_var.get()
+
+    @text.setter
+    def text(self, value):
+        return self.text_var.set(value)
+    
+
+class URLLabel(Label):
+    def __init__(self, url = None, text = None):
+        if text is None:
+            text = url
+        Label.__init__(self, text)
+        self.url = url
+
+    def create_widget(self, master):
+        super().create_widget(master)
+
+        self.widget.bind("<Button>", lambda e:self.open_url())
+        font = tkFont.Font(self.widget, self.widget.cget("font"))
+        font.configure(underline = True)        
+        self.widget.configure(font=font)
+
+    def open_url(self):
+        print("URL", self.url)
+        webbrowser.open_new_tab(self.url)
+
 
 
 class Entry(BaseView):
@@ -130,7 +168,7 @@ class Entry(BaseView):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Entry(master, textvariable=self.value, text=text)
+        self.widget = ttk.Entry(master, textvariable=self.value, text=text, **debug_kwargs)
 
 
 class MPLFigure(BaseView):
@@ -188,9 +226,9 @@ class OpticalComponentViewer(App):
         self.label = None
         self.menu = None
         self.default_figsize = (7,5)
-        self.header = View(width=1000, height=25)
+        self.header = View(width=1450, height=100)
         self.header.grid_into(self.window, column=0, row=0, pady=5)
-        self.graphs = View(width=1000, height=500)
+        self.graphs = View(width=1450, height=500)
         self.graphs.grid_into(self.window, column=0, row=1, pady=50)
         self.component = None
         self.dispersion = None
@@ -198,16 +236,44 @@ class OpticalComponentViewer(App):
         self.lenses = {}
         self.build_lens_dict()
 
-        self.update_figure()
-
-        self.create_popupmenu("Sélectionnez une lentille:", list(self.lenses.keys()))
+        self.label = Label("Sélectionnez une lentille:")
+        self.menu = PopupMenu(list(self.lenses.keys()))
+        
+        self.label.grid_into(self.header, column=0, row=0, sticky=W)
+        self.menu.grid_into(self.header, column=1, row=0, sticky=W)
         self.menu.user_callback = self.selection_changed
 
-    def create_popupmenu(self, prompt, menu_items):
-        self.label = Label(prompt)
-        self.menu = PopupMenu(menu_items)
-        self.label.grid_into(self.header, column=0, row=0)
-        self.menu.grid_into(self.header, column=1, row=0)
+        # Lens info
+        self.title_part = Label("Part number")
+        self.title_ffl = Label("Front focal length [mm]")
+        self.title_bfl = Label("Back focal length [mm]")
+        self.title_efl = Label("Effective focal length [mm]")
+        self.title_design = Label("Design wavelength [nm]")
+        self.title_link = Label("URL")
+
+        self.title_part.grid_into(self.header, column=0, row=1, sticky=W, padx=10)
+        self.title_ffl.grid_into(self.header, column=1, row=1, sticky=W, padx=10)
+        self.title_bfl.grid_into(self.header, column=2, row=1, sticky=W, padx=10)
+        self.title_efl.grid_into(self.header, column=3, row=1, sticky=W, padx=10)
+        self.title_design.grid_into(self.header, column=4, row=1, sticky=W, padx=10)
+        self.title_link.grid_into(self.header, column=5, row=1, sticky=W, padx=10)
+
+
+        self.part = Label()
+        self.link = URLLabel()
+        self.ffl = Label()
+        self.bfl = Label()
+        self.efl = Label()
+        self.design = Label()
+
+        self.part.grid_into(self.header, column=0, row=2, padx=10, sticky=W)
+        self.ffl.grid_into(self.header, column=1, row=2, padx=10, sticky=W)
+        self.bfl.grid_into(self.header, column=2, row=2, padx=10, sticky=W)
+        self.efl.grid_into(self.header, column=3, row=2, padx=10, sticky=W)
+        self.design.grid_into(self.header, column=4, row=2, padx=10, sticky=W)
+        self.link.grid_into(self.header, column=5, row=2, padx=10, sticky=W)
+
+        self.update_figure()
 
     def update_figure(self, figure=None):
         if figure is not None:
@@ -244,6 +310,7 @@ class OpticalComponentViewer(App):
         lens_label = self.menu.menu_items[self.menu.selected_index]
         lens = self.lenses[lens_label]
         self.update_figures(lens)
+        self.update_info(lens)
 
     def update_figures(self, lens):
         graphic = GraphicOf(lens)
@@ -258,8 +325,21 @@ class OpticalComponentViewer(App):
         axis.set_ylabel(r"Focal shift [mm]")
         # axis.title(r"Lens: {0}, design f={1} mm at $\lambda$={2:.1f} nm".format(self.label, self.designFocalLength, self.wavelengthRef*1000))
 
+    def update_info(self, lens):
+        self.part.text = lens.label
+        self.bfl.text = "{0:.1f}".format(lens.backFocalLength())
+        self.ffl.text = "{0:.1f}".format(lens.frontFocalLength())
+        self.efl.text = "{0:.1f}".format(lens.effectiveFocalLengths()[0])
+        self.design.text = "{0:.1f}".format(lens.wavelengthRef*1000)
+        self.link.url = lens.url
+        self.link.text = lens.url
+
 
 if __name__ == "__main__":
     app = OpticalComponentViewer()
 
+    s = ttk.Style()
+    print(s.theme_use())
+
     app.mainloop()
+
