@@ -193,7 +193,7 @@ class TableView(BaseView):
             self.widget.heading(key, text=value)
 
     def append(self, values):
-        self.widget.insert('', END, values=values)
+        return self.widget.insert('', END, values=values)
 
 class MPLFigure(BaseView):
     def __init__(self, figure=None, figsize=None):
@@ -281,6 +281,7 @@ class OpticalComponentViewer(App):
             self.table.widget.column(column, width=150, anchor=W)
         self.table.widget.column("url", width=350, anchor=W)
 
+        iids = []
         for label, lens in self.lenses.items():
             if lens.wavelengthRef is not None:
                 wavelengthRef = "{0:.1f}".format(lens.wavelengthRef*1000)
@@ -295,7 +296,7 @@ class OpticalComponentViewer(App):
                 if lens.mat is not None:
                     materials = "{0}".format(str(lens.mat()))
 
-            self.table.append(values=(lens.label,
+            iid = self.table.append(values=(lens.label,
                                       "{0:.1f}".format(lens.backFocalLength()),
                                       "{0:.1f}".format(lens.frontFocalLength()),
                                       "{0:.1f}".format(lens.effectiveFocalLengths()[0]),
@@ -303,6 +304,9 @@ class OpticalComponentViewer(App):
                                       wavelengthRef,
                                       materials,
                                       lens.url))
+            iids.append(iid)
+
+        self.table.widget.selection_set(iids[0])
 
     def update_figure(self, figure=None):
         if figure is not None:
