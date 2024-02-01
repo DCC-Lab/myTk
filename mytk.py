@@ -13,7 +13,7 @@ import raytracing.eo as eo
 from raytracing.figure import GraphicOf
 import webbrowser
 
-# debug_kwargs = {'borderwidth':2, 'relief':"groove"}
+debug_kwargs = {'borderwidth':2, 'relief':"groove"}
 debug_kwargs = {}
 
 class App:
@@ -150,15 +150,25 @@ class URLLabel(Label):
     def create_widget(self, master):
         super().create_widget(master)
 
-        self.widget.bind("<Button>", lambda e:self.open_url())
+        if self.url is not None and self._text is None:
+            self.text_var.set(self.url)
+
+        self.widget.bind("<Button>", lambda fct:self.open_url())
         font = tkFont.Font(self.widget, self.widget.cget("font"))
         font.configure(underline = True)        
         self.widget.configure(font=font)
 
     def open_url(self):
-        print("URL", self.url)
         webbrowser.open_new_tab(self.url)
 
+class Box(BaseView):
+    def __init__(self, label=""):
+        BaseView.__init__(self)
+        self.label = label
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.LabelFrame(master, text=self.text, **debug_kwargs)
 
 
 class Entry(BaseView):
@@ -170,6 +180,20 @@ class Entry(BaseView):
         self.parent = master
         self.widget = ttk.Entry(master, textvariable=self.value, text=text, **debug_kwargs)
 
+class TableView(BaseView):
+    def __init__(self, columns):
+        BaseView.__init__(self)
+        self.columns = columns
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.Treeview(master, columns=list(self.columns.keys()),show='headings',selectmode="browse", takefocus=True)
+        self.widget.grid_propagate(0)
+        for key, value in self.columns.items():
+            self.widget.heading(key, text=value)
+
+    def append(self, values):
+        self.widget.insert('', END, values=values)
 
 class MPLFigure(BaseView):
     def __init__(self, figure=None, figsize=None):
@@ -220,60 +244,65 @@ class MPLFigure(BaseView):
 
 class OpticalComponentViewer(App):
     def __init__(self):
-        App.__init__(self, geometry="1450x650")
+        App.__init__(self, geometry="1450x750")
 
         self.window.widget.title("Lens viewer")
         self.label = None
         self.menu = None
         self.default_figsize = (7,5)
-        self.header = View(width=1450, height=100)
-        self.header.grid_into(self.window, column=0, row=0, pady=5)
-        self.graphs = View(width=1450, height=500)
-        self.graphs.grid_into(self.window, column=0, row=1, pady=50)
+        self.header = View(width=1450, height=200)
+        self.header.grid_into(self.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+        self.graphs = View(width=1450, height=700)
+        self.graphs.grid_into(self.window, column=0, row=1, pady=5, padx=5,  sticky="nsew")
         self.component = None
         self.dispersion = None
 
         self.lenses = {}
         self.build_lens_dict()
-
-        self.label = Label("Sélectionnez une lentille:")
-        self.menu = PopupMenu(list(self.lenses.keys()))
-        
-        self.label.grid_into(self.header, column=0, row=0, sticky=W)
-        self.menu.grid_into(self.header, column=1, row=0, sticky=W)
-        self.menu.user_callback = self.selection_changed
-
-        # Lens info
-        self.title_part = Label("Part number")
-        self.title_ffl = Label("Front focal length [mm]")
-        self.title_bfl = Label("Back focal length [mm]")
-        self.title_efl = Label("Effective focal length [mm]")
-        self.title_design = Label("Design wavelength [nm]")
-        self.title_link = Label("URL")
-
-        self.title_part.grid_into(self.header, column=0, row=1, sticky=W, padx=10)
-        self.title_ffl.grid_into(self.header, column=1, row=1, sticky=W, padx=10)
-        self.title_bfl.grid_into(self.header, column=2, row=1, sticky=W, padx=10)
-        self.title_efl.grid_into(self.header, column=3, row=1, sticky=W, padx=10)
-        self.title_design.grid_into(self.header, column=4, row=1, sticky=W, padx=10)
-        self.title_link.grid_into(self.header, column=5, row=1, sticky=W, padx=10)
-
-
-        self.part = Label()
-        self.link = URLLabel()
-        self.ffl = Label()
-        self.bfl = Label()
-        self.efl = Label()
-        self.design = Label()
-
-        self.part.grid_into(self.header, column=0, row=2, padx=10, sticky=W)
-        self.ffl.grid_into(self.header, column=1, row=2, padx=10, sticky=W)
-        self.bfl.grid_into(self.header, column=2, row=2, padx=10, sticky=W)
-        self.efl.grid_into(self.header, column=3, row=2, padx=10, sticky=W)
-        self.design.grid_into(self.header, column=4, row=2, padx=10, sticky=W)
-        self.link.grid_into(self.header, column=5, row=2, padx=10, sticky=W)
+        self.build_table()
 
         self.update_figure()
+
+    def build_table(self):
+        self.columns = {"label":"Part number",
+                        "backFocalLength":"Front focal length [mm]",
+                        "frontFocalLength":"Back focal length [mm]",
+                        "effectiveFocalLengths":"Effective focal length [mm]",
+                        "apertureDiameter":"Diameter [mm]",
+                        "wavelengthRef":"Design wavelength [nm]",
+                        "materials":"Material(s)",
+                        "url":"URL"
+                        }
+        self.table = TableView(columns=self.columns)
+        self.table.grid_into(self.header, sticky="nsew", padx=5)
+        self.table.widget.bind('<<TreeviewSelect>>', self.selection_changed)
+        
+        for column in self.columns:
+            self.table.widget.column(column, width=150, anchor=W)
+        self.table.widget.column("url", width=350, anchor=W)
+
+        for label, lens in self.lenses.items():
+            if lens.wavelengthRef is not None:
+                wavelengthRef = "{0:.1f}".format(lens.wavelengthRef*1000)
+            else:
+                wavelengthRef = "N/A"
+
+            materials = ""
+            if isinstance(lens, rt.AchromatDoubletLens):
+                if lens.mat1 is not None and lens.mat2 is not None:
+                    materials = "{0}/{1}".format(str(lens.mat1()), str(lens.mat2()))
+            elif isinstance(lens, rt.SingletLens):
+                if lens.mat is not None:
+                    materials = "{0}".format(str(lens.mat()))
+
+            self.table.append(values=(lens.label,
+                                      "{0:.1f}".format(lens.backFocalLength()),
+                                      "{0:.1f}".format(lens.frontFocalLength()),
+                                      "{0:.1f}".format(lens.effectiveFocalLengths()[0]),
+                                      "{0:.1f}".format(lens.apertureDiameter),
+                                      wavelengthRef,
+                                      materials,
+                                      lens.url))
 
     def update_figure(self, figure=None):
         if figure is not None:
@@ -301,45 +330,46 @@ class OpticalComponentViewer(App):
                     class_ = getattr(module, lens)
                     lens = class_()
                     f1, f2 = lens.effectiveFocalLengths()
-                    label = "{0:s} [f={1:.1f} mm]".format(lens.label, f1)
-                    self.lenses[label] = lens
-                except:
+                    self.lenses[lens.label] = lens
+                except Exception as err:
                     pass
 
-    def selection_changed(self):
-        lens_label = self.menu.menu_items[self.menu.selected_index]
-        lens = self.lenses[lens_label]
-        self.update_figures(lens)
-        self.update_info(lens)
+    def selection_changed(self, event):
+        for selected_item in self.table.widget.selection():
+            item = self.table.widget.item(selected_item)
+            record = item['values']
+            lens = self.lenses[record[0]] #label
+            self.update_figures(lens)
 
     def update_figures(self, lens):
         graphic = GraphicOf(lens)
         self.figure = graphic.drawFigure().figure
         self.figure.set_size_inches((5,5), forward=True)
 
-        wavelengths, focalShifts = lens.focalShifts()
+        try:
+            wavelengths, focalShifts = lens.focalShifts()
 
-        axis = self.dispersion.figure.add_subplot()
-        axis.plot(wavelengths, focalShifts,'k-')
-        axis.set_xlabel(r"Wavelength [nm]")
-        axis.set_ylabel(r"Focal shift [mm]")
-        # axis.title(r"Lens: {0}, design f={1} mm at $\lambda$={2:.1f} nm".format(self.label, self.designFocalLength, self.wavelengthRef*1000))
+            axis = self.dispersion.figure.add_subplot()
+            axis.plot(wavelengths, focalShifts,'k-')
+            axis.set_xlabel(r"Wavelength [nm]")
+            axis.set_ylabel(r"Focal shift [mm]")
+        except Exception as err:
+            pass
 
     def update_info(self, lens):
         self.part.text = lens.label
         self.bfl.text = "{0:.1f}".format(lens.backFocalLength())
         self.ffl.text = "{0:.1f}".format(lens.frontFocalLength())
         self.efl.text = "{0:.1f}".format(lens.effectiveFocalLengths()[0])
+        self.diameter.text = "{0:.0f}".format(lens.apertureDiameter)
         self.design.text = "{0:.1f}".format(lens.wavelengthRef*1000)
         self.link.url = lens.url
         self.link.text = lens.url
 
 
 if __name__ == "__main__":
+    rt.silentMode()
+
     app = OpticalComponentViewer()
-
-    s = ttk.Style()
-    print(s.theme_use())
-
     app.mainloop()
 
