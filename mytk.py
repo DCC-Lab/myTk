@@ -16,6 +16,9 @@ import webbrowser
 debug_kwargs = {'borderwidth':2, 'relief':"groove"}
 debug_kwargs = {}
 
+def donothing():
+    pass
+
 class App:
     app = None
 
@@ -26,9 +29,46 @@ class App:
 
     def __init__(self, geometry=None):
         self.window = Window(geometry)
+        self.create_menu()
 
     def mainloop(self):
         self.window.widget.mainloop()
+
+    def create_menu(self):
+        root = self.window.widget
+        menubar = Menu(root)
+
+        appmenu = Menu(menubar, name='apple')
+        menubar.add_cascade(menu=appmenu)
+        appmenu.add_command(label='About Lens Viewer')
+        appmenu.add_separator()
+
+        filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label="New", command=donothing)
+        filemenu.add_command(label="Open", command=donothing)
+        filemenu.add_command(label="Save", command=donothing)
+        filemenu.add_command(label="Save as...", command=donothing)
+        filemenu.add_command(label="Close", command=donothing)
+
+        filemenu.add_separator()
+        filemenu.add_command(label="Quit", command=root.quit)
+        menubar.add_cascade(label="File", menu=filemenu)
+        editmenu = Menu(menubar, tearoff=0)
+        editmenu.add_command(label="Undo", command=donothing)
+        editmenu.add_separator()
+        editmenu.add_command(label="Cut", command=donothing)
+        editmenu.add_command(label="Copy", command=donothing)
+        editmenu.add_command(label="Paste", command=donothing)
+        editmenu.add_command(label="Delete", command=donothing)
+        editmenu.add_command(label="Select All", command=donothing)
+
+        menubar.add_cascade(label="Edit", menu=editmenu)
+        helpmenu = Menu(menubar, tearoff=0)
+        helpmenu.add_command(label="Help Index", command=donothing)
+        helpmenu.add_command(label="About...", command=donothing)
+        menubar.add_cascade(label="Help", menu=helpmenu)
+
+        root.config(menu=menubar)
 
 
 class BaseView:
@@ -73,6 +113,14 @@ class Window(BaseView):
         self.widget.columnconfigure(0, weight=1)
         self.widget.rowconfigure(1, weight=1)
 
+    @property
+    def resizable(self):
+        return self.window
+
+    @resizable.setter
+    def resizable(self, value):
+        return self.widget.resizable(value, value)
+    
 
 class View(BaseView):
     def __init__(self, width, height):
@@ -192,8 +240,50 @@ class TableView(BaseView):
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
 
+        self.widget.bind("<Button>", self.click)
+
     def append(self, values):
         return self.widget.insert('', END, values=values)
+
+    def click(self, event):        
+        region = self.widget.identify_region(event.x, event.y)
+        if region == "heading":
+            column_id = self.widget.identify_column(event.x)
+            self.sort(column_id = int(column_id.strip('#')))
+        elif region == "cell":
+            column_id = self.widget.identify_column(event.x).strip('#')
+            item_id = self.widget.identify_row(event.y)
+            self.click_cell(item_id = item_id,column_id = int(column_id))
+
+    def click_cell(self, item_id, column_id):
+        item_dict = self.widget.item(item_id)
+
+        value = item_dict['values'][column_id-1]
+        if value.startswith('http'):
+            webbrowser.open(value)
+
+    def sort(self, column_id):
+        items_ids = self.widget.get_children()
+        self.widget.detach(*items_ids)
+
+        items = []
+
+        cast = float
+        for item_id in items_ids:
+            item_dict = self.widget.item(item_id)
+            value = None
+            try:
+                value = item_dict['values'][column_id-1]
+                cast(value)
+            except Exception as err:
+                cast = str
+            items.append(item_dict)
+
+        items_sorted = sorted(items, key=lambda d: cast(d['values'][column_id-1]))
+        
+        for item in items_sorted:
+            self.append(values=item['values'])
+
 
 class MPLFigure(BaseView):
     def __init__(self, figure=None, figsize=None):
@@ -247,6 +337,7 @@ class OpticalComponentViewer(App):
         App.__init__(self, geometry="1450x750")
 
         self.window.widget.title("Lens viewer")
+        self.window.resizable = False
         self.label = None
         self.menu = None
         self.default_figsize = (7,5)
