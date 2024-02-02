@@ -13,11 +13,6 @@ import pyperclip
 debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
-
-def donothing():
-    pass
-
-
 class App:
     app = None
 
