@@ -9,6 +9,7 @@ class OpticalComponentViewer(App):
     def __init__(self):
         App.__init__(self, geometry="1450x750")
 
+
         self.window.widget.title("Lens viewer")
         self.window.resizable = False
         self.label = None
@@ -156,4 +157,10 @@ class OpticalComponentViewer(App):
 if __name__ == "__main__":
     rt.silentMode()
     app = OpticalComponentViewer()
-    app.mainloop()
+
+    from packaging.version import Version
+    if Version(rt.__version__) <= Version("1.3.10"):
+        showerror(title="Minimum Raytracing version", message="You need at least Raytracing 1.3.11 to run the lens viewer", icon=ERROR)
+    else:
+        app.mainloop()
+
