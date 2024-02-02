@@ -61,6 +61,10 @@ class App:
     def help(self):
         pass
 
+    def quit(self):
+        root = self.window.widget
+        root.quit()
+
 
 class BaseView:
     def __init__(self):
