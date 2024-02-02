@@ -313,8 +313,10 @@ class MPLFigure(BaseView):
 
     @figure.setter
     def figure(self, figure):
-        # HACK : For now, we need to destroy the old widget and canvas
+        if self._figure is not None:
+            self._figure.close()
         self._figure = figure
+        # HACK : For now, we need to destroy the old widget and canvas
         self.create_widget(self.parent)
 
     @property
@@ -369,7 +371,7 @@ class OpticalComponentViewer(App):
         self.table.widget.bind('<<TreeviewSelect>>', self.selection_changed)
         
         for column in self.columns:
-            self.table.widget.column(column, width=150, anchor=W)
+            self.table.widget.column(column, width=150, anchor=CENTER)
         self.table.widget.column("url", width=350, anchor=W)
 
         iids = []
