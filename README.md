@@ -18,6 +18,10 @@ Therefore, I sought to make Tkinter a bit more mac-like because many design patt
 parent of the UI-element to be specified at creation, even though it should not be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore 
 I implemented a simple delegate pattern to handle many cases by default, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
 
+## Layout manager
+The most important aspect to understand with Tk is how to position things on screen. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid will adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`sticky`). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
+
+
 ## Classes
 
 Anything visible on screen is a referred to as a View, except the Window.
@@ -153,9 +157,9 @@ class OpticalComponentViewer(App):
     def update_figure(self, figure=None):
         if figure is not None:
             figure.set_size_inches(self.default_figsize)
-        self.component = MPLFigure(figure, figsize=self.default_figsize)
+        self.component = Figure(figure, figsize=self.default_figsize)
         self.component.grid_into(self.graphs, column=0, row=0, padx=5)
-        self.dispersion = MPLFigure(figsize=self.default_figsize)
+        self.dispersion = Figure(figsize=self.default_figsize)
         self.dispersion.grid_into(self.graphs, column=1, row=0, padx=5)
 
     @property
@@ -225,6 +229,5 @@ if __name__ == "__main__":
         showerror(title="Minimum Raytracing version", message="You need at least Raytracing 1.3.11 to run the lens viewer", icon=ERROR)
     else:
         app.mainloop()
-
 
 ```
