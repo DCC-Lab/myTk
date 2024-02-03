@@ -18,6 +18,33 @@ Therefore, I sought to make Tkinter a bit more mac-like because many design patt
 parent of the UI-element to be specified at creation, even though it should not be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore 
 I implemented a simple delegate pattern to handle many cases by default, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
 
+## Classes
+
+Anything visible on screen is a referred to as a View, except the Window.
+
+`App`: The main Application class, that holds the reference to the main window.
+
+`Window`: A window that can hold other views
+
+`BaseView`: A class grouping functions common to all View classes
+
+`View`: A plain, empty view. It can be used as a container for other views in grid, so that the View is a single element of the grid even if it holds several elements itself also in a grid.
+
+`PopupMenu`: A popup menu button to select an item in a list
+
+`Label`: Static Onscreen text 
+
+`URLLabel`: Static URL that can be clicked and opened in your webbrowser.
+
+`Box`: A box with an optional title at the top and possibly an outline
+
+`Entry`: An entry box for single line text
+
+`TableView`: A Table of items
+
+`MPLFigure`: A matplotlib figure
+
+
 ## Examples
 
 The following interface to the module ["Raytracing"](https://github.com/DCC-Lab/RayTracing) was created with **myTk**.  It shows a list of lenses with their properties in a Tableview, clicking on the headers will sort the rows, clicking on a link will open the URL
@@ -194,31 +221,3 @@ if __name__ == "__main__":
 
 
 ```
-
-
-## Classes
-
-Anything visible on screen is a referred to as a View, except the Window.
-
-`App`: The main Application class, that holds the reference to the main window.
-
-`Window`: A window that can hold other views
-
-`BaseView`: A class grouping functions common to all View classes
-
-`View`: A plain, empty view. It can be used as a container for other views in grid, so that the View is a single element of the grid even if it holds several elements itself also in a grid.
-
-`PopupMenu`: A popup menu button to select an item in a list
-
-`Label`: Static Onscreen text 
-
-`URLLabel`: Static URL that can be clicked and opened in your webbrowser.
-
-`Box`: A box with an optional title at the top and possibly an outline
-
-`Entry`: An entry box for single line text
-
-`TableView`: A Table of items
-
-`MPLFigure`: A matplotlib figure
-
