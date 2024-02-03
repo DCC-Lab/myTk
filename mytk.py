@@ -3,7 +3,7 @@ from tkinter.messagebox import showerror, showwarning, showinfo
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from functools import partial
 
@@ -12,6 +12,7 @@ import pyperclip
 
 debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
+
 
 class App:
     app = None
@@ -23,7 +24,19 @@ class App:
 
     def __init__(self, geometry=None):
         self.window = Window(geometry)
+        self.check_requirements()
         self.create_menu()
+
+    def check_requirements(self):
+        import platform
+
+        mac_version = platform.mac_ver()[0]
+        python_version = platform.python_version()
+
+        if mac_version >= "14" and python_version < "3.12":
+            showwarning(
+                message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
+            )
 
     def mainloop(self):
         self.window.widget.mainloop()
@@ -34,7 +47,7 @@ class App:
 
         appmenu = Menu(menubar, name="apple")
         menubar.add_cascade(menu=appmenu)
-        appmenu.add_command(label="About Lens Viewer", command=self.about)
+        appmenu.add_command(label="About This App", command=self.about)
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
@@ -66,7 +79,7 @@ class App:
         root.quit()
 
 
-class BaseView:
+class Base:
     def __init__(self):
         self.widget = None
         self.parent = None
@@ -94,9 +107,9 @@ class BaseView:
         return self.widget["height"]
 
 
-class Window(BaseView):
+class Window(Base):
     def __init__(self, geometry=None, title="Untitled"):
-        BaseView.__init__(self)
+        Base.__init__(self)
 
         if geometry is None:
             geometry = "1020x750"
@@ -117,9 +130,9 @@ class Window(BaseView):
         return self.widget.resizable(value, value)
 
 
-class View(BaseView):
+class View(Base):
     def __init__(self, width, height):
-        BaseView.__init__(self)
+        Base.__init__(self)
         self.original_width = width
         self.original_height = height
 
@@ -134,9 +147,9 @@ class View(BaseView):
         self.widget.grid_propagate(0)
 
 
-class PopupMenu(BaseView):
+class PopupMenu(Base):
     def __init__(self, menu_items=None, user_callback=None):
-        BaseView.__init__(self)
+        Base.__init__(self)
 
         self.selected_index = None
         self.user_callback = user_callback
@@ -170,9 +183,9 @@ class PopupMenu(BaseView):
             self.user_callback()
 
 
-class Label(BaseView):
+class Label(Base):
     def __init__(self, text=None):
-        BaseView.__init__(self)
+        Base.__init__(self)
         self.text_var = None
         self._text = text
 
@@ -215,31 +228,31 @@ class URLLabel(Label):
         webbrowser.open_new_tab(self.url)
 
 
-class Box(BaseView):
+class Box(Base):
     def __init__(self, label=""):
-        BaseView.__init__(self)
+        Base.__init__(self)
         self.label = label
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.LabelFrame(master, text=self.text, **debug_kwargs)
+        self.widget = ttk.LabelFrame(master, text=self.label, **debug_kwargs)
 
 
-class Entry(BaseView):
+class Entry(Base):
     def __init__(self, text=""):
-        BaseView.__init__(self)
+        Base.__init__(self)
         self.value = StringVar()
+        self.text = text
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Entry(
-            master, textvariable=self.value, text=text, **debug_kwargs
-        )
+        self.widget = ttk.Entry(master, textvariable=self.value, **debug_kwargs)
+        self.value.set(self.text)
 
 
-class TableView(BaseView):
+class TableView(Base):
     def __init__(self, columns):
-        BaseView.__init__(self)
+        Base.__init__(self)
         self.columns = columns
         self.delegate = None
 
@@ -383,9 +396,9 @@ class TableView(BaseView):
                 pass
 
 
-class MPLFigure(BaseView):
+class Figure(Base):
     def __init__(self, figure=None, figsize=None):
-        BaseView.__init__(self)
+        Base.__init__(self)
 
         self._figure = figure
         self.figsize = figsize
@@ -397,7 +410,7 @@ class MPLFigure(BaseView):
     def create_widget(self, master):
         self.parent = master
         if self.figure is None:
-            self.figure = Figure(figsize=self.figsize, dpi=100)
+            self.figure = MPLFigure(figsize=self.figsize, dpi=100)
 
         self.canvas = FigureCanvasTkAgg(self.figure, master=master)
         self.widget = self.canvas.get_tk_widget()
@@ -430,3 +443,57 @@ class MPLFigure(BaseView):
         if self.figure is not None:
             return self.figure.axes
         return None
+
+
+if __name__ == "__main__":
+    app = App()
+
+    # You would typically put this into the__init__ of your subclass of App:
+    app.window.widget.title("Example application myTk")
+    label1 = Label("This is a label in grid position (0,0)")
+    label1.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+
+    view = View(width=100, height=100)
+    view.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="nsew")
+
+    label2 = Label("This is another label in grid position (1,1)")
+    label2.grid_into(view, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    entry1 = Entry()
+    entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="nsew")
+
+    entry2 = Entry(text="initial text")
+    entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="nsew")
+
+    url1 = URLLabel("http://www.python.org")
+    url1.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="nsew")
+    url2 = URLLabel(url="http://www.python.org", text="The text can be something else")
+    url2.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
+
+    popup = PopupMenu(menu_items=["Option 1", "Option 2", "Option 3"])
+    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="nsew")
+
+    box = Box("Some title on top of a box at grid position (1,0)")
+    box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
+
+    columns = {"column1": "Column #1", "name": "The name", "url": "Clickable URL"}
+    table = TableView(columns=columns)
+    table.grid_into(box, column=0, row=0, pady=5, padx=5, sticky="nsew")
+
+    for i in range(10):
+        table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
+
+    figure1 = Figure(figsize=(3, 3))
+    figure1.grid_into(app.window, column=2, row=1, pady=5, padx=5)
+    axis = figure1.figure.add_subplot()
+    axis.plot([1, 2, 3], [4, 5, 6])
+    axis.set_title("The plot in grid position (2,1)")
+
+    some_fig = MPLFigure(figsize=(3, 3))
+    axis = some_fig.add_subplot()
+    axis.plot([1, 2, 3], [-4, -5, -6])
+    axis.set_title("You can provide your plt.figure")
+
+    figure2 = Figure(figure=some_fig)
+    figure2.grid_into(app.window, column=2, row=2, pady=5, padx=5)
+
+    app.mainloop()
