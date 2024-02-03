@@ -91,9 +91,9 @@ class OpticalComponentViewer(App):
     def update_figure(self, figure=None):
         if figure is not None:
             figure.set_size_inches(self.default_figsize)
-        self.component = MPLFigure(figure, figsize=self.default_figsize)
+        self.component = Figure(figure, figsize=self.default_figsize)
         self.component.grid_into(self.graphs, column=0, row=0, padx=5)
-        self.dispersion = MPLFigure(figsize=self.default_figsize)
+        self.dispersion = Figure(figsize=self.default_figsize)
         self.dispersion.grid_into(self.graphs, column=1, row=0, padx=5)
 
     @property
