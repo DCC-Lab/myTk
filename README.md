@@ -40,12 +40,19 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Entry`: An entry box for single line text
 
-`TableView`: A Table of items
+`TableView`: A Table of items. You provide headers and items in list. If a cell is a URL, it is clickable. Currently, the table is not editable.
 
-`MPLFigure`: A matplotlib figure
+`Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
 
 ## Examples
+
+### Example 1: Demo of capabilities
+The myTk code includes an example:
+<img width="1021" alt="image" src="https://github.com/DCC-Lab/myTk/assets/14200944/da29e45f-3a01-4a96-bc75-28a03f82607d">
+
+
+### Example 2: Raytracing lens viewer
 
 The following interface to the module ["Raytracing"](https://github.com/DCC-Lab/RayTracing) was created with **myTk**.  It shows a list of lenses with their properties in a Tableview, clicking on the headers will sort the rows, clicking on a link will open the URL
 in a browser.  The figures underneath will reflect the properties of the selected item.
