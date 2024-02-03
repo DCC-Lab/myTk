@@ -1,4 +1,5 @@
-# myTk
+# myTk 
+by Daniel C. Côté
 
 ## What is it?
 Making a UI interface should not be complicated. **myTk** is a set of UI classes that simplifies the use of Tkinter to make simple (and not so simple) GUIs in Python.
@@ -44,7 +45,7 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Entry`: An entry box for single line text
 
-`TableView`: A Table of items. You provide headers and items in list. If a cell is a URL, it is clickable. Currently, the table is not editable.
+`TableView`: A Table of items. You provide headers and items in list. You can sort columns by clicking on the header. Headers can also be used to resize the columns. If a cell is a URL, it is clickable. Currently, the table is not editable.
 
 `Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
