@@ -3,14 +3,17 @@ from tkinter.messagebox import showerror, showwarning, showinfo
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 
-from matplotlib.figure import Figure as MPLFigure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from functools import partial
 
+from matplotlib.figure import Figure as MPLFigure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+
+import PIL
 import webbrowser
 import pyperclip
+import platform
 
-debug_kwargs = {"borderwidth": 2, "relief": "groove"}
+# debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
 
@@ -28,8 +31,6 @@ class App:
         self.create_menu()
 
     def check_requirements(self):
-        import platform
-
         mac_version = platform.mac_ver()[0]
         python_version = platform.python_version()
 
@@ -69,7 +70,7 @@ class App:
         root.config(menu=menubar)
 
     def about(self):
-        pass
+        showinfo(title="About this App", message="Created with myTk")
 
     def help(self):
         pass
@@ -88,8 +89,18 @@ class Base:
         self.create_widget(master=parent.widget)
         self.parent = parent
 
+        column = 0
+        if "column" in kwargs.keys():
+            column = kwargs["column"]
+
+        row = 0
+        if "row" in kwargs.keys():
+            row = kwargs["row"]
+
         if self.widget is not None:
             self.widget.grid(kwargs)
+        self.widget.grid_rowconfigure(row, weight=1)
+        self.widget.grid_columnconfigure(column, weight=1)
 
     def pack_into(self, parent, **kwargs):
         self.create_widget(master=parent.widget)
@@ -98,6 +109,33 @@ class Base:
         if self.widget is not None:
             self.widget.pack(kwargs)
 
+    def bind(self, event, callback):
+        self.bind(event, callback)
+
+    def generate_event(self, event:str):
+        self.widget.generate_event(event)
+
+    @property
+    def grid_size(self):
+        return self.widget.grid_size()
+
+    def all_resize_weight(self, weight):
+        cols, rows = self.grid_size
+        for i in range(cols):
+            self.column_resize_weight(i, weight)
+
+        for j in range(rows):
+            self.row_resize_weight(j, weight)
+
+    def column_resize_weight(self, index, weight):
+        self.widget.columnconfigure(index, weight=weight)
+
+    def row_resize_weight(self, index, weight):
+        self.widget.rowconfigure(index, weight=weight)
+
+    def grid_propagate(self, value):
+        self.widget.grid_propagate(value)
+
     @property
     def width(self):
         return self.widget["width"]
@@ -105,6 +143,7 @@ class Base:
     @property
     def height(self):
         return self.widget["height"]
+
 
 
 class Window(Base):
@@ -118,8 +157,9 @@ class Window(Base):
         self.widget = Tk()
         self.widget.geometry(geometry)
         self.widget.title(self.title)
-        self.widget.columnconfigure(0, weight=1)
-        self.widget.rowconfigure(1, weight=1)
+
+        self.widget.grid_columnconfigure(0, weight=1)
+        self.widget.grid_rowconfigure(0, weight=1)
 
     @property
     def resizable(self):
@@ -128,7 +168,6 @@ class Window(Base):
     @resizable.setter
     def resizable(self, value):
         return self.widget.resizable(value, value)
-
 
 class View(Base):
     def __init__(self, width, height):
@@ -246,7 +285,7 @@ class Entry(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Entry(master, textvariable=self.value, **debug_kwargs)
+        self.widget = ttk.Entry(master, textvariable=self.value)
         self.value.set(self.text)
 
 
@@ -395,6 +434,18 @@ class TableView(Base):
             except:
                 pass
 
+class Image(Base):
+    def __init__(self, filepath = None, image = None):
+        Base.__init__(self)
+        if filepath is not None:
+            self.photo = PIL.ImageTk.PhotoImage(file=filepath) 
+        else:
+            self.photo = PIL.ImageTk.PhotoImage(image=image) 
+        # Must keep a reference to PhotoImage, see: 
+        #https://stackoverflow.com/questions/16424091/why-does-tkinter-image-not-show-up-if-created-in-a-function
+
+    def create_widget(self, master):
+        self.widget = ttk.Label(master, image=self.photo)
 
 class Figure(Base):
     def __init__(self, figure=None, figsize=None):
@@ -450,22 +501,24 @@ if __name__ == "__main__":
 
     # You would typically put this into the__init__ of your subclass of App:
     app.window.widget.title("Example application myTk")
+
     label1 = Label("This is a label in grid position (0,0)")
-    label1.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    label1.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
 
     view = View(width=100, height=100)
     view.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="nsew")
-
+    view.grid_propagate(True)
+    view.widget.grid_columnconfigure(0, weight=2)
+    app.window.widget.grid_columnconfigure(1, weight=1)
     label2 = Label("This is another label in grid position (1,1)")
     label2.grid_into(view, column=0, row=0, pady=5, padx=5, sticky="nsew")
     entry1 = Entry()
-    entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="nsew")
-
+    entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="ew")
     entry2 = Entry(text="initial text")
-    entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="nsew")
+    entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="ew")
 
     url1 = URLLabel("http://www.python.org")
-    url1.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="nsew")
+    url1.grid_into(app.window, column=0, row=2, pady=5, padx=5)
     url2 = URLLabel(url="http://www.python.org", text="The text can be something else")
     url2.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
 
@@ -473,11 +526,11 @@ if __name__ == "__main__":
     popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="nsew")
 
     box = Box("Some title on top of a box at grid position (1,0)")
-    box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
+    box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="ew")
 
     columns = {"column1": "Column #1", "name": "The name", "url": "Clickable URL"}
     table = TableView(columns=columns)
-    table.grid_into(box, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    table.grid_into(box, column=0, row=0, pady=5, padx=5, sticky="ew")
 
     for i in range(10):
         table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
@@ -495,5 +548,14 @@ if __name__ == "__main__":
 
     figure2 = Figure(figure=some_fig)
     figure2.grid_into(app.window, column=2, row=2, pady=5, padx=5)
+
+    view3 = View(width=100, height=100)
+    view3.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    
+    image = Image("logo.png")
+    image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
+
+    app.window.all_resize_weight(1)
+
 
     app.mainloop()

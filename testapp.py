@@ -9,7 +9,6 @@ class OpticalComponentViewer(App):
     def __init__(self):
         App.__init__(self, geometry="1450x750")
 
-
         self.window.widget.title("Lens viewer")
         self.window.resizable = False
         self.label = None
@@ -23,6 +22,8 @@ class OpticalComponentViewer(App):
         self.graphs.grid_into(
             self.window, column=0, row=1, pady=5, padx=5, sticky="nsew"
         )
+        self.window.row_resize_weight(0, 0)
+        self.window.row_resize_weight(1, 0)
         self.component = None
         self.dispersion = None
 
@@ -31,6 +32,7 @@ class OpticalComponentViewer(App):
         self.build_table()
 
         self.update_figure()
+
 
     def build_table(self):
         self.columns = {
