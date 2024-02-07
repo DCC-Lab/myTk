@@ -84,6 +84,7 @@ class Base:
     def __init__(self):
         self.widget = None
         self.parent = None
+        self.value_variable = None
 
     def grid_into(self, parent=None, widget=None, **kwargs):
         if widget is not None:
@@ -111,11 +112,21 @@ class Base:
         if self.widget is not None:
             self.widget.pack(kwargs)
 
-    def bind(self, event, callback):
+    def bind_event(self, event, callback):
         self.bind(event, callback)
 
     def generate_event(self, event:str):
         self.widget.generate_event(event)
+
+    def bind_textvariable(self, variable):
+        if self.widget is not None:
+            self.value_variable = variable
+            self.widget.configure(textvariable=variable)
+
+    def bind_variable(self, variable):
+        if self.widget is not None:
+            self.value_variable = variable
+            self.widget.configure(variable=variable)
 
     @property
     def grid_size(self):
@@ -203,14 +214,14 @@ class PopupMenu(Base):
         self.user_callback = user_callback
         self.menu_items = menu_items
         self.menu = None
-        self.text = StringVar(value="Select menu item")
 
     def create_widget(self, master):
         self.parent = master
         self.menu = Menu(master, tearoff=0)
         self.widget = ttk.Menubutton(
-            master, textvariable=self.text, text="All lenses", menu=self.menu
+            master, text="All lenses", menu=self.menu
         )
+        self.bind_textvariable(StringVar(value="Select menu item"))
 
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
@@ -225,7 +236,7 @@ class PopupMenu(Base):
 
     def selection_changed(self, selected_index):
         self.selected_index = selected_index
-        self.text.set(value=self.menu_items[self.selected_index])
+        self.value_variable.set(value=self.menu_items[self.selected_index])
 
         if self.user_callback is not None:
             self.user_callback()
@@ -235,12 +246,11 @@ class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
         self._text = text
-        self.value_variable = None #Keep
 
     def create_widget(self, master):
         self.parent = master
-        self.value_variable = StringVar(value=self._text)
-        self.widget = ttk.Label(master, textvariable=self.value_variable, **debug_kwargs)
+        self.widget = ttk.Label(master, **debug_kwargs)
+        self.bind_textvariable(StringVar(self.widget, value=self._text))
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
@@ -275,23 +285,16 @@ class Box(Base):
         self.parent = master
         self.widget = ttk.LabelFrame(master, width=self.width, height=self.height, text=self.label, **debug_kwargs)
 
-
 class Entry(Base):
     def __init__(self, text=""):
         Base.__init__(self)
         self.initial_text = text
-        self.value_variable = None
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Entry(master)
 
-        self.bind_to_textvariable(StringVar(self.widget))
-
-    def bind_to_textvariable(self, variable):
-        if self.widget is not None:
-            self.value_variable = variable
-            self.widget.configure(textvariable=variable)
+        self.bind_textvariable(StringVar(self.widget, value=self.initial_text))
 
 class NumericEntry(Base):
     def __init__(self, text="", minimum=0, maximum=100, increment=1, delegate=None):
@@ -300,17 +303,11 @@ class NumericEntry(Base):
         self.minimum = minimum
         self.maximum = maximum
         self.increment = increment
-        self.value_variable = None
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Spinbox(master, from_=self.minimum, to=self.maximum, increment=self.increment)
-        self.bind_to_textvariable(DoubleVar(self.widget))
-        
-    def bind_to_textvariable(self, variable):
-        if self.widget is not None:
-            self.value_variable = variable
-            self.widget.configure(textvariable=variable)
+        self.bind_textvariable(DoubleVar(self.widget))
 
 
 class TableView(Base):
