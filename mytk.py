@@ -456,10 +456,17 @@ class TableView(Base):
                 pass
 
 class Image(Base):
-    def __init__(self, filepath = None, image = None):
+    def __init__(self, filepath = None, url=None, image = None):
         Base.__init__(self)
         if filepath is not None:
             self.photo = PIL.ImageTk.PhotoImage(file=filepath) 
+        elif url is not None:
+            import requests
+            from io import BytesIO  
+
+            response = requests.get(url)
+            image = PIL.Image.open(BytesIO(response.content))
+            self.photo = PIL.ImageTk.PhotoImage(image=image) 
         else:
             self.photo = PIL.ImageTk.PhotoImage(image=image) 
         # Must keep a reference to PhotoImage, see: 

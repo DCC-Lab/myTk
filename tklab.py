@@ -82,23 +82,25 @@ class XYPlot(Figure):
         self.x = self.x[-self.x_range:-1]
         self.y = self.y[-self.x_range:-1]
 
-class SliderLevel(Base):
-    def __init__(self, maximum=100, width=200, height=20, delegate=None):
+class Slider(Base):
+    def __init__(self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None):
         super().__init__()
         self.maximum = maximum
         self.width = width
         self.height = height
         self.delegate = delegate
+        self.orient = orient
+        self.delegate = delegate
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(from_=0, to=100, value=75)
+        self.widget = ttk.Scale(from_=0, to=100, value=75, length=self.width, orient=self.orient)
 
         self.bind_variable(DoubleVar())
         self.value_variable.trace_add('write', self.value_updated)
 
     def value_updated(self, var, index, mode):
         if self.delegate is not None:
-            self.delegate.value_updated(self.value_variable)
+            self.delegate.value_updated(object=self, value_variable=self.value_variable)
 
 class TkLabApp(App):
     def __init__(self):
@@ -118,14 +120,17 @@ class TkLabApp(App):
         self.plot = XYPlot()
         self.plot.grid_into(self.window, row=1, column=0, columnspan=3, padx=10, pady=10, sticky='')
 
-        self.slider = SliderLevel(delegate=self)
+        self.slider = Slider(width=500, delegate=self)
         self.slider.grid_into(self.window, row=2, column=0, columnspan=3, padx=10, pady=10, sticky='')
 
-    def user_clicked(self, event, element):
+        self.image = Image(url='https://www.dccmlab.ca/wp-content/uploads/2023/09/dccmlab.png')
+        self.image.grid_into(self.window, row=3, column=0, columnspan=3, padx=10, pady=10, sticky='nsew')
+
+    def user_clicked(self, object, event):
         new_value = self.level.value_variable.get() + 20
         self.level.value_variable.set(new_value)
 
-    def value_updated(self, value_variable):
+    def value_updated(self, object, value_variable):
         print(value_variable.get())
 
     def about(self):
