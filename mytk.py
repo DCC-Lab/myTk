@@ -85,8 +85,12 @@ class Base:
         self.widget = None
         self.parent = None
 
-    def grid_into(self, parent, **kwargs):
-        self.create_widget(master=parent.widget)
+    def grid_into(self, parent=None, widget=None, **kwargs):
+        if widget is not None:
+            self.create_widget(master=widget)
+        else:
+            self.create_widget(master=parent.widget)
+            
         self.parent = parent
 
         column = 0
@@ -99,8 +103,6 @@ class Base:
 
         if self.widget is not None:
             self.widget.grid(kwargs)
-        self.widget.grid_rowconfigure(row, weight=1)
-        self.widget.grid_columnconfigure(column, weight=1)
 
     def pack_into(self, parent, **kwargs):
         self.create_widget(master=parent.widget)
@@ -136,15 +138,8 @@ class Base:
     def grid_propagate(self, value):
         self.widget.grid_propagate(value)
 
-    @property
-    def width(self):
-        return self.widget["width"]
-
-    @property
-    def height(self):
-        return self.widget["height"]
-
-
+    def keys(self):
+        print(self.widget.configure().keys())
 
 class Window(Base):
     def __init__(self, geometry=None, title="Untitled"):
@@ -185,6 +180,20 @@ class View(Base):
         )
         self.widget.grid_propagate(0)
 
+class Button(Base):
+    def __init__(self, label="Button", delegate=None):
+        Base.__init__(self)
+        self.label = label
+        self.delegate = delegate
+
+    def create_widget(self, master):
+        self.widget = ttk.Button(master, text=self.label)
+        self.widget.bind('<Button>', self.user_clicked)
+
+    def user_clicked(self, event):
+        if self.delegate is not None:
+            self.delegate.user_clicked(event, self)
+
 
 class PopupMenu(Base):
     def __init__(self, menu_items=None, user_callback=None):
@@ -211,10 +220,10 @@ class PopupMenu(Base):
         labels = menu_items
         for i, label in enumerate(labels):
             self.menu.add_command(
-                label=label, command=partial(self.selection_callback, i)
+                label=label, command=partial(self.selection_changed, i)
             )
 
-    def selection_callback(self, selected_index):
+    def selection_changed(self, selected_index):
         self.selected_index = selected_index
         self.text.set(value=self.menu_items[self.selected_index])
 
@@ -225,25 +234,13 @@ class PopupMenu(Base):
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
-        self.text_var = None
         self._text = text
+        self.value_variable = None #Keep
 
     def create_widget(self, master):
         self.parent = master
-        self.text_var = StringVar()
-        self.widget = ttk.Label(master, textvariable=self.text_var, **debug_kwargs)
-
-        if self._text is not None:
-            self.text_var.set(self._text)
-
-    @property
-    def text(self):
-        return self.text_var.get()
-
-    @text.setter
-    def text(self, value):
-        return self.text_var.set(value)
-
+        self.value_variable = StringVar(value=self._text)
+        self.widget = ttk.Label(master, textvariable=self.value_variable, **debug_kwargs)
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
@@ -268,25 +265,52 @@ class URLLabel(Label):
 
 
 class Box(Base):
-    def __init__(self, label=""):
+    def __init__(self, label="", width=200, height=20):
         Base.__init__(self)
         self.label = label
+        self.width = width
+        self.height = height
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.LabelFrame(master, text=self.label, **debug_kwargs)
+        self.widget = ttk.LabelFrame(master, width=self.width, height=self.height, text=self.label, **debug_kwargs)
 
 
 class Entry(Base):
     def __init__(self, text=""):
         Base.__init__(self)
-        self.value = StringVar()
-        self.text = text
+        self.initial_text = text
+        self.value_variable = None
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Entry(master, textvariable=self.value)
-        self.value.set(self.text)
+        self.widget = ttk.Entry(master)
+
+        self.bind_to_textvariable(StringVar(self.widget))
+
+    def bind_to_textvariable(self, variable):
+        if self.widget is not None:
+            self.value_variable = variable
+            self.widget.configure(textvariable=variable)
+
+class NumericEntry(Base):
+    def __init__(self, text="", minimum=0, maximum=100, increment=1, delegate=None):
+        Base.__init__(self)
+        self.text = text
+        self.minimum = minimum
+        self.maximum = maximum
+        self.increment = increment
+        self.value_variable = None
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.Spinbox(master, from_=self.minimum, to=self.maximum, increment=self.increment)
+        self.bind_to_textvariable(DoubleVar(self.widget))
+        
+    def bind_to_textvariable(self, variable):
+        if self.widget is not None:
+            self.value_variable = variable
+            self.widget.configure(textvariable=variable)
 
 
 class TableView(Base):

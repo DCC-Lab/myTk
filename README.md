@@ -47,6 +47,22 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
+## Getting started
+
+1. Create a subclass of `App`. 
+2. In you `__init__`, first call `super().__init__`, then add you interface to the window at `self.window`. See below for examples.
+   1. If you add a `Tableview`, set the `delegate` to an object of your own so that the functions are called when appropriate.  Everything is managed automatically.  The delegate can implement any or all of the following methods. 
+      * `selection_changed(event)`: there is no default behaviour
+      * `click_header(column)`: the default behaviour will sort the rows by this column
+      * `click_cell(item_id, column_id)`: if the text starts with `http`, will try to open the link in your default browser
+      * `doubleclick_header(column)`: there is no default behaviour`
+      * `doubleclick_cell(item_id, column_id)`: there is no default behaviour
+   2. If you add a `PopupMenu`, set the `user_callback` to act upon a change.
+   3. The matplotlib `Figure` can be used by providing your own plt.figure or using the one provided by the class. There is a `toolbar` that you can add to the interface.
+3. You can override the method `about(self)` or `help(self)` to provide more than the default behaviour.
+4. Instantiate your app (`app = MyApp()`), then call `app.mainloop()`
+
+The real difficulty is to understand the Layout managers of Tkinter.
 
 ## Examples
 
