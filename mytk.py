@@ -91,7 +91,7 @@ class Base:
             self.create_widget(master=widget)
         else:
             self.create_widget(master=parent.widget)
-            
+
         self.parent = parent
 
         column = 0
@@ -115,7 +115,7 @@ class Base:
     def bind_event(self, event, callback):
         self.bind(event, callback)
 
-    def event_generate(self, event:str):
+    def event_generate(self, event: str):
         self.widget.event_generate(event)
 
     def bind_textvariable(self, variable):
@@ -153,6 +153,7 @@ class Base:
     def keys(self):
         print(self.widget.configure().keys())
 
+
 class Window(Base):
     def __init__(self, geometry=None, title="Untitled"):
         Base.__init__(self)
@@ -176,6 +177,7 @@ class Window(Base):
     def resizable(self, value):
         return self.widget.resizable(value, value)
 
+
 class View(Base):
     def __init__(self, width, height):
         Base.__init__(self)
@@ -192,8 +194,9 @@ class View(Base):
         )
         self.widget.grid_propagate(0)
 
+
 class Button(Base):
-    def __init__(self, label="Button", width = None, delegate=None):
+    def __init__(self, label="Button", width=None, delegate=None):
         Base.__init__(self)
         self.label = label
         self.width = width
@@ -201,7 +204,7 @@ class Button(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Button(master, text=self.label, width=self.width)
-        self.widget.bind('<Button>', self.user_clicked)
+        self.widget.bind("<Button>", self.user_clicked)
 
     def user_clicked(self, event):
         if self.delegate is not None:
@@ -224,9 +227,7 @@ class PopupMenu(Base):
     def create_widget(self, master):
         self.parent = master
         self.menu = Menu(master, tearoff=0)
-        self.widget = ttk.Menubutton(
-            master, text="All lenses", menu=self.menu
-        )
+        self.widget = ttk.Menubutton(master, text="All lenses", menu=self.menu)
         self.bind_textvariable(StringVar(value="Select menu item"))
 
         if self.menu_items is not None:
@@ -258,15 +259,16 @@ class Label(Base):
         self.widget = ttk.Label(master, **debug_kwargs)
         self.bind_textvariable(StringVar(value=self.initial_text))
 
+
 class DoubleIndicator(Base):
-    def __init__(self, value_variable = None, value = 0, format_string="{0}"):
+    def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
         self.format_string = format_string
         if value_variable is not None:
             self.value_variable = value_variable
         else:
             self.value_variable = DoubleVar()
-        self.value_variable.trace_add('write', self.value_updated)        
+        self.value_variable.trace_add("write", self.value_updated)
 
     def create_widget(self, master):
         self.parent = master
@@ -280,6 +282,7 @@ class DoubleIndicator(Base):
         text = self.format_string.format(self.value_variable.get())
         if self.widget is not None:
             self.widget.configure(text=text)
+
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
@@ -312,7 +315,14 @@ class Box(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.LabelFrame(master, width=self.width, height=self.height, text=self.label, **debug_kwargs)
+        self.widget = ttk.LabelFrame(
+            master,
+            width=self.width,
+            height=self.height,
+            text=self.label,
+            **debug_kwargs
+        )
+
 
 class Entry(Base):
     def __init__(self, text="", character_width=None):
@@ -326,8 +336,11 @@ class Entry(Base):
 
         self.bind_textvariable(StringVar(self.widget, value=self.initial_text))
 
+
 class NumericEntry(Base):
-    def __init__(self, text="", width=None, minimum=0, maximum=100, increment=1, delegate=None):
+    def __init__(
+        self, text="", width=None, minimum=0, maximum=100, increment=1, delegate=None
+    ):
         Base.__init__(self)
         self.text = text
         self.minimum = minimum
@@ -337,8 +350,15 @@ class NumericEntry(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Spinbox(master, width=self.width, from_=self.minimum, to=self.maximum, increment=self.increment)
+        self.widget = ttk.Spinbox(
+            master,
+            width=self.width,
+            from_=self.minimum,
+            to=self.maximum,
+            increment=self.increment,
+        )
         self.bind_textvariable(DoubleVar(self.widget))
+
 
 class LabelledEntry(View):
     def __init__(self, label, text="", character_width=None):
@@ -498,22 +518,23 @@ class TableView(Base):
             except:
                 pass
 
+
 class Image(Base):
-    def __init__(self, filepath = None, url=None, image = None):
+    def __init__(self, filepath=None, url=None, image=None):
         Base.__init__(self)
         if filepath is not None:
-            self.photo = PIL.ImageTk.PhotoImage(file=filepath) 
+            self.photo = PIL.ImageTk.PhotoImage(file=filepath)
         elif url is not None:
             import requests
-            from io import BytesIO  
+            from io import BytesIO
 
             response = requests.get(url)
             image = PIL.Image.open(BytesIO(response.content))
-            self.photo = PIL.ImageTk.PhotoImage(image=image) 
+            self.photo = PIL.ImageTk.PhotoImage(image=image)
         else:
-            self.photo = PIL.ImageTk.PhotoImage(image=image) 
-        # Must keep a reference to PhotoImage, see: 
-        #https://stackoverflow.com/questions/16424091/why-does-tkinter-image-not-show-up-if-created-in-a-function
+            self.photo = PIL.ImageTk.PhotoImage(image=image)
+        # Must keep a reference to PhotoImage, see:
+        # https://stackoverflow.com/questions/16424091/why-does-tkinter-image-not-show-up-if-created-in-a-function
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, image=self.photo)
@@ -567,6 +588,7 @@ class Figure(Base):
             return self.figure.axes
         return None
 
+
 class CanvasView(Base):
     def __init__(self, width=200, height=20):
         super().__init__()
@@ -579,6 +601,7 @@ class CanvasView(Base):
     def draw_canvas(self):
         pass
 
+
 class Level(CanvasView):
     def __init__(self, maximum=100, width=200, height=20):
         super().__init__()
@@ -589,7 +612,7 @@ class Level(CanvasView):
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
         self.value_variable = DoubleVar()
-        self.value_variable.trace_add('write', self.value_updated)
+        self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
 
     def value_updated(self, var, index, mode):
@@ -609,16 +632,19 @@ class Level(CanvasView):
 
     def draw_canvas(self):
         border = 2
-        
-        width = float(self.widget['width'])
-        height = float(self.widget['height'])
+
+        width = float(self.widget["width"])
+        height = float(self.widget["height"])
         value = self.value_variable.get()
 
-        level_width = value/self.maximum * (width - border)
+        level_width = value / self.maximum * (width - border)
 
-        self.widget.create_rectangle(4,4, width, height, outline = "black", fill = "white",width = border)        
+        self.widget.create_rectangle(
+            4, 4, width, height, outline="black", fill="white", width=border
+        )
         if level_width > 0:
-            self.widget.create_rectangle(4,4, level_width, height-border, fill = "red")
+            self.widget.create_rectangle(4, 4, level_width, height - border, fill="red")
+
 
 class XYPlot(Figure):
     def __init__(self, figsize):
@@ -636,17 +662,20 @@ class XYPlot(Figure):
         self.update_plot()
 
     def update_plot(self):
-        self.first_axis.plot(self.x, self.y,'ko')
+        self.first_axis.plot(self.x, self.y, "ko")
 
-    def append(self, x,y):
+    def append(self, x, y):
         self.x.append(x)
         self.y.append(y)
 
-        self.x = self.x[-self.x_range:-1]
-        self.y = self.y[-self.x_range:-1]
+        self.x = self.x[-self.x_range : -1]
+        self.y = self.y[-self.x_range : -1]
+
 
 class Slider(Base):
-    def __init__(self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None):
+    def __init__(
+        self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None
+    ):
         super().__init__()
         self.maximum = maximum
         self.width = width
@@ -656,10 +685,12 @@ class Slider(Base):
         self.delegate = delegate
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(from_=0, to=100, value=75, length=self.width, orient=self.orient)
+        self.widget = ttk.Scale(
+            from_=0, to=100, value=75, length=self.width, orient=self.orient
+        )
 
         self.bind_variable(DoubleVar())
-        self.value_variable.trace_add('write', self.value_updated)
+        self.value_variable.trace_add("write", self.value_updated)
 
     def value_updated(self, var, index, mode):
         if self.delegate is not None:
@@ -721,11 +752,10 @@ if __name__ == "__main__":
 
     view3 = View(width=100, height=100)
     view3.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
-    
+
     image = Image("logo.png")
     image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
 
     app.window.all_resize_weight(1)
-
 
     app.mainloop()

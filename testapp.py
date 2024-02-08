@@ -33,7 +33,6 @@ class OpticalComponentViewer(App):
 
         self.update_figure()
 
-
     def build_table(self):
         self.columns = {
             "label": "Part number",
@@ -161,8 +160,12 @@ if __name__ == "__main__":
     app = OpticalComponentViewer()
 
     from packaging.version import Version
+
     if Version(rt.__version__) <= Version("1.3.10"):
-        showerror(title="Minimum Raytracing version", message="You need at least Raytracing 1.3.11 to run the lens viewer", icon=ERROR)
+        showerror(
+            title="Minimum Raytracing version",
+            message="You need at least Raytracing 1.3.11 to run the lens viewer",
+            icon=ERROR,
+        )
     else:
         app.mainloop()
-

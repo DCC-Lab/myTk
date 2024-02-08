@@ -1,11 +1,12 @@
 from mytk import *
 
+
 class GridViewer(App):
     def __init__(self):
         App.__init__(self, geometry="1450x750")
 
         self.views = []
-        stickiness = ['ns','ew','nswe',None]
+        stickiness = ["ns", "ew", "nswe", None]
         for i in range(4):
             for j in range(4):
                 view = Label("Sticky = '{0}'".format(stickiness[i]))
