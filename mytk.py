@@ -102,6 +102,14 @@ class Base:
         if "row" in kwargs.keys():
             row = kwargs["row"]
 
+        sticky = 0
+        if "sticky" in kwargs.keys():
+            sticky = kwargs["sticky"].lower()
+            if 'n' in sticky and 's' in sticky:
+                self.widget.grid_rowconfigure(index=row, weight=1)
+            if 'e' in sticky and 'w' in sticky:
+                self.widget.grid_columnconfigure(index=column, weight=1)
+
         if self.widget is not None:
             self.widget.grid(kwargs)
 
@@ -192,24 +200,39 @@ class View(Base):
             height=self.original_height,
             **debug_kwargs
         )
-        self.widget.grid_propagate(0)
 
+class Checkbox(Base):
+    def __init__(self, text="", user_callback=None):
+        super().__init__()
+        self.text = text
+        self.user_callback = user_callback
+
+    def create_widget(self, master):
+        self.widget = ttk.Checkbutton(master, text=self.text, onvalue=1, offvalue=0, command=self.selection_changed)
+        self.bind_variable(BooleanVar(value=True))
+
+    def selection_changed(self):
+        if self.user_callback is not None:
+            try:
+                self.user_callback(self)
+            except Exception as err:
+                print(err)
 
 class Button(Base):
-    def __init__(self, label="Button", width=None, delegate=None):
+    def __init__(self, label="Button", width=None, user_event_callback=None):
         Base.__init__(self)
         self.label = label
         self.width = width
-        self.delegate = delegate
+        self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
         self.widget = ttk.Button(master, text=self.label, width=self.width)
-        self.widget.bind("<Button>", self.user_clicked)
+        self.widget.bind("<ButtonRelease>", self.event_callback)
 
-    def user_clicked(self, event):
-        if self.delegate is not None:
+    def event_callback(self, event):
+        if self.user_event_callback is not None:
             try:
-                self.delegate.user_clicked(event, self)
+                self.user_event_callback(event, self)
             except Exception as err:
                 print(err)
                 pass
@@ -334,7 +357,7 @@ class Entry(Base):
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(StringVar(self.widget, value=self.initial_text))
+        self.bind_textvariable(StringVar(value=self.initial_text))
 
 
 class NumericEntry(Base):
@@ -357,7 +380,7 @@ class NumericEntry(Base):
             to=self.maximum,
             increment=self.increment,
         )
-        self.bind_textvariable(DoubleVar(self.widget))
+        self.bind_textvariable(DoubleVar())
 
 
 class LabelledEntry(View):
@@ -649,8 +672,8 @@ class Level(CanvasView):
 class XYPlot(Figure):
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
-        self.x = []
-        self.y = []
+        self.x = [1,2,3,4]
+        self.y = [4,3,2,1]
         self.x_range = 10
 
     def create_widget(self, master, **kwargs):
@@ -668,8 +691,8 @@ class XYPlot(Figure):
         self.x.append(x)
         self.y.append(y)
 
-        self.x = self.x[-self.x_range : -1]
-        self.y = self.y[-self.x_range : -1]
+        # self.x = self.x[-self.x_range : -1]
+        # self.y = self.y[-self.x_range : -1]
 
 
 class Slider(Base):
