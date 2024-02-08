@@ -106,10 +106,10 @@ class Base:
         if "sticky" in kwargs.keys():
             sticky = kwargs["sticky"].lower()
             if 'n' in sticky and 's' in sticky:
-                if self.widget.grid_rowconfigure(index=row) == 0:
+                if self.widget.grid_rowconfigure(index=row)["weight"] == 0:
                     self.widget.grid_rowconfigure(index=row, weight=1)
             if 'e' in sticky and 'w' in sticky:
-                if self.widget.grid_columnconfigure(index=column) == 0:
+                if self.widget.grid_columnconfigure(index=column)["weight"] == 0:
                     self.widget.grid_columnconfigure(index=column, weight=1)
 
         if self.widget is not None:
