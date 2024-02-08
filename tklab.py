@@ -4,135 +4,86 @@ import raytracing.thorlabs as thorlabs
 import raytracing.eo as eo
 from raytracing.figure import GraphicOf
 
-class CanvasView(Base):
-    def __init__(self, width=200, height=20):
-        super().__init__()
-        self.width = width
-        self.height = height
-
-    def create_widget(self, master, **kwargs):
-        self.widget = Canvas(master=master, height=self.height, width=self.width)
-
-    def draw_canvas(self):
-        pass
-
-class Level(CanvasView):
-    def __init__(self, maximum=100, width=200, height=20):
-        super().__init__()
-        self.maximum = maximum
-        self.width = width
-        self.height = height
-
-    def create_widget(self, master, **kwargs):
-        super().create_widget(master, *kwargs)
-        self.value_variable = DoubleVar()
-        self.value_variable.trace_add('write', self.value_updated)
-        self.draw_canvas()
-
-    def value_updated(self, var, index, mode):
-        value = 0
-        try:
-            value = self.value_variable.get()
-        except TclError as err:
-            pass
-
-        if value < 0:
-            value = 0
-        elif value > self.maximum:
-            value = self.maximum
-
-        self.value_variable.set(value)
-        self.draw_canvas()
-
-    def draw_canvas(self):
-        border = 2
-        
-        width = float(self.widget['width'])
-        height = float(self.widget['height'])
-        value = self.value_variable.get()
-
-        level_width = value/self.maximum * (width - border)
-
-        self.widget.create_rectangle(4,4, width, height, outline = "black", fill = "white",width = border)        
-        if level_width > 0:
-            self.widget.create_rectangle(4,4, level_width, height-border, fill = "red")
-
-class XYPlot(Figure):
+class StageControllerView(View):
     def __init__(self):
-        super().__init__()
-        self.x = [0,1,2,3,4]
-        self.y = [0,1,3,5,7]
-        self.x_range = 10
+        super().__init__(width=800, height=300)
+        self.x = DoubleVar(name="Stage.X", value=1)
+        self.y = DoubleVar(name="Stage.Y", value=2)
+        self.z = DoubleVar(name="Stage.Z", value=3)
 
-    def create_widget(self, master, **kwargs):
-        super().create_widget(master, *kwargs)
+    def create_widget(self, master):
+        super().create_widget(master)
+        self.widget.grid_propagate(True)
+        
+        self.info = Box("Info")
+        self.info.grid_into(self, row=0, column=0,  rowspan=2, padx=10, pady=10, sticky='nsew')
+        self.label1 = Label("Position")
+        self.label1.grid_into(self.info, row=0, column=0, padx=10, pady=5, sticky='w')
+        self.position_x = DoubleIndicator()
+        self.position_x.grid_into(self.info, row=0, column=1, padx=10, pady=5, sticky='w')
+        self.position_y = DoubleIndicator()
+        self.position_y.grid_into(self.info, row=0, column=2, padx=10, pady=5, sticky='w')
+        self.position_z = DoubleIndicator()
+        self.position_z.grid_into(self.info, row=0, column=3, padx=10, pady=5, sticky='w')
+        self.other_info = Label("Some other information")
+        self.other_info.grid_into(self.info, row=1, column=0, columnspan=2, padx=10, pady=5, sticky='w')
 
-        if self.first_axis is None:
-            axis = self.figure.add_subplot()
 
-        self.update_plot()
+        self.steps = Box("Stepping")
+        self.steps.grid_into(self, row=0, column=1, padx=10, pady=10, sticky='new')        
+        self.butttonxp = Button("+x", width=2, delegate=self)
+        self.butttonxp.grid_into(self.steps, row=0, column=5,pady=10, padx=10, sticky='')
+        self.butttonxm = Button("-x", width=2, delegate=self)
+        self.butttonxm.grid_into(self.steps, row=1, column=5,pady=10, padx=10, sticky='')
+        self.butttonyp= Button("+y", width=2, delegate=self)
+        self.butttonyp.grid_into(self.steps, row=0, column=6,pady=10, padx=10, sticky='')
+        self.butttonym = Button("-y", width=2, delegate=self)
+        self.butttonym.grid_into(self.steps, row=1, column=6,pady=10, padx=10, sticky='')
+        self.butttonzp = Button("+z", width=2, delegate=self)
+        self.butttonzp.grid_into(self.steps, row=0, column=7,pady=10, padx=10, sticky='')
+        self.butttonzm = Button("-z", width=2, delegate=self)
+        self.butttonzm.grid_into(self.steps, row=1, column=7,pady=10, padx=10, sticky='')
 
-    def update_plot(self):
-        self.first_axis.plot(self.x, self.y,'ko')
+        self.moving = Box("Moving")
+        self.moving.grid_into(self, row=1, column=1, padx=10, pady=10, sticky='nw')        
+        self.setp_x = NumericEntry(width=5)
+        self.setp_x.grid_into(self.moving, row=2, column=5, padx=10, pady=5, sticky='w')
+        self.setp_y = NumericEntry(width=5)
+        self.setp_y.grid_into(self.moving, row=2, column=6, padx=10, pady=5, sticky='w')
+        self.setp_z = NumericEntry(width=5)
+        self.setp_z.grid_into(self.moving, row=2, column=7, padx=10, pady=5, sticky='w')
 
-    def append(self, x,y):
-        self.x.append(x)
-        self.y.append(y)
 
-        self.x = self.x[-self.x_range:-1]
-        self.y = self.y[-self.x_range:-1]
+    def user_clicked(self, event, button):        
+        label = button.widget.cget("text")
+        button.widget.event_generate("<<{0}>>".format(label))
 
-class Slider(Base):
-    def __init__(self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None):
-        super().__init__()
-        self.maximum = maximum
-        self.width = width
-        self.height = height
-        self.delegate = delegate
-        self.orient = orient
-        self.delegate = delegate
+class LaserControllerView(View):
+    def __init__(self):
+        super().__init__(width=700, height=300)
 
-    def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(from_=0, to=100, value=75, length=self.width, orient=self.orient)
-
-        self.bind_variable(DoubleVar())
-        self.value_variable.trace_add('write', self.value_updated)
-
-    def value_updated(self, var, index, mode):
-        if self.delegate is not None:
-            self.delegate.value_updated(object=self, value_variable=self.value_variable)
+    def create_widget(self, master):
+        super().create_widget(master)
+        self.widget.grid_propagate(False)
+        self.all_resize_weight(1)
+        self.info = Box("Laser info", height=200, width=520)
+        self.info.grid_into(self, row=0, column=0, padx=10, pady=10, sticky='nsew')
+        self.info.grid_propagate(False)
+        self.placeholder = Label("Some power")
+        self.placeholder.grid_into(self.info)
 
 class TkLabApp(App):
     def __init__(self):
-        App.__init__(self, geometry="800x500")
-        self.window.widget.title("My TkLabApp")
+        App.__init__(self, geometry="540x530")
+        self.window.widget.title("Translation stage controller")
+        self.window.widget.grid_propagate(True)
+        self.window.all_resize_weight(1)
 
-        self.level = Level(width=400)
-        self.level.grid_into(self.window, row=0, column=0, padx=10, sticky='ew')
-
-        self.entry = NumericEntry(minimum=0, maximum=100, increment=10, delegate=self)
-        self.entry.grid_into(self.window, row=0, column=1, padx=10, sticky='')
-        self.entry.bind_textvariable(self.level.value_variable)
-
-        self.button = Button("Increase", delegate=self)
-        self.button.grid_into(self.window, row=0, column=2, padx=10, sticky='')
-        
-        self.plot = XYPlot()
-        self.plot.grid_into(self.window, row=1, column=0, columnspan=3, padx=10, pady=10, sticky='')
-
-        self.slider = Slider(width=500, delegate=self)
-        self.slider.grid_into(self.window, row=2, column=0, columnspan=3, padx=10, pady=10, sticky='')
-
-        self.image = Image(url='https://www.dccmlab.ca/wp-content/uploads/2023/09/dccmlab.png')
-        self.image.grid_into(self.window, row=3, column=0, columnspan=3, padx=10, pady=10, sticky='nsew')
-
-    def user_clicked(self, object, event):
-        new_value = self.level.value_variable.get() + 20
-        self.level.value_variable.set(new_value)
-
-    def value_updated(self, object, value_variable):
-        print(value_variable.get())
-
+        # self.window.resizable = False
+        self.stage = StageControllerView()
+        self.stage.grid_into(self.window, row=0, column=0, sticky='nsew')
+        self.laser = LaserControllerView()
+        self.laser.grid_into(self.window, row=1, column=0, columnspan=2, sticky='nsew')
     def about(self):
         showinfo(
             title="About This TkLab App",
