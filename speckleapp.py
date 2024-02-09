@@ -30,17 +30,15 @@ def image_contrasts(image, M=5, N=5):
   
   return contrasts
 
-
     
 class SpeckleApp(App):
     def __init__(self):
-        App.__init__(self, geometry="720x350")
+        App.__init__(self, geometry="750x350")
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
         filepath = "/Users/dccote/Desktop/speckles.tif"
         self.image = Image(filepath = filepath)
-        self.image.grid_into(self.window, column=0, row=0, rowspan=40,  padx=10, pady=10, sticky='nw')
-
+        self.image.grid_into(self.window, column=0, row=0, rowspan=3,  padx=10, pady=10, sticky='nw')
         self.controls = View(width=400, height=100)
         self.controls.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky="nw")
 
@@ -64,7 +62,27 @@ class SpeckleApp(App):
         self.contrast = Label("(Calcul)")
         self.contrast.grid_into(self.controls, row=1, column=0, columnspan=4, padx=10, pady=10, sticky="nw")
 
+        columns = {
+            "grid": "Grid #",
+            "contrast": "Contrast",
+            "mean": "Mean",
+            "std": "Std. dev"
+        }
+
+        self.table = TableView(columns=columns)
+        self.table.grid_into(self.window, row=2, column=1, padx=20, pady=20,  sticky='nw')
+
+        self.table.widget.column(column=0, width=60)
+        self.table.widget.column(column=1, width=60)
+        self.table.widget.column(column=2, width=60)
+        self.table.widget.column(column=3, width=60)
+
+        self.image.row_resize_weight(index=0, weight=0)
+        self.image.row_resize_weight(index=1, weight=0)
+
         self.update_calculation()
+
+
 
     def grid_updated(self, var, index, mode):
         self.update_calculation()
@@ -75,9 +93,19 @@ class SpeckleApp(App):
             self.image.grid_count = grid_count
             self.image.update_display()
             
-            contrasts = image_contrasts(self.image.pil_image, M=grid_count, N=grid_count)
+            self.table.empty()
 
-            self.contrast.value_variable.set("Contraste: {0:.3f} Stddev: {1:.3f} ({2:.1f}%)".format(np.mean(contrasts), np.std(contrasts), np.std(contrasts)/np.mean(contrasts)*100))
+            tiles = tile_image(self.image.pil_image, M=grid_count, N=grid_count)
+            for i, tile in enumerate(tiles):
+                std = np.std(tile)
+                mean = np.mean(tile)
+                self.table.append((i, std/mean, mean, std))
+
+            contrasts = image_contrasts(self.image.pil_image, M=grid_count, N=grid_count)
+            contrast_mean = np.mean(contrasts)
+            contrast_std = np.std(contrasts)
+            contrast_err = np.std(contrasts)/np.mean(contrasts)*100
+            self.contrast.value_variable.set("Contraste: {0:.3f} ± {1:.3f} (±{2:.1f}%)".format(contrast_mean, contrast_std, contrast_err))
         except Exception as err:
             print(err)
 

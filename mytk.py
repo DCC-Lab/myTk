@@ -17,8 +17,54 @@ import platform
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
+class Bindable:
+    def __init__(self):
+        self.observed_variables = {}
 
-class App:
+    def bind_property_to_widget_value(self, property_name:str, control_widget:'Base'):
+        if control_widget is not None:
+            value_variable = control_widget.value_variable
+            value_variable.trace_add('write', self.bound_variable_changed)
+            if value_variable._name not in self.observed_variables.keys():
+                self.observed_variables[value_variable._name] = (property_name, value_variable)
+            else:
+                raise RuntimeError("Unable to bind: variable name used {0}".format(value_variable._name))
+
+            new_value = getattr(self, property_name)
+            self.bound_property_changed(property_name, new_value, value_variable)
+
+    def bound_variable_changed(self, var, index, mode):
+        property_name, value_variable = self.observed_variables[var]
+        self.bound_widget_value_changed(value_variable, property_name)
+
+    def bound_widget_value_changed(self, value_variable, property_name):
+        new_value = value_variable.get()
+        old_value = getattr(self, property_name)
+
+        if new_value != old_value:
+            setattr(self, property_name, new_value)
+
+    def bound_property_changed(self, property_name, new_value, value_variable):
+        old_value = value_variable.get()
+        if old_value != new_value:
+            value_variable.set(new_value)
+
+    def __setattr__(self, property_name, new_value):
+        super().__setattr__(property_name, new_value)
+        try:
+            if self.observed_variables is not None:
+                for bound_property_name, value_variable in self.observed_variables.values():
+                    if bound_property_name == property_name:
+                        self.bound_property_changed(property_name, new_value, value_variable)
+                        break
+
+        except AttributeError:
+            pass
+        except Exception as err:
+            print(err)
+
+
+class App(Bindable):
     app = None
 
     def __new__(cls, geometry=None):
@@ -30,6 +76,7 @@ class App:
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
+        self.observed_variables = {}
 
     @property
     def root(self):
@@ -85,55 +132,13 @@ class App:
         root.quit()
 
 
-class Base:
+class Base(Bindable):
     def __init__(self):
+        super().__init__()
         self.widget = None
         self.parent = None
         self.value_variable = None
 
-        self.observed_variables = {}
-
-    def bind_property_to_widget_value(self, property_name, control_widget):
-        if control_widget is not None:
-            value_variable = control_widget.value_variable
-            value_variable.trace_add('write', self.bound_variable_changed)
-            if value_variable._name not in self.observed_variables.keys():
-                self.observed_variables[value_variable._name] = (property_name, value_variable)
-            else:
-                raise RuntimeError("Unable to bind: variable name used {0}".format(value_variable._name))
-
-            new_value = getattr(self, property_name)
-            self.bound_property_changed(property_name, new_value, value_variable)
-
-    def bound_variable_changed(self, var, index, mode):
-        property_name, value_variable = self.observed_variables[var]
-        self.bound_widget_value_changed(value_variable, property_name)
-
-    def bound_widget_value_changed(self, value_variable, property_name):
-        new_value = value_variable.get()
-        old_value = getattr(self, property_name)
-
-        if new_value != old_value:
-            setattr(self, property_name, new_value)
-
-    def __setattr__(self, property_name, new_value):
-        super().__setattr__(property_name, new_value)
-        try:
-            if self.observed_variables is not None:
-                for bound_property_name, value_variable in self.observed_variables.values():
-                    if bound_property_name == property_name:
-                        self.bound_property_changed(property_name, new_value, value_variable)
-                        break
-
-        except AttributeError:
-            pass
-        except Exception as err:
-            print(err)
-
-    def bound_property_changed(self, property_name, new_value, value_variable):
-        old_value = value_variable.get()
-        if old_value != new_value:
-            value_variable.set(new_value)
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -483,6 +488,10 @@ class TableView(Base):
     def append(self, values):
         return self.widget.insert("", END, values=values)
 
+    def empty(self):
+        for item in self.widget.get_children():
+            self.widget.delete(item)
+
     def selection_changed(self, event):
         keep_running = True
         if self.delegate is not None:
@@ -523,8 +532,9 @@ class TableView(Base):
 
         if keep_running:
             value = item_dict["values"][column_id - 1]
-            if value.startswith("http"):
-                webbrowser.open(value)
+            if isinstance(value, str):
+                if value.startswith("http"):
+                    webbrowser.open(value)
 
         return True
 
