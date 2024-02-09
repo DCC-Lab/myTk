@@ -559,6 +559,7 @@ class Image(Base):
             self.pil_image = self.read_pil_image(filepath=filepath, url=url)
         self._displayed_tkimage = None 
 
+        self.is_rescalable = False
         self.is_grid_showing = True
         self.grid_count = 5
 
@@ -575,12 +576,22 @@ class Image(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master)
+        self.widget.bind("<Configure>", self.event_resized)
         self.update_display()
 
-    def update_display(self):
-        image_to_display = self.pil_image
+    def event_resized(self, event):
+        if self.is_rescalable:
+            width = event.width
+            height = event.height
+            resized_image = self.pil_image.resize((width,height), PIL.Image.NEAREST)
+            self.update_display(resized_image)
+
+    def update_display(self, image_to_display=None):
+        if image_to_display is None:
+            image_to_display = self.pil_image
+
         if self.is_grid_showing:
-            image_to_display = self.image_with_grid_overlay(self.pil_image)
+            image_to_display = self.image_with_grid_overlay(image_to_display)
 
         if image_to_display is not None:
             self._displayed_tkimage = PIL.ImageTk.PhotoImage(image=image_to_display)
