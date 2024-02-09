@@ -34,7 +34,7 @@ def image_contrasts(image, M=5, N=5):
     
 class SpeckleApp(App):
     def __init__(self):
-        App.__init__(self, geometry="620x350")
+        App.__init__(self, geometry="720x350")
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
         filepath = "/Users/dccote/Desktop/speckles.tif"
@@ -52,6 +52,15 @@ class SpeckleApp(App):
         self.grid_entry = NumericEntry(value=5, width=3, minimum=1)
         self.grid_entry.grid_into(self.controls, row=0, column=3, padx=10, pady=10, sticky="nw")
         self.grid_entry.value_variable.trace_add("write", self.grid_updated)
+        self.show_grid_checkbox = Checkbox("Show grid:")
+        self.show_grid_checkbox.grid_into(self.controls, row=0, column=4, padx=10, pady=10, sticky="nw")
+        self.rescalable_checkbox = Checkbox("Rescalable:")
+        self.rescalable_checkbox.grid_into(self.controls, row=1, column=4, padx=10, pady=10, sticky="nw")
+
+        self.image.bind_property_to_widget_value("is_grid_showing", self.show_grid_checkbox)
+        self.image.bind_property_to_widget_value("is_rescalable", self.rescalable_checkbox)
+        self.image.bind_property_to_widget_value("grid_count", self.grid_entry)
+
         self.contrast = Label("(Calcul)")
         self.contrast.grid_into(self.controls, row=1, column=0, columnspan=4, padx=10, pady=10, sticky="nw")
         self.update_calculation()

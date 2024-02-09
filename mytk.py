@@ -31,6 +31,10 @@ class App:
         self.check_requirements()
         self.create_menu()
 
+    @property
+    def root(self):
+        return self.window.widget
+
     def check_requirements(self):
         mac_version = platform.mac_ver()[0]
         python_version = platform.python_version()
@@ -86,6 +90,20 @@ class Base:
         self.widget = None
         self.parent = None
         self.value_variable = None
+
+        self.observed_variables = {}
+
+    def bind_property_to_widget_value(self, property_name, control_widget):
+        if control_widget is not None:
+            value_variable = control_widget.value_variable
+            value_variable.trace_add('write', self.observed_value_changed)
+            self.observed_variables[value_variable._name] = (property_name, value_variable)
+            current_value = getattr(self, property_name)
+            value_variable.set(current_value)
+
+    def observed_value_changed(self, var, index, mode):
+        property_name, value_variable = self.observed_variables[var]
+        setattr(self, property_name, value_variable.get())
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -218,7 +236,11 @@ class Checkbox(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Checkbutton(master, text=self.text, onvalue=1, offvalue=0, command=self.selection_changed)
-        self.bind_variable(BooleanVar(value=True))
+
+        if self.value_variable is None:
+            self.bind_variable(BooleanVar(value=True))
+        else:
+            self.bind_variable(self.value_variable)
 
     def selection_changed(self):
         if self.user_callback is not None:
@@ -559,10 +581,47 @@ class Image(Base):
             self.pil_image = self.read_pil_image(filepath=filepath, url=url)
         self._displayed_tkimage = None 
 
-        self.is_rescalable = False
-        self.is_grid_showing = True
-        self.grid_count = 5
+        self._is_rescalable = BooleanVar(name='is_rescalable', value=False)
+        self._is_rescalable.trace_add('write', self.property_changed)
+        self._is_grid_showing = BooleanVar(name='is_grid_showing', value=False)
+        self._is_grid_showing.trace_add('write', self.property_changed)
 
+        self._grid_count = IntVar(name='grid_count', value=5)
+        self._grid_count.trace_add('write', self.property_changed)
+
+    @property
+    def grid_count(self):
+        return self._grid_count.get()
+
+    @grid_count.setter
+    def grid_count(self, value):
+        if self._grid_count.get() != value:
+            self._grid_count.set(value)
+            
+    @property
+    def is_rescalable(self):
+        return self._is_rescalable.get()
+
+    @is_rescalable.setter
+    def is_rescalable(self, value):
+        return self._is_rescalable.set(value)
+
+    def property_changed(self, var, index, mode):
+        if var == 'is_rescalable':
+            self.update_display()
+        elif var == 'is_grid_showing':
+            self.update_display()
+        elif var == 'grid_count':
+            self.update_display()
+
+    @property
+    def is_grid_showing(self):
+        return self._is_grid_showing.get()
+
+    @is_grid_showing.setter
+    def is_grid_showing(self, value):
+        return self._is_grid_showing.set(value)
+    
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
             return PIL.Image.open(filepath)
@@ -583,7 +642,16 @@ class Image(Base):
         if self.is_rescalable:
             width = event.width
             height = event.height
+
+            current_aspect_ratio = self.pil_image.width/self.pil_image.height
+            if width / current_aspect_ratio < height:
+                height = int(width / current_aspect_ratio)
+            else:
+                width = int(height * current_aspect_ratio)
+
             resized_image = self.pil_image.resize((width,height), PIL.Image.NEAREST)
+
+
             self.update_display(resized_image)
 
     def update_display(self, image_to_display=None):
