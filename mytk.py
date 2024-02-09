@@ -96,14 +96,44 @@ class Base:
     def bind_property_to_widget_value(self, property_name, control_widget):
         if control_widget is not None:
             value_variable = control_widget.value_variable
-            value_variable.trace_add('write', self.observed_value_changed)
-            self.observed_variables[value_variable._name] = (property_name, value_variable)
-            current_value = getattr(self, property_name)
-            value_variable.set(current_value)
+            value_variable.trace_add('write', self.bound_variable_changed)
+            if value_variable._name not in self.observed_variables.keys():
+                self.observed_variables[value_variable._name] = (property_name, value_variable)
+            else:
+                raise RuntimeError("Unable to bind: variable name used {0}".format(value_variable._name))
 
-    def observed_value_changed(self, var, index, mode):
+            new_value = getattr(self, property_name)
+            self.bound_property_changed(property_name, new_value, value_variable)
+
+    def bound_variable_changed(self, var, index, mode):
         property_name, value_variable = self.observed_variables[var]
-        setattr(self, property_name, value_variable.get())
+        self.bound_widget_value_changed(value_variable, property_name)
+
+    def bound_widget_value_changed(self, value_variable, property_name):
+        new_value = value_variable.get()
+        old_value = getattr(self, property_name)
+
+        if new_value != old_value:
+            setattr(self, property_name, new_value)
+
+    def __setattr__(self, property_name, new_value):
+        super().__setattr__(property_name, new_value)
+        try:
+            if self.observed_variables is not None:
+                for bound_property_name, value_variable in self.observed_variables.values():
+                    if bound_property_name == property_name:
+                        self.bound_property_changed(property_name, new_value, value_variable)
+                        break
+
+        except AttributeError:
+            pass
+        except Exception as err:
+            print(err)
+
+    def bound_property_changed(self, property_name, new_value, value_variable):
+        old_value = value_variable.get()
+        if old_value != new_value:
+            value_variable.set(new_value)
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -191,7 +221,7 @@ class Base:
 
 class Window(Base):
     def __init__(self, geometry=None, title="Untitled"):
-        Base.__init__(self)
+        super().__init__()
 
         if geometry is None:
             geometry = "1020x750"
@@ -581,13 +611,20 @@ class Image(Base):
             self.pil_image = self.read_pil_image(filepath=filepath, url=url)
         self._displayed_tkimage = None 
 
-        self._is_rescalable = BooleanVar(name='is_rescalable', value=False)
+        self._is_rescalable = BooleanVar(name='is_rescalable', value=True)
         self._is_rescalable.trace_add('write', self.property_changed)
         self._is_grid_showing = BooleanVar(name='is_grid_showing', value=False)
         self._is_grid_showing.trace_add('write', self.property_changed)
-
         self._grid_count = IntVar(name='grid_count', value=5)
         self._grid_count.trace_add('write', self.property_changed)
+
+    def property_changed(self, var, index, mode):
+        if var == 'is_rescalable':
+            self.update_display()
+        elif var == 'is_grid_showing':
+            self.update_display()
+        elif var == 'grid_count':
+            self.update_display()
 
     @property
     def grid_count(self):
@@ -605,14 +642,6 @@ class Image(Base):
     @is_rescalable.setter
     def is_rescalable(self, value):
         return self._is_rescalable.set(value)
-
-    def property_changed(self, var, index, mode):
-        if var == 'is_rescalable':
-            self.update_display()
-        elif var == 'is_grid_showing':
-            self.update_display()
-        elif var == 'grid_count':
-            self.update_display()
 
     @property
     def is_grid_showing(self):

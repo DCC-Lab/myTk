@@ -63,6 +63,7 @@ class SpeckleApp(App):
 
         self.contrast = Label("(Calcul)")
         self.contrast.grid_into(self.controls, row=1, column=0, columnspan=4, padx=10, pady=10, sticky="nw")
+
         self.update_calculation()
 
     def grid_updated(self, var, index, mode):
