@@ -34,9 +34,9 @@ def image_contrasts(image, M=5, N=5):
     
 class SpeckleApp(App):
     def __init__(self):
-        App.__init__(self, geometry="800x450")
+        App.__init__(self, geometry="620x350")
         self.window.widget.title("Speckle Inspector")
-        self.window.widget.grid_propagate(0)
+        self.window.widget.grid_propagate(1)
         filepath = "/Users/dccote/Desktop/speckles.tif"
         self.image = Image(filepath = filepath)
         self.image.grid_into(self.window, column=0, row=0, rowspan=40,  padx=10, pady=10, sticky='nw')
