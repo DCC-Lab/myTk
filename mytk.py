@@ -9,11 +9,12 @@ from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 import PIL
+from PIL import Image, ImageDraw
 import webbrowser
 import pyperclip
 import platform
 
-debug_kwargs = {"borderwidth": 2, "relief": "groove"}
+# debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
 
@@ -85,6 +86,12 @@ class Base:
         self.widget = None
         self.parent = None
         self.value_variable = None
+
+    def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
+        raise NotImplementedError("grid_fill_into_expanding_cell")
+
+    def grid_fill_into_fixed_cell(self, parent=None, widget=None, **kwargs):
+        raise NotImplementedError("grid_fill_into_expanding_cell")
 
     def grid_into(self, parent=None, widget=None, **kwargs):
         if widget is not None:
@@ -364,10 +371,10 @@ class Entry(Base):
 
 class NumericEntry(Base):
     def __init__(
-        self, text="", width=None, minimum=0, maximum=100, increment=1, delegate=None
+        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
     ):
         Base.__init__(self)
-        self.text = text
+        self.value = value
         self.minimum = minimum
         self.maximum = maximum
         self.increment = increment
@@ -380,9 +387,9 @@ class NumericEntry(Base):
             width=self.width,
             from_=self.minimum,
             to=self.maximum,
-            increment=self.increment,
+            increment=self.increment
         )
-        self.bind_textvariable(DoubleVar())
+        self.bind_textvariable(DoubleVar(value=self.value))
 
 
 class LabelledEntry(View):
@@ -545,24 +552,69 @@ class TableView(Base):
 
 
 class Image(Base):
-    def __init__(self, filepath=None, url=None, image=None):
+    def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
+        self.pil_image = pil_image
+        if self.pil_image is None:
+            self.pil_image = self.read_pil_image(filepath=filepath, url=url)
+        self._displayed_tkimage = None 
+
+        self.is_grid_showing = True
+        self.grid_count = 5
+
+    def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
-            self.photo = PIL.ImageTk.PhotoImage(file=filepath)
+            return PIL.Image.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
-
             response = requests.get(url)
-            image = PIL.Image.open(BytesIO(response.content))
-            self.photo = PIL.ImageTk.PhotoImage(image=image)
-        else:
-            self.photo = PIL.ImageTk.PhotoImage(image=image)
-        # Must keep a reference to PhotoImage, see:
-        # https://stackoverflow.com/questions/16424091/why-does-tkinter-image-not-show-up-if-created-in-a-function
+            return PIL.Image.open(BytesIO(response.content))
+
+        return None
 
     def create_widget(self, master):
-        self.widget = ttk.Label(master, image=self.photo)
+        self.widget = ttk.Label(master)
+        self.update_display()
+
+    def update_display(self):
+        image_to_display = self.pil_image
+        if self.is_grid_showing:
+            image_to_display = self.image_with_grid_overlay(self.pil_image)
+
+        if image_to_display is not None:
+            self._displayed_tkimage = PIL.ImageTk.PhotoImage(image=image_to_display)
+        else:
+            self._displayed_tkimage = None
+
+        self.widget.configure(image=self._displayed_tkimage)
+
+    def image_with_grid_overlay(self, pil_image):
+        if pil_image is not None:
+            # from
+            # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
+            image = pil_image.copy()
+            draw = ImageDraw.Draw(image)
+
+            y_start = 0
+            y_end = image.height
+            step_size = int(image.width / self.grid_count)
+
+            for x in range(0, image.width, step_size):
+                line = ((x, y_start), (x, y_end))
+                draw.line(line, fill=255)
+
+            x_start = 0
+            x_end = image.width
+
+            for y in range(0, image.height, step_size):
+                line = ((x_start, y), (x_end, y))
+                draw.line(line, fill=255)
+
+            return image
+        else:
+            return None
+
 
 
 class Figure(Base):

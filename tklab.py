@@ -38,7 +38,7 @@ class StageControllerView(View):
         )
 
         self.steps = Box("Stepping")
-        self.steps.grid_into(self, row=0, column=1, padx=10, pady=10, sticky="new")
+        self.steps.grid_into(self, row=0, column=1, padx=10, pady=10, sticky="nw")
         self.butttonxp = Button("+x", width=2, user_event_callback=self.user_clicked)
         self.butttonxp.grid_into(
             self.steps, row=0, column=5, pady=10, padx=10, sticky=""
@@ -91,7 +91,6 @@ class OscilloscopeView(Box):
         for x,y in [(1,2),(3,4),(7,3)]:
             self.screen.append(x,y)
         self.screen.update_plot()
-        # self.screen.all_resize_weight(1)
 
         self.ch1 = Checkbox("Ch. 1", user_callback=self.selection_changed)
         self.ch1.grid_into(self, row=0, column = 1, sticky='nw', padx=10, pady=10)
@@ -139,7 +138,6 @@ class TkLabApp(App):
         self.window.widget.grid_propagate(True)
         self.window.all_resize_weight(1)
 
-        # self.window.resizable = False
         self.stage = StageControllerView()
         self.stage.grid_into(self.window, row=0, column=0, sticky="ew")
         self.oscilloscope = OscilloscopeView(width=400, height=300)
