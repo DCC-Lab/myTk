@@ -496,8 +496,9 @@ class TableView(Base):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.selection_changed(event)
-            except:
+                keep_running = self.delegate.selection_changed(event, self)
+            except Exception as err:
+                print(err)
                 pass
 
     def click(self, event) -> bool:
@@ -673,7 +674,7 @@ class Image(Base):
         return None
 
     def create_widget(self, master):
-        self.widget = ttk.Label(master)
+        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
         self.widget.bind("<Configure>", self.event_resized)
         self.update_display()
 
