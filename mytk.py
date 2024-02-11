@@ -696,7 +696,10 @@ class Image(Base):
             self.update_display(resized_image)
 
     def update_display(self, image_to_display=None):
-        if image_to_display is None:
+        if self.widget is None:
+            return
+            
+        if image_to_display is None :
             image_to_display = self.pil_image
 
         if self.is_grid_showing:
