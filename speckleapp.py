@@ -2,10 +2,12 @@ from mytk import *
 from tkinter import filedialog
 import os
 import csv
+import re
 
 import numpy as np
 import scipy
 import threading as Th
+from queue import Queue, Empty
 
 def tile_image(image, M=5, N=5):
   img_array = np.array(image,dtype=np.float64)
@@ -44,8 +46,10 @@ def image_stats(image, M=5, N=5):
     
 class SpeckleApp(App):
     def __init__(self):
-        App.__init__(self, geometry="1150x350")
-        self.lock = Th.Lock()
+        App.__init__(self, geometry="1350x1000")
+        self.calculations_queue = Queue()
+        self.results_queue = Queue()
+
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
         filepath = "/Users/dccote/Desktop/speckles.tif"
@@ -57,9 +61,9 @@ class SpeckleApp(App):
 
         self.grid_label = Label("Grid size:")
         self.grid_label.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky="ne")
-        self.grid_entry = NumericEntry(value=5, width=3, minimum=1)
-        self.grid_entry.grid_into(self.controls, row=0, column=3, padx=10, pady=10, sticky="nw")
-        self.grid_entry.value_variable.trace_add("write", self.grid_updated)
+        self.grid_count_entry = NumericEntry(value=5, width=3, minimum=1)
+        self.grid_count_entry.grid_into(self.controls, row=0, column=3, padx=10, pady=10, sticky="nw")
+        self.grid_count_entry.value_variable.trace_add("write", self.grid_count_updated)
         self.show_grid_checkbox = Checkbox("Show grid")
         self.show_grid_checkbox.grid_into(self.controls, row=0, column=4, padx=10, pady=10, sticky="nw")
         self.rescalable_checkbox = Checkbox("Rescalable")
@@ -67,7 +71,7 @@ class SpeckleApp(App):
 
         self.image.bind_property_to_widget_value("is_grid_showing", self.show_grid_checkbox)
         self.image.bind_property_to_widget_value("is_rescalable", self.rescalable_checkbox)
-        self.image.bind_property_to_widget_value("grid_count", self.grid_entry)
+        self.image.bind_property_to_widget_value("grid_count", self.grid_count_entry)
 
         self.contrast = Label("(Calcul)")
         self.contrast.grid_into(self.controls, row=1, column=0, columnspan=4, padx=10, pady=10, sticky="nw")
@@ -75,17 +79,13 @@ class SpeckleApp(App):
         columns = {
             "grid": "Grid #",
             "contrast": "Contrast",
-            "mean": "Mean",
-            "std": "Std. dev"
         }
 
         self.table = TableView(columns=columns)
         self.table.grid_into(self.window, row=2, column=2, padx=20, pady=20,  sticky='nsew')
 
-        self.table.widget.column(column=0, width=60)
-        self.table.widget.column(column=1, width=60)
-        self.table.widget.column(column=2, width=60)
-        self.table.widget.column(column=3, width=60)
+        self.table.widget.column(column=0, width=20)
+        self.table.widget.column(column=1, width=20)
 
         self.window.row_resize_weight(index=0, weight=0)
         self.window.row_resize_weight(index=1, weight=0)
@@ -93,27 +93,34 @@ class SpeckleApp(App):
         self.window.column_resize_weight(index=0, weight=0)
         self.window.column_resize_weight(index=2, weight=0)
 
-        self._files_data = []
-        self.selected_file_data = []
         self.filemanager = View(width=100, height=500)
-        self.filemanager.grid_into(self.window, row=0, column=0, rowspan=5, sticky="nsew")
+        self.filemanager.grid_into(self.window, row=0, column=0, rowspan=3, sticky="nsew")
         self.filemanager.row_resize_weight(0,0)
         self.filemanager.row_resize_weight(1,1)
         self.button_load = Button("Select directory…", user_event_callback=self.click_load)
         self.button_load.grid_into(self.filemanager, row=0, column=0, padx=10, pady=10, sticky="nw")
+        self.regex_entry = LabelledEntry("Sort on regex:", text=r".-(\d+)\.")
+        self.regex_entry.grid_into(self.filemanager, row=0, column=1, padx=10, pady=10, sticky="nw")
+        self.regex_entry.value_variable.trace_add("write", self.regex_entry_updated)
 
-        self._filesview = TableView(columns={"filename":"Filename", "contrast":"Contrast", "tiled_contrast":"NxN"})
-        self._filesview.delegate = self
-        self._filesview.grid_into(self.filemanager,row=1, column=0, rowspan=40, padx=20, pady=20,  sticky='nsew')
+        grid_count = int(self.grid_count_entry.value_variable.get())
+        self.filesview = TableView(columns={"filename":"Filename", "contrast":"Contrast", "mean_tiled_contrast":"{0}x{0}".format(grid_count)})
+        self.filesview.delegate = self
+        self.filesview.grid_into(self.filemanager,row=1, column=0, columnspan=4, padx=20, pady=20,  sticky='nsew')
 
         # self.filesview.widget.column(column=0, width=60)
-        self._filesview.widget.column(column=1, width=60)
-        self._filesview.widget.column(column=2, width=60)
+        self.filesview.widget.column(column=1, width=60)
+        self.filesview.widget.column(column=2, width=60)
+
+        self.plot = XYPlot(figsize=(6,4))
+        self.plot.grid_into(self.window, row=4, column=0, columnspan=4, padx=20, pady=20, sticky='nsew')
+        self.plot_button =  Button("Plot", user_event_callback=self.update_plot)
+        self.plot_button.grid_into(self.filemanager, row=0, column=3)
 
         self.root_path = "/Users/dccote/Downloads/feb_7_test_gain_papier_mirror_rept/0011_0.5_gain3_Papier_3_2024-02-05_19_40_41_358761"
-
-        self._filesview.widget.bind("<<Contrasts-Updated>>", self.__transfer_contrasts_filesview)
-        self.table.widget.bind("<<SelectedFile-Contrast-Updated>>", self.__transfer_tile_contrasts_table)
+        self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
+        # self.table.widget.bind("<<SelectedFile-Contrast-Updated>>", self.__transfer_tile_contrasts_table)
+        Th.Thread(target=self.calculate_contrasts_daemon).start()
         self.refresh_filesview()
 
     def begin_computation(self):
@@ -133,135 +140,130 @@ class SpeckleApp(App):
             self.lock.release()
 
     def refresh_filesview(self):
-        self.refresh_filename_filesview()
-        self.refresh_contrasts_filesview()
+        def sort_key(x):
+            regex = self.regex_entry.value_variable.get()
+            match = re.search(regex, x)
+            if match is not None:
+                return int(match.group(1))
+            else:
+                return 0
 
-    def refresh_filename_filesview(self):
-        self.begin_computation()
-
-        self._filesview.empty()
         filenames = os.listdir(self.root_path)
-        filenames = sorted( filenames, key =  lambda x: os.stat(os.path.join(self.root_path, x)).st_ctime) 
+        filenames = sorted( filenames, key = sort_key) 
         extensions = ['.jpg','.png','.tif','.tiff','.bmp']
 
+        self.filesview.empty()
         for filename in filenames:
             _, file_extension = os.path.splitext(filename)
             if file_extension.lower() in extensions:
+                row_data = (filename, "", "")
+                item_id = self.filesview.append(row_data)
+
                 filepath = os.path.join(self.root_path, filename)
 
-                self._filesview.append((filename, "", ""))
+        self.put_calculations_on_queue()
 
-        self.end_computation()
+    def put_calculations_on_queue(self):
+        grid_count = self.image.grid_count
+        items_ids = self.filesview.widget.get_children()
+        for item_id in items_ids:
+            item = self.filesview.widget.item(item_id)
 
-    def refresh_contrasts_filesview(self):
-        self.begin_computation()
-        self._files_data = []
-        item_ids = self._filesview.widget.get_children()
-        for item_id in item_ids:
-            item_dict = self._filesview.widget.item(item_id)
-            self._files_data.append((item_id, item_dict["values"]))
+            filename = item["values"][0]
+            filepath = os.path.join(self.root_path, filename)
+            self.calculations_queue.put((item_id, filepath, grid_count))
 
-        self.end_computation()
-        Th.Thread(target=self.__calculate_contrasts_filesview).start()
+    def calculate_contrasts_daemon(self):
+        while True:
+            try:
+                item_id, filepath, grid_count = self.calculations_queue.get()
 
-
-    def __calculate_contrasts_filesview(self):
-        
-        try:
-            self.begin_computation()
-
-            grid_count = int(self.grid_entry.value_variable.get())
-            updated_files_data = []
-            for item_id, (filename, _, _) in self._files_data:
-                filepath = os.path.join(self.root_path, filename)
                 pil_image = PIL.Image.open(filepath)
                 pil_array = np.array(pil_image)
                 mean = np.mean(pil_array)
                 std =  np.std(pil_array)
                 contrast = std/mean
-
                 contrasts_NxN = image_contrasts(pil_array, M=grid_count, N=grid_count)
-                contraste_tiled_NxN = np.mean(contrasts_NxN)
+                contrast_mean_NxN = np.mean(contrasts_NxN)
 
                 pil_image.close()
-                updated_files_data.append((item_id, (filename, contrast, contraste_tiled_NxN)))
-            self._files_data = updated_files_data
-        except Exception as err:
-            print(err)
-        finally:
-            self.end_computation()
-            self._filesview.widget.event_generate("<<Contrasts-Updated>>")
+                self.results_queue.put((item_id, (contrast, contrast_mean_NxN, contrasts_NxN)))
+                self.window.widget.event_generate("<<Results-Updated>>")
+            except Exception as err:
+                print(err)
 
-    def __transfer_contrasts_filesview(self, event):
+    def get_calculations_from_queue(self, event):
         try:
-            self.begin_computation()
+            while True:
+                result = self.results_queue.get(block=False)
+                item_id, (contrast, contrast_mean_NxN, contrasts_NxN) = result
+                self.filesview.widget.set(item_id, column=1, value=contrast)
+                self.filesview.widget.set(item_id, column=2, value=contrast_mean_NxN)
+                for contrast in contrasts_NxN:
+                    self.filesview.widget.insert(item_id, END, values=(None, None, contrast, None))
 
-            for item_id, data in self._files_data:
-                self._filesview.widget.set(item_id, column=1, value=data[1])
-                self._filesview.widget.set(item_id, column=2, value=data[2])
-            self._files_data = []
+                if item_id in self.filesview.widget.selection():
+                    self.refresh_tile_contrasts_table(contrasts_NxN)
 
-            grid_count = self.image.grid_count
-            self._filesview.widget.heading("tiled_contrast", text="{0}x{0}".format(grid_count))
-
+        except Empty:
+            pass
         except Exception as err:
             print(err)
-        finally:
-            self.end_computation()
+
+    def update_plot(self, event, object):
+        grid_count = int(self.grid_count_entry.value_variable.get())
+        self.plot.clear_plot()
+
+        self.plot.first_axis.set_xlabel("Image #")
+        self.plot.first_axis.set_ylabel("Contrast sigma/mean for {0}x{0}".format(grid_count))
+        self.plot.first_axis.set_ylim(0,1)
+
+        for i, item_id in enumerate(self.filesview.widget.get_children()):
+            item = self.filesview.widget.item(item_id)
+
+            try:
+                y = float(item["values"][2])
+                x = i
+                self.plot.append(x,y)
+            except Exception as err:
+                print(err)
+
+        self.plot.update_plot()
+
+
+    def regex_entry_updated(self, var, index, mode):
+        self.refresh_filesview()
+
+    def grid_count_updated(self, var, index, mode):
+        grid_count = int(self.grid_count_entry.value_variable.get())
+        self.filesview.widget.heading(column=2, text="{0:d}x{0:d}".format(grid_count))
+        self.put_calculations_on_queue()
 
     def selection_changed(self, event, table):
-        self.wait_until_computing_done()
+        for selected_item in table.widget.selection():
+            item = table.widget.item(selected_item)
 
-        if self.is_not_computing():
-            for selected_item in table.widget.selection():
-                item = table.widget.item(selected_item)
-                filename = item["values"][0]
+            filename = item["values"][0]
+            self.set_image_file( os.path.join(self.root_path, filename))
 
-                self.set_image_file( os.path.join(self.root_path, filename))
+            sub_item_ids = table.widget.get_children(selected_item)
 
-            self.refresh_tile_contrasts_table()
+            tiles_contrasts = [] 
+            for sub_item_id in sub_item_ids:
+                sub_item = table.widget.item(sub_item_id)
+                tiles_contrasts.append(float(sub_item["values"][2]))
 
-    def grid_updated(self, var, index, mode):
-        self.refresh_tile_contrasts_table()
-        self.refresh_contrasts_filesview()
+            self.refresh_tile_contrasts_table(tiles_contrasts)
 
-    def refresh_tile_contrasts_table(self):
-        self.__refresh_tile_contrasts_table()
-        
-    def __refresh_tile_contrasts_table(self):
-        try:
-            self.begin_computation()
-
-            self._selected_file_data = []
-
-            grid_count = self.image.grid_count
-            tiles = tile_image(self.image.pil_image, M=grid_count, N=grid_count)
-            for i, tile in enumerate(tiles):
-                std = np.std(tile)
-                mean = np.mean(tile)
-                self._selected_file_data.append((i, std/mean, mean, std))
-
-            contrasts = image_contrasts(self.image.pil_image, M=grid_count, N=grid_count)
-            contrast_mean = np.mean(contrasts)
-            contrast_std = np.std(contrasts)
-            contrast_err = np.std(contrasts)/np.mean(contrasts)*100
-            self.contrast.value_variable.set("Contraste: {0:.3f} ± {1:.3f} (±{2:.1f}%)".format(contrast_mean, contrast_std, contrast_err))
-
-        except Exception as err:
-            print("Cannot compute:",err)
-        finally:
-            self.end_computation()
-
-        self.table.widget.event_generate("<<SelectedFile-Contrast-Updated>>")
-
-    def __transfer_tile_contrasts_table(self, event):
-        self.begin_computation()
-
+    def refresh_tile_contrasts_table(self, contrasts):        
         self.table.empty()
-        for data in self._selected_file_data:
-            self.table.append(data)
+        for i, contrast in enumerate(contrasts):
+            self.table.append((i, contrast))
 
-        self.end_computation()
+        contrast_mean = np.mean(contrasts)
+        contrast_std = np.std(contrasts)
+        contrast_err = np.std(contrasts)/np.mean(contrasts)*100
+        self.contrast.value_variable.set("Contrast: {0:.3f} ± {1:.3f} (±{2:.1f}%)".format(contrast_mean, contrast_std, contrast_err))
 
     def click_load(self, event, object):
 
@@ -282,7 +284,7 @@ class SpeckleApp(App):
     def about(self):
         showinfo(
             title="About Speckle Inspector",
-            message="An application created with TkLab",
+            message="An application created with myTk",
         )
 
     def help(self):

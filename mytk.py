@@ -5,6 +5,7 @@ import tkinter.font as tkFont
 
 from functools import partial
 
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
@@ -460,7 +461,7 @@ class LabelledEntry(View):
         self.all_resize_weight(1)
         self.label.grid_into(self, row=0, column=0, padx=5)
         self.entry.grid_into(self, row=0, column=1, padx=5)
-
+        self.value_variable = self.entry.value_variable
 
 class TableView(Base):
     def __init__(self, columns):
@@ -845,9 +846,10 @@ class Level(CanvasView):
 class XYPlot(Figure):
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
-        self.x = [1,2,3,4]
-        self.y = [4,3,2,1]
+        self.x = []
+        self.y = []
         self.x_range = 10
+        self.style = 'https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle'
 
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
@@ -857,8 +859,16 @@ class XYPlot(Figure):
 
         self.update_plot()
 
+    def clear_plot(self):
+        self.x = []
+        self.y = []
+        self.first_axis.clear()
+
     def update_plot(self):
+        # with plt.style.context(self.style):
         self.first_axis.plot(self.x, self.y, "ko")
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
 
     def append(self, x, y):
         self.x.append(x)
