@@ -46,7 +46,7 @@ def image_stats(image, M=5, N=5):
     
 class SpeckleApp(App):
     def __init__(self):
-        App.__init__(self, geometry="1350x1000")
+        App.__init__(self, geometry="1300x1000")
         self.calculations_queue = Queue()
         self.results_queue = Queue()
 
@@ -107,7 +107,7 @@ class SpeckleApp(App):
         grid_count = int(self.grid_count_entry.value_variable.get())
         self.filesview = TableView(columns={"filename":"Filename", "contrast":"Contrast", "mean_tiled_contrast":"{0}x{0}".format(grid_count)})
         self.filesview.delegate = self
-        self.filesview.grid_into(self.filemanager,row=1, column=0, columnspan=4, padx=20, pady=20,  sticky='nsew')
+        self.filesview.grid_into(self.filemanager,row=1, column=0, columnspan=4, padx=10, pady=10,  sticky='nsew')
 
         # self.filesview.widget.column(column=0, width=60)
         self.filesview.widget.column(column=1, width=60)
@@ -116,12 +116,12 @@ class SpeckleApp(App):
         self.plot = XYPlot(figsize=(6,4))
         self.plot.grid_into(self.window, row=4, column=0, columnspan=4, padx=20, pady=20, sticky='nsew')
         self.plot_button =  Button("Plot", user_event_callback=self.update_plot)
-        self.plot_button.grid_into(self.filemanager, row=0, column=3)
+        self.plot_button.grid_into(self.filemanager, row=0, column=3, padx=10, pady=10)
 
         self.root_path = "/Users/dccote/Downloads/feb_7_test_gain_papier_mirror_rept/0011_0.5_gain3_Papier_3_2024-02-05_19_40_41_358761"
         self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
         self.window.widget.bind("<<Results-Complete>>", self.results_complete)
-        # self.table.widget.bind("<<SelectedFile-Contrast-Updated>>", self.__transfer_tile_contrasts_table)
+
         Th.Thread(target=self.calculate_contrasts_daemon).start()
         self.refresh_filesview()
 
