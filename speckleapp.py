@@ -55,6 +55,7 @@ class SpeckleApp(App):
         filepath = "/Users/dccote/Desktop/speckles.tif"
 
         self.image = Image(filepath = filepath)
+        self.image.is_rescalable = False
         self.image.grid_into(self.window, column=1, row=0, rowspan=3,  padx=20, pady=20, sticky='nw')
         self.controls = View(width=400, height=100)
         self.controls.grid_into(self.window, row=0, column=2, padx=10, pady=10, sticky="ne")
@@ -119,6 +120,7 @@ class SpeckleApp(App):
 
         self.root_path = "/Users/dccote/Downloads/feb_7_test_gain_papier_mirror_rept/0011_0.5_gain3_Papier_3_2024-02-05_19_40_41_358761"
         self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
+        self.window.widget.bind("<<Results-Complete>>", self.results_complete)
         # self.table.widget.bind("<<SelectedFile-Contrast-Updated>>", self.__transfer_tile_contrasts_table)
         Th.Thread(target=self.calculate_contrasts_daemon).start()
         self.refresh_filesview()
@@ -172,23 +174,29 @@ class SpeckleApp(App):
             filename = item["values"][0]
             filepath = os.path.join(self.root_path, filename)
             self.calculations_queue.put((item_id, filepath, grid_count))
+        
+        self.calculations_queue.put((None, None, grid_count))
 
     def calculate_contrasts_daemon(self):
         while True:
             try:
                 item_id, filepath, grid_count = self.calculations_queue.get()
 
-                pil_image = PIL.Image.open(filepath)
-                pil_array = np.array(pil_image)
-                mean = np.mean(pil_array)
-                std =  np.std(pil_array)
-                contrast = std/mean
-                contrasts_NxN = image_contrasts(pil_array, M=grid_count, N=grid_count)
-                contrast_mean_NxN = np.mean(contrasts_NxN)
+                if item_id is not None:
+                    pil_image = PIL.Image.open(filepath)
+                    pil_array = np.array(pil_image)
+                    mean = np.mean(pil_array)
+                    std =  np.std(pil_array)
+                    contrast = std/mean
+                    contrasts_NxN = image_contrasts(pil_array, M=grid_count, N=grid_count)
+                    contrast_mean_NxN = np.mean(contrasts_NxN)
 
-                pil_image.close()
-                self.results_queue.put((item_id, (contrast, contrast_mean_NxN, contrasts_NxN)))
-                self.window.widget.event_generate("<<Results-Updated>>")
+                    pil_image.close()
+                    self.results_queue.put((item_id, (contrast, contrast_mean_NxN, contrasts_NxN)))
+                    self.window.widget.event_generate("<<Results-Updated>>")
+                else:
+                    self.window.widget.event_generate("<<Results-Complete>>")
+
             except Exception as err:
                 print(err)
 
@@ -209,6 +217,9 @@ class SpeckleApp(App):
             pass
         except Exception as err:
             print(err)
+
+    def results_complete(self, event):
+        self.update_plot(event, self)
 
     def update_plot(self, event, object):
         grid_count = int(self.grid_count_entry.value_variable.get())
