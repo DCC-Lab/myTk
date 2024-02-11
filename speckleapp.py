@@ -129,7 +129,7 @@ class SpeckleApp(App):
         return not self.lock.locked()
 
     def wait_until_computing_done(self):
-        if self.lock.acquire(timeout=2):
+        if self.lock.acquire(timeout=0.5):
             self.lock.release()
 
     def refresh_filesview(self):
@@ -219,16 +219,16 @@ class SpeckleApp(App):
 
                 self.set_image_file( os.path.join(self.root_path, filename))
 
-            self.update_grid_calculation()
+            self.refresh_tile_contrasts_table()
 
     def grid_updated(self, var, index, mode):
-        self.update_grid_calculation()
+        self.refresh_tile_contrasts_table()
         self.refresh_contrasts_filesview()
 
-    def update_grid_calculation(self):
-        self.__update_calculation()
+    def refresh_tile_contrasts_table(self):
+        self.__refresh_tile_contrasts_table()
         
-    def __update_calculation(self):
+    def __refresh_tile_contrasts_table(self):
         try:
             self.begin_computation()
 
