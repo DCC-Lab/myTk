@@ -15,6 +15,12 @@ On the other hand, `Tkinter` is standard on Python, but uses UI strategies that 
 ## Design
 Having been a macOS programmer since the 90s, I have lived through the many incarnations of UI frameworks. Over the years, I have come to first understand and second appreciate good design patterns.  If interested in Design Patterns, I would recommend reading [Design Patterns](https://refactoring.guru/design-patterns). I sought to make Tkinter a bit more mac-like because many design patterns in Apple's libraries are particularly mature and useful.  For instance, Tkinter requires the parent of the UI-element to be specified at creation, even though it should not be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore I implemented a simple delegate pattern to handle many cases by default, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
 
+* All Tkinter widgets are encapsulated into a `View` that provides easy access to many behaviours, but the `widget` remains accessible for you to call functions directly.
+* You can `bind` the property of a GUI-object (`View`) to the value of a control (another `View`).  They will always be synchronized, via the interface or even if you change them programmatically
+* You can register for changes to Tkinter.Vars
+* You can register a callback for an event
+* You can set a delegate to manage the details 
+
 ## Layout manager
 The most important aspect to understand with Tk is how to position things on screen. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid will adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`sticky` and `column/row` `weight`). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
 
