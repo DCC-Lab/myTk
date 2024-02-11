@@ -52,9 +52,8 @@ class SpeckleApp(App):
 
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
-        filepath = "/Users/dccote/Desktop/speckles.tif"
 
-        self.image = Image(filepath = filepath)
+        self.image = Image()
         self.image.is_rescalable = False
         self.image.grid_into(self.window, column=1, row=0, rowspan=3,  padx=20, pady=20, sticky='nw')
         self.controls = View(width=400, height=100)
@@ -118,9 +117,12 @@ class SpeckleApp(App):
         self.plot_button =  Button("Plot", user_event_callback=self.update_plot)
         self.plot_button.grid_into(self.filemanager, row=0, column=3, padx=10, pady=10)
 
-        self.root_path = "/Users/dccote/Downloads/feb_7_test_gain_papier_mirror_rept/0011_0.5_gain3_Papier_3_2024-02-05_19_40_41_358761"
+        self.root_path = None  
         self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
         self.window.widget.bind("<<Results-Complete>>", self.results_complete)
+
+        if self.root_path is None:
+            self.click_load(None, None)
 
         Th.Thread(target=self.calculate_contrasts_daemon).start()
         self.refresh_filesview()
@@ -150,20 +152,21 @@ class SpeckleApp(App):
             else:
                 return 0
 
-        filenames = os.listdir(self.root_path)
-        filenames = sorted( filenames, key = sort_key) 
-        extensions = ['.jpg','.png','.tif','.tiff','.bmp']
+        if self.root_path is not None:
+            filenames = os.listdir(self.root_path)
+            filenames = sorted( filenames, key = sort_key) 
+            extensions = ['.jpg','.png','.tif','.tiff','.bmp']
 
-        self.filesview.empty()
-        for filename in filenames:
-            _, file_extension = os.path.splitext(filename)
-            if file_extension.lower() in extensions:
-                row_data = (filename, "", "")
-                item_id = self.filesview.append(row_data)
+            self.filesview.empty()
+            for filename in filenames:
+                _, file_extension = os.path.splitext(filename)
+                if file_extension.lower() in extensions:
+                    row_data = (filename, "", "")
+                    item_id = self.filesview.append(row_data)
 
-                filepath = os.path.join(self.root_path, filename)
+                    filepath = os.path.join(self.root_path, filename)
 
-        self.put_calculations_on_queue()
+            self.put_calculations_on_queue()
 
     def put_calculations_on_queue(self):
         grid_count = self.image.grid_count
