@@ -3,6 +3,9 @@ from tkinter import filedialog
 import os
 import csv
 import re
+import time
+import gc
+from collections import deque
 
 import numpy as np
 import scipy
@@ -47,8 +50,8 @@ def image_stats(image, M=5, N=5):
 class SpeckleApp(App):
     def __init__(self):
         App.__init__(self, geometry="1300x1000")
-        self.calculations_queue = Queue()
-        self.results_queue = Queue()
+        self.calculations_queue = deque() # Is thread-safe without locking
+        self.results_queue = deque()
 
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
@@ -99,7 +102,7 @@ class SpeckleApp(App):
         self.filemanager.row_resize_weight(1,1)
         self.button_load = Button("Select directory…", user_event_callback=self.click_load)
         self.button_load.grid_into(self.filemanager, row=0, column=0, padx=10, pady=10, sticky="nw")
-        self.regex_entry = LabelledEntry("Sort on regex:", text=r".-(\d+)\.")
+        self.regex_entry = LabelledEntry("Sort on regex:", text=r"._(\d+.\d+)\.")
         self.regex_entry.grid_into(self.filemanager, row=0, column=1, padx=10, pady=10, sticky="nw")
         self.regex_entry.value_variable.trace_add("write", self.regex_entry_updated)
 
@@ -109,8 +112,9 @@ class SpeckleApp(App):
         self.filesview.grid_into(self.filemanager,row=1, column=0, columnspan=4, padx=10, pady=10,  sticky='nsew')
 
         # self.filesview.widget.column(column=0, width=60)
-        self.filesview.widget.column(column=1, width=60)
-        self.filesview.widget.column(column=2, width=60)
+        # self.filesview.widget.column(column=0, width=10)
+        self.filesview.widget.column(column=1, width=10)
+        self.filesview.widget.column(column=2, width=10)
 
         self.plot = XYPlot(figsize=(6,4))
         self.plot.grid_into(self.window, row=4, column=0, columnspan=4, padx=20, pady=20, sticky='nsew')
@@ -125,7 +129,6 @@ class SpeckleApp(App):
             self.click_load(None, None)
 
         Th.Thread(target=self.calculate_contrasts_daemon).start()
-        self.refresh_filesview()
 
     def begin_computation(self):
         self.lock.acquire()
@@ -140,7 +143,7 @@ class SpeckleApp(App):
         return not self.lock.locked()
 
     def wait_until_computing_done(self):
-        if self.lock.acquire(timeout=0.5):
+        if self.lock.acquire(timeout=0.05):
             self.lock.release()
 
     def refresh_filesview(self):
@@ -148,7 +151,7 @@ class SpeckleApp(App):
             regex = self.regex_entry.value_variable.get()
             match = re.search(regex, x)
             if match is not None:
-                return int(match.group(1))
+                return float(match.group(1))
             else:
                 return 0
 
@@ -158,13 +161,12 @@ class SpeckleApp(App):
             extensions = ['.jpg','.png','.tif','.tiff','.bmp']
 
             self.filesview.empty()
-            for filename in filenames:
+
+            for filename in filenames[::len(filenames)//1000]:
                 _, file_extension = os.path.splitext(filename)
                 if file_extension.lower() in extensions:
                     row_data = (filename, "", "")
                     item_id = self.filesview.append(row_data)
-
-                    filepath = os.path.join(self.root_path, filename)
 
             self.put_calculations_on_queue()
 
@@ -176,14 +178,21 @@ class SpeckleApp(App):
 
             filename = item["values"][0]
             filepath = os.path.join(self.root_path, filename)
-            self.calculations_queue.put((item_id, filepath, grid_count))
+            self.calculations_queue.appendleft((item_id, filepath, grid_count))
         
-        self.calculations_queue.put((None, None, grid_count))
+        self.calculations_queue.appendleft((None, None, grid_count))
 
     def calculate_contrasts_daemon(self):
+        gc.disable()
+
+        next_time = time.time()+1
         while True:
+            if time.time() > next_time:
+                next_time = time.time()+5
+                gc.collect()
+
             try:
-                item_id, filepath, grid_count = self.calculations_queue.get()
+                item_id, filepath, grid_count = self.calculations_queue.pop()
 
                 if item_id is not None:
                     pil_image = PIL.Image.open(filepath)
@@ -195,31 +204,37 @@ class SpeckleApp(App):
                     contrast_mean_NxN = np.mean(contrasts_NxN)
 
                     pil_image.close()
-                    self.results_queue.put((item_id, (contrast, contrast_mean_NxN, contrasts_NxN)))
-                    self.window.widget.event_generate("<<Results-Updated>>")
+                    self.results_queue.appendleft((item_id, contrast, contrast_mean_NxN, contrasts_NxN))
+                    if len(self.results_queue) == 100: # Quickly show on screen
+                        self.window.widget.event_generate("<<Results-Updated>>")    
+
                 else:
+                    self.window.widget.event_generate("<<Results-Updated>>")    
                     self.window.widget.event_generate("<<Results-Complete>>")
 
+            except IndexError:
+                time.sleep(0.1)
             except Exception as err:
                 print(err)
 
     def get_calculations_from_queue(self, event):
         try:
             while True:
-                result = self.results_queue.get(block=False)
-                item_id, (contrast, contrast_mean_NxN, contrasts_NxN) = result
-                self.filesview.widget.set(item_id, column=1, value=contrast)
-                self.filesview.widget.set(item_id, column=2, value=contrast_mean_NxN)
-                for contrast in contrasts_NxN:
-                    self.filesview.widget.insert(item_id, END, values=(None, None, contrast, None))
+                result = self.results_queue.pop()
+                item_id, contrast, contrast_mean_NxN, contrasts_NxN = result
+                self.filesview.widget.set(item_id, column=1, value="{0:.3f}".format(contrast))
+                self.filesview.widget.set(item_id, column=2, value="{0:.3f}".format(contrast_mean_NxN))
+
+                for i, contrast in enumerate(contrasts_NxN):
+                    self.filesview.widget.insert(item_id, END, values=("  Grid element #{0}".format(i),"",  contrast, None))
 
                 if item_id in self.filesview.widget.selection():
                     self.refresh_tile_contrasts_table(contrasts_NxN)
 
-        except Empty:
+        except IndexError:
             pass
         except Exception as err:
-            print(err)
+            print(type(err))
 
     def results_complete(self, event):
         self.update_plot(event, self)
@@ -230,7 +245,7 @@ class SpeckleApp(App):
 
         self.plot.first_axis.set_xlabel("Image #")
         self.plot.first_axis.set_ylabel("Contrast sigma/mean for {0}x{0}".format(grid_count))
-        self.plot.first_axis.set_ylim(0,1)
+        self.plot.first_axis.set_ylim(0,0.6)
 
         for i, item_id in enumerate(self.filesview.widget.get_children()):
             item = self.filesview.widget.item(item_id)
@@ -239,6 +254,8 @@ class SpeckleApp(App):
                 y = float(item["values"][2])
                 x = i
                 self.plot.append(x,y)
+            except ValueError as err:
+                break
             except Exception as err:
                 print(err)
 
@@ -307,5 +324,4 @@ class SpeckleApp(App):
 
 if __name__ == "__main__":
     app = SpeckleApp()
-
     app.mainloop()
