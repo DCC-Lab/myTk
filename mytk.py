@@ -14,9 +14,14 @@ from PIL import Image, ImageDraw
 import webbrowser
 import pyperclip
 import platform
+import time
+import cv2
 
-# debug_kwargs = {"borderwidth": 2, "relief": "groove"}
-debug_kwargs = {}
+import signal
+import sys
+
+debug_kwargs = {"borderwidth": 2, "relief": "groove"}
+# debug_kwargs = {}
 
 
 class Bindable:
@@ -59,13 +64,26 @@ class Bindable:
         """
         other_object.add_observer(self, other_property_name, context=this_property_name)
         self.add_observer(other_object, this_property_name, context=other_property_name)
+        self.property_value_did_change(this_property_name)
 
     def __setattr__(self, property_name, new_value):
         """
         We always set the property regardless of the value but we notify only if a change occured
         """
         super().__setattr__(property_name, new_value)
+        
+        self.property_value_did_change(property_name)
+        # try:
+        #     for observer, observed_property_name, context in self.observing_me:
+        #         if observed_property_name == property_name:
+        #             observer.property_value_did_change(property_name)
+        # except AttributeError as err:
+        #     pass
+        # except Exception as err:
+        #     print(err)
 
+    def property_value_did_change(self, property_name):
+        new_value = getattr(self, property_name)
         try:
             for observer, observed_property_name, context in self.observing_me:
                 if observed_property_name == property_name:
@@ -74,6 +92,7 @@ class Bindable:
             pass
         except Exception as err:
             print(err)
+
 
     def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
         """
@@ -656,6 +675,7 @@ class Image(Base):
         self._is_grid_showing.trace_add('write', self.property_changed)
         self._grid_count = IntVar(name='grid_count', value=5)
         self._grid_count.trace_add('write', self.property_changed)
+        self._last_resize_event = time.time()
 
     def property_changed(self, var, index, mode):
         if var == 'is_rescalable':
@@ -703,24 +723,32 @@ class Image(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
-        self.widget.bind("<Configure>", self.event_resized)
         self.update_display()
+        self.widget.bind("<Configure>", self.event_resized)
 
     def event_resized(self, event):
-        if self.is_rescalable:
-            width = event.width
-            height = event.height
+        """
+        We resize the image is_rescalable but this may affect the widget size.
+        This can go into an infinite loop, we avoid resizing too often
+        """
+        if time.time() - self._last_resize_event > 0.5:
+            if self.is_rescalable and self.pil_image is not None:
+                width = event.width
+                height = event.height
 
-            current_aspect_ratio = self.pil_image.width/self.pil_image.height
-            if width / current_aspect_ratio < height:
-                height = int(width / current_aspect_ratio)
-            else:
-                width = int(height * current_aspect_ratio)
+                current_aspect_ratio = self.pil_image.width/self.pil_image.height
+                if width / current_aspect_ratio <= height:
+                    height = int(width / current_aspect_ratio)
+                else:
+                    width = int(height * current_aspect_ratio)
 
-            resized_image = self.pil_image.resize((width,height), PIL.Image.NEAREST)
+                if self.pil_image.width != width or self.pil_image.height != height:
+                    resized_image = self.pil_image.resize((width,height), PIL.Image.NEAREST)
 
+                    self.update_display(resized_image)
 
-            self.update_display(resized_image)
+        self._last_resize_event = time.time()
+
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -766,6 +794,140 @@ class Image(Base):
             return None
 
 
+class VideoView(Base):
+    def __init__(self, device = 0):
+        super().__init__()
+        self.device = device
+        self.is_running = False
+        self.zoom = 5
+        self.pil_image = None
+        self._displayed_tkimage = None 
+        self.videowriter  = None
+        self.must_quit = False
+        self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
+
+    def signal_handler(self, sig, frame):
+        if sig == signal.SIGINT:
+            self.must_quit = True
+
+    def devices(self):
+        index = 0
+        arr = []
+        while True:
+            cap = cv2.VideoCapture(index)
+            if not cap.read()[0]:
+                break
+            else:
+                arr.append(index)
+            cap.release()
+            index += 1
+        return arr
+
+    def prop_ids(self):
+        capture = self.capture
+        print("CV_CAP_PROP_FRAME_WIDTH: '{}'".format(capture.get(cv2.CAP_PROP_FRAME_WIDTH))) 
+        print("CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))) 
+        print("CAP_PROP_FPS : '{}'".format(capture.get(cv2.CAP_PROP_FPS))) 
+        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(cv2.CAP_PROP_POS_MSEC))) 
+        print("CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(cv2.CAP_PROP_FRAME_COUNT))) 
+        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(cv2.CAP_PROP_BRIGHTNESS))) 
+        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(cv2.CAP_PROP_CONTRAST))) 
+        print("CAP_PROP_SATURATION : '{}'".format(capture.get(cv2.CAP_PROP_SATURATION))) 
+        print("CAP_PROP_HUE : '{}'".format(capture.get(cv2.CAP_PROP_HUE))) 
+        print("CAP_PROP_GAIN  : '{}'".format(capture.get(cv2.CAP_PROP_GAIN))) 
+        print("CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(cv2.CAP_PROP_CONVERT_RGB))) 
+
+    def get_prop_id(self, prop_id):
+        """
+        CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
+        CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
+        CAP_PROP_POS_AVI_RATIO Relative position of the video file: 0 - start of the film, 1 - end of the film.
+        CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
+        CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
+        CAP_PROP_FPS Frame rate.
+        CAP_PROP_FOURCC 4-character code of codec.
+        CAP_PROP_FRAME_COUNT Number of frames in the video file.
+        CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
+        CAP_PROP_MODE Backend-specific value indicating the current capture mode.
+        CAP_PROP_BRIGHTNESS Brightness of the image (only for cameras).
+        CAP_PROP_CONTRAST Contrast of the image (only for cameras).
+        CAP_PROP_SATURATION Saturation of the image (only for cameras).
+        CAP_PROP_HUE Hue of the image (only for cameras).
+        CAP_PROP_GAIN Gain of the image (only for cameras).
+        CAP_PROP_EXPOSURE Exposure (only for cameras).
+        CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
+        CAP_PROP_WHITE_BALANCE_U The U value of the whitebalance setting (note: only supported by DC1394 v 2.x backend currently)
+        CAP_PROP_WHITE_BALANCE_V The V value of the whitebalance setting (note: only supported by DC1394 v 2.x backend currently)
+        CAP_PROP_RECTIFICATION Rectification flag for stereo cameras (note: only supported by DC1394 v 2.x backend currently)
+        CAP_PROP_ISO_SPEED The ISO speed of the camera (note: only supported by DC1394 v 2.x backend currently)
+        CAP_PROP_BUFFERSIZE Amount of frames stored in internal buffer memory (note: only supported by DC1394 v 2.x backend currently)        
+        """
+        if self.capture is not None:
+            return self.capture.get(prop_id)
+        return None
+
+    def create_widget(self, master):
+        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
+        self.start_capturing()
+
+    def start_capturing(self):
+        if not self.is_running:
+            self.capture = cv2.VideoCapture(self.device, cv2.CAP_AVFOUNDATION)
+            if self.capture.isOpened():
+                self.is_running = True
+                self.update_display()
+
+    def request_stop(self):
+        self.must_quit = True
+
+    def stop_capturing(self):
+        if self.capture is not None:
+            self.capture.release()
+            self.capture = None
+
+    def start_streaming(self, filepath):
+        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
+        fourcc = cv2.VideoWriter_fourcc('I','4','2','0')
+        self.videowriter  = cv2.VideoWriter("test.avi", fourcc, 20.0, (int(width),  int(height)), True)
+
+    def stop_streaming(self):
+        if self.videowriter is not None:
+            self.videowriter.release()
+            self.videowriter = None
+
+    def update_display(self):
+        # get frame
+        ret, frame = self.capture.read()
+
+        if ret:
+
+            if self.videowriter is not None:
+                self.videowriter.write(frame)
+            # cv2 uses `BGR` but `GUI` needs `RGB`
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # convert to PIL image
+            img = PIL.Image.fromarray(frame)
+            resized_image = img.resize((img.width//self.zoom,img.height//self.zoom), PIL.Image.NEAREST)
+
+            # convert to Tkinter image
+            photo = PIL.ImageTk.PhotoImage(image=resized_image)
+
+            # solution for bug in `PhotoImage`
+            self._displayed_tkimage = photo
+
+            # replace image in label
+            self.widget.configure(image=photo)  
+
+        if self.must_quit:
+            self.stop_streaming()
+            self.stop_capturing()
+            sys.exit(0)                   
+
+        if self.is_running:
+            App.app.root.after(20, self.update_display)
+        
 
 class Figure(Base):
     def __init__(self, figure=None, figsize=None):
@@ -991,6 +1153,9 @@ if __name__ == "__main__":
 
     image = Image("logo.png")
     image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
+
+    video = VideoView(device=1)
+    video.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
     app.window.all_resize_weight(1)
 

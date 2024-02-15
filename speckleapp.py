@@ -56,11 +56,15 @@ class SpeckleApp(App):
         self.window.widget.title("Speckle Inspector")
         self.window.widget.grid_propagate(1)
 
-        self.image = Image()
-        self.image.is_rescalable = False
-        self.image.grid_into(self.window, column=1, row=0, rowspan=3,  padx=20, pady=20, sticky='nw')
-        self.controls = View(width=400, height=100)
-        self.controls.grid_into(self.window, row=0, column=2, padx=10, pady=10, sticky="ne")
+        self.controls = View(width=600, height=100)
+        self.controls.grid_into(self.window, row=0, column=1, rowspan=3, sticky="nsew")
+                      # grid_into(self.window, row=0, column=2, padx=10, pady=10, sticky="nsew")
+
+        self.controls.row_resize_weight(0,0)
+        self.controls.row_resize_weight(1,1)
+
+        self.contrast = Label("(Calcul)")
+        self.contrast.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky="nw")
 
         self.grid_label = Label("Grid size:")
         self.grid_label.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky="ne")
@@ -70,25 +74,24 @@ class SpeckleApp(App):
         self.show_grid_checkbox = Checkbox("Show grid")
         self.show_grid_checkbox.grid_into(self.controls, row=0, column=4, padx=10, pady=10, sticky="nw")
         self.rescalable_checkbox = Checkbox("Rescalable")
-        self.rescalable_checkbox.grid_into(self.controls, row=1, column=4, padx=10, pady=10, sticky="nw")
+        self.rescalable_checkbox.grid_into(self.controls, row=0, column=5, padx=10, pady=10, sticky="nw")
 
-        self.image.bind_property_to_widget_value("is_grid_showing", self.show_grid_checkbox)
-        self.image.bind_property_to_widget_value("is_rescalable", self.rescalable_checkbox)
-        self.image.bind_property_to_widget_value("grid_count", self.grid_count_entry)
 
-        self.contrast = Label("(Calcul)")
-        self.contrast.grid_into(self.controls, row=1, column=0, columnspan=4, padx=10, pady=10, sticky="nw")
 
-        columns = {
-            "grid": "Grid #",
-            "contrast": "Contrast",
-        }
+        self.image = Image()
+        self.image.is_rescalable = False
+        self.image.grid_into(self.controls,  row=1, column=0, rowspan=3, columnspan=6, padx=10, pady=10, sticky='nw')
 
-        self.table = TableView(columns=columns)
-        self.table.grid_into(self.window, row=2, column=2, padx=20, pady=20,  sticky='nsew')
+        # columns = {
+        #     "grid": "Grid #",
+        #     "contrast": "Contrast",
+        # }
 
-        self.table.widget.column(column=0, width=20)
-        self.table.widget.column(column=1, width=20)
+        # self.table = TableView(columns=columns)
+        # self.table.grid_into(self.window, row=2, column=2, padx=20, pady=20,  sticky='nsew')
+
+        # self.table.widget.column(column=0, width=20)
+        # self.table.widget.column(column=1, width=20)
 
         self.window.row_resize_weight(index=0, weight=0)
         self.window.row_resize_weight(index=1, weight=0)
@@ -121,30 +124,20 @@ class SpeckleApp(App):
         self.plot_button =  Button("Plot", user_event_callback=self.update_plot)
         self.plot_button.grid_into(self.filemanager, row=0, column=3, padx=10, pady=10)
 
-        self.root_path = None  
-        self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
-        self.window.widget.bind("<<Results-Complete>>", self.results_complete)
+        self.root_path = None
+
 
         if self.root_path is None:
             self.click_load(None, None)
 
+        self.image.bind_property_to_widget_value("is_grid_showing", self.show_grid_checkbox)
+        self.image.bind_property_to_widget_value("is_rescalable", self.rescalable_checkbox)
+        self.image.bind_property_to_widget_value("grid_count", self.grid_count_entry)
+        self.window.widget.bind("<<Results-Updated>>", self.get_calculations_from_queue)
+        self.window.widget.bind("<<Results-Complete>>", self.results_complete)
+
         Th.Thread(target=self.calculate_contrasts_daemon).start()
 
-    def begin_computation(self):
-        self.lock.acquire()
-
-    def end_computation(self):
-        self.lock.release()
-
-    def is_computing(self):
-        return self.lock.locked()
-
-    def is_not_computing(self):
-        return not self.lock.locked()
-
-    def wait_until_computing_done(self):
-        if self.lock.acquire(timeout=0.05):
-            self.lock.release()
 
     def refresh_filesview(self):
         def sort_key(x):
@@ -162,7 +155,11 @@ class SpeckleApp(App):
 
             self.filesview.empty()
 
-            for filename in filenames[::len(filenames)//1000]:
+            step = len(filenames)//1000
+            if step == 0:
+                step = 1
+
+            for filename in filenames[::step]:
                 _, file_extension = os.path.splitext(filename)
                 if file_extension.lower() in extensions:
                     row_data = (filename, "", "")
@@ -225,6 +222,10 @@ class SpeckleApp(App):
                 self.filesview.widget.set(item_id, column=1, value="{0:.3f}".format(contrast))
                 self.filesview.widget.set(item_id, column=2, value="{0:.3f}".format(contrast_mean_NxN))
 
+                child_ids = self.filesview.widget.get_children(item_id)
+                if len(child_ids) != 0:
+                    self.filesview.widget.delete(*child_ids)
+
                 for i, contrast in enumerate(contrasts_NxN):
                     self.filesview.widget.insert(item_id, END, values=("  Grid element #{0}".format(i),"",  contrast, None))
 
@@ -234,7 +235,7 @@ class SpeckleApp(App):
         except IndexError:
             pass
         except Exception as err:
-            print(type(err))
+            print(type(err), err)
 
     def results_complete(self, event):
         self.update_plot(event, self)
@@ -287,9 +288,9 @@ class SpeckleApp(App):
             self.refresh_tile_contrasts_table(tiles_contrasts)
 
     def refresh_tile_contrasts_table(self, contrasts):        
-        self.table.empty()
-        for i, contrast in enumerate(contrasts):
-            self.table.append((i, contrast))
+        # self.table.empty()
+        # for i, contrast in enumerate(contrasts):
+        #     self.table.append((i, contrast))
 
         contrast_mean = np.mean(contrasts)
         contrast_std = np.std(contrasts)
