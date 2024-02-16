@@ -539,7 +539,7 @@ class TableView(Base):
             selectmode="browse",
             takefocus=True,
         )
-        self.widget.grid_propagate(0)
+        # self.widget.grid_propagate(0)
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
 
@@ -812,44 +812,47 @@ class Image(Base):
 
 
 class VideoView(Base):
-    available_devices = []
-
-    def __init__(self, device=0, zoom_level=3):
+    def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
         self.device = device
-        self.is_running = False
         self.zoom_level = zoom_level
-        self.pil_image = None
-        self._displayed_tkimage = None
+        self.image = None
+
+        self.capture = None
         self.videowriter = None
-        self.must_stop = False
-        self.must_quit = False
+
+        self.abort = False
+        self.auto_start = auto_start
+
+        self._displayed_tkimage = None
         self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
-        # self.previous_handler_abort = signal.signal(signal.SIGINT, self.signal_abort_handler)
+        self.next_scheduled_update = None
 
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
         if sig == signal.SIGINT:
-            self.must_stop = True
-            self.must_quit = True
+            if self.is_running:
+                self.abort = True
+            else:
+                self.previous_handler(sig, frame)
 
     @classmethod
-    def refresh_available_devices(cls):
-        cls.available_devices = []
+    def available_devices(cls):
         try:
             index = 0
-            arr = []
+            available_devices = []
             while True:
                 cap = cv2.VideoCapture(index)
                 if not cap.read()[0]:
                     break
                 else:
-                    cls.available_devices.append(index)
+                    available_devices.append(index)
                 cap.release()
                 index += 1
-            return arr
         except Exception as err:
             pass
+
+        return available_devices
 
     def prop_ids(self):
         capture = self.capture
@@ -879,28 +882,16 @@ class VideoView(Base):
 
     def get_prop_id(self, prop_id):
         """
+        Important prop_id:
         CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
         CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
-        CAP_PROP_POS_AVI_RATIO Relative position of the video file: 0 - start of the film, 1 - end of the film.
         CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
         CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
         CAP_PROP_FPS Frame rate.
         CAP_PROP_FOURCC 4-character code of codec.
-        CAP_PROP_FRAME_COUNT Number of frames in the video file.
         CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
         CAP_PROP_MODE Backend-specific value indicating the current capture mode.
-        CAP_PROP_BRIGHTNESS Brightness of the image (only for cameras).
-        CAP_PROP_CONTRAST Contrast of the image (only for cameras).
-        CAP_PROP_SATURATION Saturation of the image (only for cameras).
-        CAP_PROP_HUE Hue of the image (only for cameras).
-        CAP_PROP_GAIN Gain of the image (only for cameras).
-        CAP_PROP_EXPOSURE Exposure (only for cameras).
         CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
-        CAP_PROP_WHITE_BALANCE_U The U value of the whitebalance setting (note: only supported by DC1394 v 2.x backend currently)
-        CAP_PROP_WHITE_BALANCE_V The V value of the whitebalance setting (note: only supported by DC1394 v 2.x backend currently)
-        CAP_PROP_RECTIFICATION Rectification flag for stereo cameras (note: only supported by DC1394 v 2.x backend currently)
-        CAP_PROP_ISO_SPEED The ISO speed of the camera (note: only supported by DC1394 v 2.x backend currently)
-        CAP_PROP_BUFFERSIZE Amount of frames stored in internal buffer memory (note: only supported by DC1394 v 2.x backend currently)
         """
         if self.capture is not None:
             return self.capture.get(prop_id)
@@ -908,23 +899,31 @@ class VideoView(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
-        self.start_capturing()
+        if self.auto_start:
+            self.start_capturing()
+
+    @property
+    def is_running(self):
+        return self.capture is not None
+
+    @property
+    def startstop_button_label(self):
+        if self.is_running:
+            return "Stop"
+        return "Start"
 
     def start_capturing(self):
         if not self.is_running:
             try:
-                self.capture = cv2.VideoCapture(self.device, cv2.CAP_AVFOUNDATION)
+                self.capture = cv2.VideoCapture(self.device)
                 if self.capture.isOpened():
-                    self.is_running = True
                     self.update_display()
             except Exception as err:
                 print(err)
 
-    def request_stop(self):
-        self.must_stop = True
-
     def stop_capturing(self):
-        if self.capture is not None:
+        if self.is_running:
+            App.app.root.after_cancel(self.next_scheduled_update)
             self.capture.release()
             self.capture = None
 
@@ -957,6 +956,7 @@ class VideoView(Base):
                 (img.width // self.zoom_level, img.height // self.zoom_level),
                 PIL.Image.NEAREST,
             )
+            self.image = resized_image
 
             # convert to Tkinter image
             photo = PIL.ImageTk.PhotoImage(image=resized_image)
@@ -967,13 +967,12 @@ class VideoView(Base):
             # replace image in label
             self.widget.configure(image=photo)
 
-        if self.must_stop:
-            self.stop_streaming()
+            self.next_scheduled_update = App.app.root.after(20, self.update_display)
+
+        if self.abort:
             self.stop_capturing()
-            if self.must_quit:
-                sys.exit(0)
-        else:
-            App.app.root.after(20, self.update_display)
+            self.previous_handler(signal.SIGINT, 0)
+
 
 
 class Figure(Base):
