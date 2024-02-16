@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter.messagebox import showerror, showwarning, showinfo
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
+from tkinter import filedialog
 
 from functools import partial
 
@@ -824,6 +825,10 @@ class VideoView(Base):
         self.abort = False
         self.auto_start = auto_start
 
+        self.startstop_behaviour_button = None
+        self.save_behaviour_button = None
+        self.stream_behaviour_button = None
+
         self._displayed_tkimage = None
         self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
         self.next_scheduled_update = None
@@ -853,6 +858,137 @@ class VideoView(Base):
             pass
 
         return available_devices
+
+    def create_widget(self, master):
+        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
+        if self.auto_start:
+            self.start_capturing()
+
+    @property
+    def is_running(self):
+        return self.capture is not None
+
+    @property
+    def startstop_button_label(self):
+        if self.is_running:
+            return "Stop"
+        return "Start"
+
+    def start_capturing(self):
+        if not self.is_running:
+            try:
+                self.capture = cv2.VideoCapture(self.device)
+                if self.capture.isOpened():
+                    self.update_display()
+            except Exception as err:
+                print(err)
+
+    def stop_capturing(self):
+        if self.is_running:
+            App.app.root.after_cancel(self.next_scheduled_update)
+            self.capture.release()
+            self.capture = None
+
+    def start_streaming(self, filepath):
+        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
+        fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
+        self.videowriter = cv2.VideoWriter(
+            filepath, fourcc, 20.0, (int(width), int(height)), True
+        )
+
+    def stop_streaming(self):
+        if self.videowriter is not None:
+            self.videowriter.release()
+            self.videowriter = None
+
+    def update_display(self):
+        ret, frame = self.capture.read()
+
+        if ret:
+            if self.videowriter is not None:
+                self.videowriter.write(frame)
+
+            # cv2 uses `BGR` but `GUI` needs `RGB`
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # convert to PIL image
+            img = PIL.Image.fromarray(frame)
+            resized_image = img.resize(
+                (img.width // self.zoom_level, img.height // self.zoom_level),
+                PIL.Image.NEAREST,
+            )
+            self.image = resized_image
+
+            # convert to Tkinter image
+            photo = PIL.ImageTk.PhotoImage(image=resized_image)
+
+            # solution for bug in `PhotoImage`
+            self._displayed_tkimage = photo
+
+            # replace image in label
+            self.widget.configure(image=photo)
+
+            self.next_scheduled_update = App.app.root.after(20, self.update_display)
+
+        if self.abort:
+            self.stop_capturing()
+            self.previous_handler(signal.SIGINT, 0)
+
+    def create_behaviour_buttons(self):
+        start_button = Button(self.startstop_button_label)
+        save_button = Button("Save…")
+        stream_button = Button("Stream to disk…")
+
+        self.bind_button_to_startstop_behaviour(start_button)
+        self.bind_button_to_save_behaviour(save_button)
+        self.bind_button_to_stream_behaviour(stream_button)
+
+        return start_button, save_button, stream_button
+
+    def bind_button_to_startstop_behaviour(self, button):
+        self.startstop_behaviour_button = button
+        self.startstop_behaviour_button.user_event_callback = (
+            self.click_start_stop_button
+        )
+
+    def bind_button_to_save_behaviour(self, button):
+        self.save_behaviour_button = button
+        self.save_behaviour_button.user_event_callback = self.click_save_button
+
+    def bind_button_to_stream_behaviour(self, button):
+        self.stream_behaviour_button = button
+        self.stream_behaviour_button.user_event_callback = self.click_stream_button
+
+    def click_start_stop_button(self, event, button):
+        if self.is_running:
+            self.stop_capturing()
+        else:
+            self.start_capturing()
+        button.widget.configure(text=self.startstop_button_label)
+
+    def click_save_button(self, event, button):
+        exts = PIL.Image.registered_extensions()
+        supported_extensions = [
+            (f, ex) for ex, f in exts.items() if f in PIL.Image.SAVE
+        ]
+
+        filepath = filedialog.asksaveasfilename(
+            parent=button.widget,
+            title="Choose a filename:",
+            filetypes=supported_extensions,
+        )
+        if filepath:
+            self.image.save(filepath)
+
+    def click_stream_button(self, event, button):
+        filepath = filedialog.asksaveasfilename(
+            parent=button.widget,
+            title="Choose a filename for movie:",
+            filetypes=[("AVI", ".avi")],
+        )
+        if filepath:
+            self.start_streaming(filepath)
 
     def prop_ids(self):
         capture = self.capture
@@ -896,83 +1032,6 @@ class VideoView(Base):
         if self.capture is not None:
             return self.capture.get(prop_id)
         return None
-
-    def create_widget(self, master):
-        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
-        if self.auto_start:
-            self.start_capturing()
-
-    @property
-    def is_running(self):
-        return self.capture is not None
-
-    @property
-    def startstop_button_label(self):
-        if self.is_running:
-            return "Stop"
-        return "Start"
-
-    def start_capturing(self):
-        if not self.is_running:
-            try:
-                self.capture = cv2.VideoCapture(self.device)
-                if self.capture.isOpened():
-                    self.update_display()
-            except Exception as err:
-                print(err)
-
-    def stop_capturing(self):
-        if self.is_running:
-            App.app.root.after_cancel(self.next_scheduled_update)
-            self.capture.release()
-            self.capture = None
-
-    def start_streaming(self, filepath):
-        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
-        fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
-        self.videowriter = cv2.VideoWriter(
-            "test.avi", fourcc, 20.0, (int(width), int(height)), True
-        )
-
-    def stop_streaming(self):
-        if self.videowriter is not None:
-            self.videowriter.release()
-            self.videowriter = None
-
-    def update_display(self):
-        ret, frame = self.capture.read()
-
-        if ret:
-            if self.videowriter is not None:
-                self.videowriter.write(frame)
-
-            # cv2 uses `BGR` but `GUI` needs `RGB`
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            # convert to PIL image
-            img = PIL.Image.fromarray(frame)
-            resized_image = img.resize(
-                (img.width // self.zoom_level, img.height // self.zoom_level),
-                PIL.Image.NEAREST,
-            )
-            self.image = resized_image
-
-            # convert to Tkinter image
-            photo = PIL.ImageTk.PhotoImage(image=resized_image)
-
-            # solution for bug in `PhotoImage`
-            self._displayed_tkimage = photo
-
-            # replace image in label
-            self.widget.configure(image=photo)
-
-            self.next_scheduled_update = App.app.root.after(20, self.update_display)
-
-        if self.abort:
-            self.stop_capturing()
-            self.previous_handler(signal.SIGINT, 0)
-
 
 
 class Figure(Base):
