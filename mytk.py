@@ -397,9 +397,8 @@ class PopupMenu(Base):
         self.value_variable.set(value=self.menu_items[self.selected_index])
 
         if self.user_callback is not None:
-            self.user_callback()
-
-
+            self.user_callback(selected_index)
+    
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
@@ -935,6 +934,16 @@ class VideoView(Base):
             self.stop_capturing()
             self.previous_handler(signal.SIGINT, 0)
 
+    def create_behaviour_popups(self):
+        popup_camera = PopupMenu(
+            menu_items=VideoView.available_devices(),
+            user_callback=self.camera_selection_changed,
+        )
+
+        self.bind_popup_to_camera_selection_behaviour(popup_camera)
+
+        return popup_camera
+
     def create_behaviour_buttons(self):
         start_button = Button(self.startstop_button_label)
         save_button = Button("Save…")
@@ -947,18 +956,18 @@ class VideoView(Base):
         return start_button, save_button, stream_button
 
     def bind_button_to_startstop_behaviour(self, button):
-        self.startstop_behaviour_button = button
-        self.startstop_behaviour_button.user_event_callback = (
+        button.user_event_callback = (
             self.click_start_stop_button
         )
 
     def bind_button_to_save_behaviour(self, button):
-        self.save_behaviour_button = button
-        self.save_behaviour_button.user_event_callback = self.click_save_button
+        button.user_event_callback = self.click_save_button
 
     def bind_button_to_stream_behaviour(self, button):
-        self.stream_behaviour_button = button
-        self.stream_behaviour_button.user_event_callback = self.click_stream_button
+        button.user_event_callback = self.click_stream_button
+
+    def bind_popup_to_camera_selection_behaviour(self, popup):
+        popup.user_event_callback = self.camera_selection_changed
 
     def click_start_stop_button(self, event, button):
         if self.is_running:
@@ -989,6 +998,11 @@ class VideoView(Base):
         )
         if filepath:
             self.start_streaming(filepath)
+
+    def camera_selection_changed(self, index):
+        self.stop_capturing()
+        self.device = index
+        self.start_capturing()
 
     def prop_ids(self):
         capture = self.capture

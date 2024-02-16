@@ -47,27 +47,14 @@ class MicroscopeApp(App):
             self.controls, column=1, row=1, pady=10, padx=10, sticky="nw"
         )
 
-        self.camera.bind_button_to_startstop_behaviour(self.start_button)
-        self.camera.bind_button_to_save_behaviour(self.save_button)
-        self.camera.bind_button_to_stream_behaviour(self.stream_button)
-
         self.popup_label = Label("Camera:")
         self.popup_label.grid_into(
             self.controls, column=0, row=2, pady=5, padx=5, sticky="se"
         )
-        self.popup_camera = PopupMenu(
-            menu_items=VideoView.available_devices(),
-            user_callback=self.camera_selection_changed,
-        )
+        self.popup_camera = self.camera.create_behaviour_popups()
         self.popup_camera.grid_into(
             self.controls, column=1, row=2, pady=5, padx=5, sticky="sw"
         )
-        self.popup_camera.selection_changed(0)
-
-    def camera_selection_changed(self):
-        self.camera.stop_capturing()
-        self.camera.device = self.popup_camera.selected_index
-        self.camera.start_capturing()
 
     def about(self):
         showinfo(
