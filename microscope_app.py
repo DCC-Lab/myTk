@@ -19,7 +19,7 @@ class MicroscopeApp(App):
 
         self.window.widget.title("Microscope")
 
-        self.camera = VideoView(device=1, zoom_level=3)
+        self.camera = VideoView(device=0, zoom_level=3)
         self.camera.grid_into(
             self.window, row=0, column=0, pady=10, padx=10, sticky="nw"
         )
@@ -38,23 +38,38 @@ class MicroscopeApp(App):
         )
 
         self.start_button.grid_into(
-            self.controls, column=0, row=0, pady=10, padx=10, sticky="nw"
+            self.controls, column=0, row=0, pady=10, padx=10, sticky="w"
         )
         self.save_button.grid_into(
-            self.controls, column=1, row=0, pady=10, padx=10, sticky="nw"
+            self.controls, column=1, row=0, pady=10, padx=10, sticky="w"
         )
         self.stream_button.grid_into(
-            self.controls, column=1, row=1, pady=10, padx=10, sticky="nw"
+            self.controls, column=1, row=1, pady=10, padx=10, sticky="w"
         )
+
+        self.exposure_time_label = Label("Exposure:")
+        self.exposure_time_label.grid_into(
+            self.controls, column=0, row=3, pady=5, padx=5, sticky="e"
+        )
+        self.exposure_time_slider = Slider()
+        self.exposure_time_slider.grid_into(self.controls, column=1, row=3, pady=10, padx=10, sticky="nw")
+        
+        self.gain_label = Label("Gain:")
+        self.gain_label.grid_into(
+            self.controls, column=0, row=4, pady=5, padx=5, sticky="e"
+        )
+        self.gain_slider = Slider()
+        self.gain_slider.grid_into(self.controls, column=1, row=4, pady=10, padx=10, sticky="nw")
 
         self.popup_label = Label("Camera:")
         self.popup_label.grid_into(
-            self.controls, column=0, row=2, pady=5, padx=5, sticky="se"
+            self.controls, column=0, row=2, pady=5, padx=10, sticky="se"
         )
         self.popup_camera = self.camera.create_behaviour_popups()
         self.popup_camera.grid_into(
-            self.controls, column=1, row=2, pady=5, padx=5, sticky="sw"
+            self.controls, column=1, row=2, pady=5, padx=10, sticky="w"
         )
+
 
     def about(self):
         showinfo(

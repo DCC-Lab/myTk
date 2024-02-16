@@ -1202,7 +1202,7 @@ class Slider(Base):
         self.delegate = delegate
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(
+        self.widget = ttk.Scale(master,
             from_=0, to=100, value=75, length=self.width, orient=self.orient
         )
 
