@@ -70,6 +70,15 @@ class MicroscopeApp(App):
             self.controls, column=1, row=2, pady=5, padx=10, sticky="w"
         )
 
+        self.zoomlevel_label = Label("Zoom level:")
+        self.zoomlevel_label.grid_into(
+            self.controls, column=0, row=6, pady=5, padx=10, sticky="se"
+        )
+        self.zoom_level_control = IntEntry(value=3, width=5, minimum=1)
+        self.zoom_level_control.grid_into(
+            self.controls, column=1, row=6, pady=5, padx=10, sticky="w"
+        )
+        self.camera.bind_properties("zoom_level", self.zoom_level_control, "value_variable")
 
     def about(self):
         showinfo(

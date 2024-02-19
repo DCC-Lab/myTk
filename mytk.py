@@ -3,7 +3,6 @@ from tkinter.messagebox import showerror, showwarning, showinfo
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 from tkinter import filedialog
-
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -20,6 +19,7 @@ import cv2
 
 import signal
 import sys
+import weakref
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
@@ -193,6 +193,11 @@ class Base(Bindable):
         self.widget = None
         self.parent = None
         self.value_variable = None
+        self.controller = self.Controller(view=self)
+
+    class Controller(Bindable):
+        def __init__(self, view):
+            self.view = weakref.ref(view)
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -292,6 +297,10 @@ class Window(Base):
 
         self.widget.grid_columnconfigure(0, weight=1)
         self.widget.grid_rowconfigure(0, weight=1)
+
+    class Controller:
+        def __init__(self, view):
+            self.view = weakref.ref(view)
 
     @property
     def resizable(self):
@@ -508,6 +517,28 @@ class NumericEntry(Base):
             increment=self.increment,
         )
         self.bind_textvariable(DoubleVar(value=self.value))
+
+class IntEntry(Base):
+    def __init__(
+        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
+    ):
+        Base.__init__(self)
+        self.value = int(value)
+        self.minimum = minimum
+        self.maximum = maximum
+        self.increment = increment
+        self.width = width
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.Spinbox(
+            master,
+            width=self.width,
+            from_=self.minimum,
+            to=self.maximum,
+            increment=self.increment,
+        )
+        self.bind_textvariable(IntVar(value=self.value))
 
 
 class LabelledEntry(View):
@@ -914,7 +945,7 @@ class VideoView(Base):
             # convert to PIL image
             img = PIL.Image.fromarray(frame)
             resized_image = img.resize(
-                (img.width // self.zoom_level, img.height // self.zoom_level),
+                (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
                 PIL.Image.NEAREST,
             )
             self.image = resized_image
@@ -1212,7 +1243,6 @@ class Slider(Base):
     def value_updated(self, var, index, mode):
         if self.delegate is not None:
             self.delegate.value_updated(object=self, value_variable=self.value_variable)
-
 
 if __name__ == "__main__":
     app = App()
