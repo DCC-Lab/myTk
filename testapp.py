@@ -10,7 +10,7 @@ class OpticalComponentViewer(App):
         App.__init__(self, geometry="1450x750")
 
         self.window.widget.title("Lens viewer")
-        self.window.resizable = False
+        self.window.is_resizable = False
         self.label = None
         self.menu = None
         self.default_figsize = (7, 5)
@@ -118,9 +118,9 @@ class OpticalComponentViewer(App):
                 except Exception as err:
                     pass
 
-    def selection_changed(self, event):
-        for selected_item in self.table.widget.selection():
-            item = self.table.widget.item(selected_item)
+    def selection_changed(self, event, table):
+        for selected_item in table.widget.selection():
+            item = table.widget.item(selected_item)
             record = item["values"]
             lens = self.lenses[record[0]]  # label
             self.update_figures(lens)

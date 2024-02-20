@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter.messagebox import showerror, showwarning, showinfo
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
-
+from tkinter import filedialog
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -14,23 +14,32 @@ from PIL import Image, ImageDraw
 import webbrowser
 import pyperclip
 import platform
+import time
+import cv2
+
+import signal
+import sys
+import weakref
+import numpy
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
 
 class Bindable:
-    def __init__(self, value = None):
+    def __init__(self, value=None):
         self.observing_me = []
         self.value = value
 
-    def bind_property_to_widget_value(self, property_name:str, control_widget:'Base'):
-        self.bind_properties(property_name, control_widget, other_property_name="value_variable")
+    def bind_property_to_widget_value(self, property_name: str, control_widget: "Base"):
+        self.bind_properties(
+            property_name, control_widget, other_property_name="value_variable"
+        )
 
-    def add_observer(self, observer, my_property_name, context = None):
+    def add_observer(self, observer, my_property_name, context=None):
         """
         We observe the property "my_property_name" of self to notifiy if it changes.
-        However, we treat Tk.Variable() differently: we do not observe for a change 
+        However, we treat Tk.Variable() differently: we do not observe for a change
         in the actual value_variable (i.e. the Variable()): we observe if the Variable() changes
         its value.
         """
@@ -40,17 +49,23 @@ class Bindable:
             self.observing_me.append((observer, my_property_name, context))
 
             if isinstance(var, Variable):
-                var.trace_add('write', self.traced_tk_variable_changed)
+                var.trace_add("write", self.traced_tk_variable_changed)
 
         except AttributeError as err:
-            raise AttributeError("The property '{1}'' must exist on object {0} to be observed ".format(observer, property_name))
+            raise AttributeError(
+                "The property '{1}'' must exist on object {0} to be observed ".format(
+                    observer, property_name
+                )
+            )
 
     def traced_tk_variable_changed(self, var, index, mode):
         for observer, property_name, context in self.observing_me:
             observed_var = getattr(self, property_name)
             if observed_var._name == var:
                 new_value = observed_var.get()
-                observer.observed_property_changed(self, property_name, new_value, context)
+                observer.observed_property_changed(
+                    self, property_name, new_value, context
+                )
 
     def bind_properties(self, this_property_name, other_object, other_property_name):
         """
@@ -59,6 +74,7 @@ class Bindable:
         """
         other_object.add_observer(self, other_property_name, context=this_property_name)
         self.add_observer(other_object, this_property_name, context=other_property_name)
+        self.property_value_did_change(this_property_name)
 
     def __setattr__(self, property_name, new_value):
         """
@@ -66,16 +82,32 @@ class Bindable:
         """
         super().__setattr__(property_name, new_value)
 
+        self.property_value_did_change(property_name)
+        # try:
+        #     for observer, observed_property_name, context in self.observing_me:
+        #         if observed_property_name == property_name:
+        #             observer.property_value_did_change(property_name)
+        # except AttributeError as err:
+        #     pass
+        # except Exception as err:
+        #     print(err)
+
+    def property_value_did_change(self, property_name):
+        new_value = getattr(self, property_name)
         try:
             for observer, observed_property_name, context in self.observing_me:
                 if observed_property_name == property_name:
-                    observer.observed_property_changed(self, observed_property_name, new_value, context)
+                    observer.observed_property_changed(
+                        self, observed_property_name, new_value, context
+                    )
         except AttributeError as err:
             pass
         except Exception as err:
             print(err)
 
-    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
         """
         We set the property (stored in context) of self to the new_value.
         However, we treat Tk.Variable() differently: we do not change the value_variable (i.e. the Variable())
@@ -95,16 +127,12 @@ class Bindable:
 class App(Bindable):
     app = None
 
-    def __new__(cls, geometry=None):
-        if cls.app is None:
-            cls.app = super().__new__(cls)
-        return cls.app
-
     def __init__(self, geometry=None):
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
         self.observed_variables = {}
+        App.app = self
 
     @property
     def root(self):
@@ -166,7 +194,11 @@ class Base(Bindable):
         self.widget = None
         self.parent = None
         self.value_variable = None
+        self.controller = self.Controller(view=self)
 
+    class Controller(Bindable):
+        def __init__(self, view):
+            self.view = weakref.ref(view)
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -193,10 +225,10 @@ class Base(Bindable):
         sticky = 0
         if "sticky" in kwargs.keys():
             sticky = kwargs["sticky"].lower()
-            if 'n' in sticky and 's' in sticky:
+            if "n" in sticky and "s" in sticky:
                 if self.widget.grid_rowconfigure(index=row)["weight"] == 0:
                     self.widget.grid_rowconfigure(index=row, weight=1)
-            if 'e' in sticky and 'w' in sticky:
+            if "e" in sticky and "w" in sticky:
                 if self.widget.grid_columnconfigure(index=column)["weight"] == 0:
                     self.widget.grid_columnconfigure(index=column, weight=1)
 
@@ -267,6 +299,10 @@ class Window(Base):
         self.widget.grid_columnconfigure(0, weight=1)
         self.widget.grid_rowconfigure(0, weight=1)
 
+    class Controller:
+        def __init__(self, view):
+            self.view = weakref.ref(view)
+
     @property
     def resizable(self):
         return self.window
@@ -288,8 +324,9 @@ class View(Base):
             master,
             width=self.original_width,
             height=self.original_height,
-            **debug_kwargs
+            **debug_kwargs,
         )
+
 
 class Checkbox(Base):
     def __init__(self, text="", user_callback=None):
@@ -298,7 +335,13 @@ class Checkbox(Base):
         self.user_callback = user_callback
 
     def create_widget(self, master):
-        self.widget = ttk.Checkbutton(master, text=self.text, onvalue=1, offvalue=0, command=self.selection_changed)
+        self.widget = ttk.Checkbutton(
+            master,
+            text=self.text,
+            onvalue=1,
+            offvalue=0,
+            command=self.selection_changed,
+        )
 
         if self.value_variable is None:
             self.bind_variable(BooleanVar(value=True))
@@ -311,6 +354,7 @@ class Checkbox(Base):
                 self.user_callback(self)
             except Exception as err:
                 print(err)
+
 
 class Button(Base):
     def __init__(self, label="Button", width=None, user_event_callback=None):
@@ -363,9 +407,8 @@ class PopupMenu(Base):
         self.value_variable.set(value=self.menu_items[self.selected_index])
 
         if self.user_callback is not None:
-            self.user_callback()
-
-
+            self.user_callback(selected_index)
+    
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
@@ -437,7 +480,7 @@ class Box(Base):
             width=self.width,
             height=self.height,
             text=self.label,
-            **debug_kwargs
+            **debug_kwargs,
         )
 
 
@@ -472,9 +515,31 @@ class NumericEntry(Base):
             width=self.width,
             from_=self.minimum,
             to=self.maximum,
-            increment=self.increment
+            increment=self.increment,
         )
         self.bind_textvariable(DoubleVar(value=self.value))
+
+class IntEntry(Base):
+    def __init__(
+        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
+    ):
+        Base.__init__(self)
+        self.value = int(value)
+        self.minimum = minimum
+        self.maximum = maximum
+        self.increment = increment
+        self.width = width
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.Spinbox(
+            master,
+            width=self.width,
+            from_=self.minimum,
+            to=self.maximum,
+            increment=self.increment,
+        )
+        self.bind_textvariable(IntVar(value=self.value))
 
 
 class LabelledEntry(View):
@@ -489,6 +554,7 @@ class LabelledEntry(View):
         self.label.grid_into(self, row=0, column=0, padx=5)
         self.entry.grid_into(self, row=0, column=1, padx=5)
         self.value_variable = self.entry.value_variable
+
 
 class TableView(Base):
     def __init__(self, columns):
@@ -505,7 +571,7 @@ class TableView(Base):
             selectmode="browse",
             takefocus=True,
         )
-        self.widget.grid_propagate(0)
+        # self.widget.grid_propagate(0)
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
 
@@ -648,21 +714,22 @@ class Image(Base):
         self.pil_image = pil_image
         if self.pil_image is None:
             self.pil_image = self.read_pil_image(filepath=filepath, url=url)
-        self._displayed_tkimage = None 
+        self._displayed_tkimage = None
 
-        self._is_rescalable = BooleanVar(name='is_rescalable', value=True)
-        self._is_rescalable.trace_add('write', self.property_changed)
-        self._is_grid_showing = BooleanVar(name='is_grid_showing', value=False)
-        self._is_grid_showing.trace_add('write', self.property_changed)
-        self._grid_count = IntVar(name='grid_count', value=5)
-        self._grid_count.trace_add('write', self.property_changed)
+        self._is_rescalable = BooleanVar(name="is_rescalable", value=True)
+        self._is_rescalable.trace_add("write", self.property_changed)
+        self._is_grid_showing = BooleanVar(name="is_grid_showing", value=False)
+        self._is_grid_showing.trace_add("write", self.property_changed)
+        self._grid_count = IntVar(name="grid_count", value=5)
+        self._grid_count.trace_add("write", self.property_changed)
+        self._last_resize_event = time.time()
 
     def property_changed(self, var, index, mode):
-        if var == 'is_rescalable':
+        if var == "is_rescalable":
             self.update_display()
-        elif var == 'is_grid_showing':
+        elif var == "is_grid_showing":
             self.update_display()
-        elif var == 'grid_count':
+        elif var == "grid_count":
             self.update_display()
 
     @property
@@ -673,7 +740,7 @@ class Image(Base):
     def grid_count(self, value):
         if self._grid_count.get() != value:
             self._grid_count.set(value)
-            
+
     @property
     def is_rescalable(self):
         return self._is_rescalable.get()
@@ -689,13 +756,14 @@ class Image(Base):
     @is_grid_showing.setter
     def is_grid_showing(self, value):
         return self._is_grid_showing.set(value)
-    
+
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
             return PIL.Image.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
+
             response = requests.get(url)
             return PIL.Image.open(BytesIO(response.content))
 
@@ -703,30 +771,39 @@ class Image(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
-        self.widget.bind("<Configure>", self.event_resized)
         self.update_display()
+        self.widget.bind("<Configure>", self.event_resized)
 
     def event_resized(self, event):
-        if self.is_rescalable:
-            width = event.width
-            height = event.height
+        """
+        We resize the image is_rescalable but this may affect the widget size.
+        This can go into an infinite loop, we avoid resizing too often
+        """
+        if time.time() - self._last_resize_event > 0.5:
+            if self.is_rescalable and self.pil_image is not None:
+                width = event.width
+                height = event.height
 
-            current_aspect_ratio = self.pil_image.width/self.pil_image.height
-            if width / current_aspect_ratio < height:
-                height = int(width / current_aspect_ratio)
-            else:
-                width = int(height * current_aspect_ratio)
+                current_aspect_ratio = self.pil_image.width / self.pil_image.height
+                if width / current_aspect_ratio <= height:
+                    height = int(width / current_aspect_ratio)
+                else:
+                    width = int(height * current_aspect_ratio)
 
-            resized_image = self.pil_image.resize((width,height), PIL.Image.NEAREST)
+                if self.pil_image.width != width or self.pil_image.height != height:
+                    resized_image = self.pil_image.resize(
+                        (width, height), PIL.Image.NEAREST
+                    )
 
+                    self.update_display(resized_image)
 
-            self.update_display(resized_image)
+        self._last_resize_event = time.time()
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
             return
-            
-        if image_to_display is None :
+
+        if image_to_display is None:
             image_to_display = self.pil_image
 
         if self.is_grid_showing:
@@ -765,6 +842,263 @@ class Image(Base):
         else:
             return None
 
+
+class VideoView(Base):
+    def __init__(self, device=0, zoom_level=3, auto_start=True):
+        super().__init__()
+        self.device = device
+        self.zoom_level = zoom_level
+        self.image = None
+        self.capture = None
+        self.videowriter = None
+
+        self.abort = False
+        self.auto_start = auto_start
+
+        self.startstop_behaviour_button = None
+        self.save_behaviour_button = None
+        self.stream_behaviour_button = None
+
+        self.histogram_xyplot = None
+
+        self._displayed_tkimage = None
+        self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
+        self.next_scheduled_update = None
+        self.next_scheduled_update_histogram = None
+
+    def signal_handler(self, sig, frame):
+        print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
+        if sig == signal.SIGINT:
+            if self.is_running:
+                self.abort = True
+            else:
+                self.previous_handler(sig, frame)
+
+    @classmethod
+    def available_devices(cls):
+        try:
+            index = 0
+            available_devices = []
+            while True:
+                cap = cv2.VideoCapture(index)
+                if not cap.read()[0]:
+                    break
+                else:
+                    available_devices.append(index)
+                cap.release()
+                index += 1
+        except Exception as err:
+            pass
+
+        return available_devices
+
+    def create_widget(self, master):
+        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
+        if self.auto_start:
+            self.start_capturing()
+
+    @property
+    def is_running(self):
+        return self.capture is not None
+
+    @property
+    def startstop_button_label(self):
+        if self.is_running:
+            return "Stop"
+        return "Start"
+
+    def start_capturing(self):
+        if not self.is_running:
+            try:
+                self.capture = cv2.VideoCapture(self.device)
+                if self.capture.isOpened():
+                    self.update_display()
+            except Exception as err:
+                print(err)
+
+    def stop_capturing(self):
+        if self.is_running:
+            App.app.root.after_cancel(self.next_scheduled_update)
+            self.capture.release()
+            self.capture = None
+
+    def start_streaming(self, filepath):
+        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
+        fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
+        self.videowriter = cv2.VideoWriter(
+            filepath, fourcc, 20.0, (int(width), int(height)), True
+        )
+
+    def stop_streaming(self):
+        if self.videowriter is not None:
+            self.videowriter.release()
+            self.videowriter = None
+
+    def update_display(self):
+        ret, readonly_frame = self.capture.read()
+        if ret:
+            # The OpenCV documentation is clear: the returned frame from read() is read-only 
+            # and must be copied to be used (I assume it can be overwritten internally)
+            # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
+            # Without this copy, the program crashes in a few seconds
+            frame = readonly_frame.copy()
+            if self.videowriter is not None:
+                self.videowriter.write(frame)
+
+            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # convert to PIL image
+            img = PIL.Image.fromarray(frame)
+            resized_image = img.resize(
+                (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
+                PIL.Image.NEAREST,
+            )
+            self.image = resized_image
+
+            # convert to Tkinter image
+            photo = PIL.ImageTk.PhotoImage(image=self.image)
+
+            # solution for bug in `PhotoImage`
+            self._displayed_tkimage = photo
+
+            # replace image in label
+            self.widget.configure(image=photo)
+
+            if self.next_scheduled_update_histogram is None:
+                self.update_histogram()
+
+            self.next_scheduled_update = App.app.root.after(20, self.update_display)
+
+        if self.abort:
+            self.stop_capturing()
+            self.previous_handler(signal.SIGINT, 0)
+
+    def update_histogram(self): 
+        if self.histogram_xyplot is not None:
+            self.histogram_xyplot.clear_plot()
+            values = self.image.histogram()
+            for i in range(0, len(values)//3, 4):
+                v = numpy.sum(values[i:i+3])
+                self.histogram_xyplot.append(i,v)
+            self.histogram_xyplot.update_plot()
+        
+            self.next_scheduled_update_histogram = App.app.root.after(100, self.update_histogram)
+
+
+    def create_behaviour_popups(self):
+        popup_camera = PopupMenu(
+            menu_items=VideoView.available_devices(),
+            user_callback=self.camera_selection_changed,
+        )
+
+        self.bind_popup_to_camera_selection_behaviour(popup_camera)
+
+        return popup_camera
+
+    def create_behaviour_buttons(self):
+        start_button = Button(self.startstop_button_label)
+        save_button = Button("Save…")
+        stream_button = Button("Stream to disk…")
+
+        self.bind_button_to_startstop_behaviour(start_button)
+        self.bind_button_to_save_behaviour(save_button)
+        self.bind_button_to_stream_behaviour(stream_button)
+
+        return start_button, save_button, stream_button
+
+    def bind_button_to_startstop_behaviour(self, button):
+        button.user_event_callback = (
+            self.click_start_stop_button
+        )
+
+    def bind_button_to_save_behaviour(self, button):
+        button.user_event_callback = self.click_save_button
+
+    def bind_button_to_stream_behaviour(self, button):
+        button.user_event_callback = self.click_stream_button
+
+    def bind_popup_to_camera_selection_behaviour(self, popup):
+        popup.user_event_callback = self.camera_selection_changed
+
+    def click_start_stop_button(self, event, button):
+        if self.is_running:
+            self.stop_capturing()
+        else:
+            self.start_capturing()
+        button.widget.configure(text=self.startstop_button_label)
+
+    def click_save_button(self, event, button):
+        exts = PIL.Image.registered_extensions()
+        supported_extensions = [
+            (f, ex) for ex, f in exts.items() if f in PIL.Image.SAVE
+        ]
+
+        filepath = filedialog.asksaveasfilename(
+            parent=button.widget,
+            title="Choose a filename:",
+            filetypes=supported_extensions,
+        )
+        if filepath:
+            self.image.save(filepath)
+
+    def click_stream_button(self, event, button):
+        filepath = filedialog.asksaveasfilename(
+            parent=button.widget,
+            title="Choose a filename for movie:",
+            filetypes=[("AVI", ".avi")],
+        )
+        if filepath:
+            self.start_streaming(filepath)
+
+    def camera_selection_changed(self, index):
+        self.stop_capturing()
+        self.device = index
+        self.start_capturing()
+
+    def prop_ids(self):
+        capture = self.capture
+        print(
+            "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
+                capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+            )
+        )
+        print(
+            "CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(
+                capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            )
+        )
+        print("CAP_PROP_FPS : '{}'".format(capture.get(cv2.CAP_PROP_FPS)))
+        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(cv2.CAP_PROP_POS_MSEC)))
+        print(
+            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        )
+        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(cv2.CAP_PROP_BRIGHTNESS)))
+        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(cv2.CAP_PROP_CONTRAST)))
+        print("CAP_PROP_SATURATION : '{}'".format(capture.get(cv2.CAP_PROP_SATURATION)))
+        print("CAP_PROP_HUE : '{}'".format(capture.get(cv2.CAP_PROP_HUE)))
+        print("CAP_PROP_GAIN  : '{}'".format(capture.get(cv2.CAP_PROP_GAIN)))
+        print(
+            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(cv2.CAP_PROP_CONVERT_RGB))
+        )
+
+    def get_prop_id(self, prop_id):
+        """
+        Important prop_id:
+        CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
+        CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
+        CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
+        CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
+        CAP_PROP_FPS Frame rate.
+        CAP_PROP_FOURCC 4-character code of codec.
+        CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
+        CAP_PROP_MODE Backend-specific value indicating the current capture mode.
+        CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
+        """
+        if self.capture is not None:
+            return self.capture.get(prop_id)
+        return None
 
 
 class Figure(Base):
@@ -879,7 +1213,7 @@ class XYPlot(Figure):
         self.x = []
         self.y = []
         self.x_range = 10
-        self.style = 'https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle'
+        # self.style = "https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle"
 
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
@@ -896,7 +1230,7 @@ class XYPlot(Figure):
 
     def update_plot(self):
         # with plt.style.context(self.style):
-        self.first_axis.plot(self.x, self.y, "ko")
+        self.first_axis.plot(self.x, self.y, "k-")
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -921,7 +1255,7 @@ class Slider(Base):
         self.delegate = delegate
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(
+        self.widget = ttk.Scale(master,
             from_=0, to=100, value=75, length=self.width, orient=self.orient
         )
 
@@ -931,7 +1265,6 @@ class Slider(Base):
     def value_updated(self, var, index, mode):
         if self.delegate is not None:
             self.delegate.value_updated(object=self, value_variable=self.value_variable)
-
 
 if __name__ == "__main__":
     app = App()
@@ -960,7 +1293,7 @@ if __name__ == "__main__":
     url2.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
 
     popup = PopupMenu(menu_items=["Option 1", "Option 2", "Option 3"])
-    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="nsew")
+    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="")
 
     box = Box("Some title on top of a box at grid position (1,0)")
     box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="ew")
@@ -991,6 +1324,9 @@ if __name__ == "__main__":
 
     image = Image("logo.png")
     image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
+
+    video = VideoView(device=0)
+    video.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
     app.window.all_resize_weight(1)
 
