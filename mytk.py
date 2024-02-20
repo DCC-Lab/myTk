@@ -20,6 +20,7 @@ import cv2
 import signal
 import sys
 import weakref
+import numpy
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
@@ -848,7 +849,6 @@ class VideoView(Base):
         self.device = device
         self.zoom_level = zoom_level
         self.image = None
-
         self.capture = None
         self.videowriter = None
 
@@ -859,9 +859,12 @@ class VideoView(Base):
         self.save_behaviour_button = None
         self.stream_behaviour_button = None
 
+        self.histogram_xyplot = None
+
         self._displayed_tkimage = None
         self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
         self.next_scheduled_update = None
+        self.next_scheduled_update_histogram = None
 
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
@@ -933,14 +936,18 @@ class VideoView(Base):
             self.videowriter = None
 
     def update_display(self):
-        ret, frame = self.capture.read()
-
+        ret, readonly_frame = self.capture.read()
         if ret:
+            # The OpenCV documentation is clear: the returned frame from read() is read-only 
+            # and must be copied to be used (I assume it can be overwritten internally)
+            # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
+            # Without this copy, the program crashes in a few seconds
+            frame = readonly_frame.copy()
             if self.videowriter is not None:
                 self.videowriter.write(frame)
 
-            # cv2 uses `BGR` but `GUI` needs `RGB`
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
             img = PIL.Image.fromarray(frame)
@@ -951,7 +958,7 @@ class VideoView(Base):
             self.image = resized_image
 
             # convert to Tkinter image
-            photo = PIL.ImageTk.PhotoImage(image=resized_image)
+            photo = PIL.ImageTk.PhotoImage(image=self.image)
 
             # solution for bug in `PhotoImage`
             self._displayed_tkimage = photo
@@ -959,11 +966,26 @@ class VideoView(Base):
             # replace image in label
             self.widget.configure(image=photo)
 
+            if self.next_scheduled_update_histogram is None:
+                self.update_histogram()
+
             self.next_scheduled_update = App.app.root.after(20, self.update_display)
 
         if self.abort:
             self.stop_capturing()
             self.previous_handler(signal.SIGINT, 0)
+
+    def update_histogram(self): 
+        if self.histogram_xyplot is not None:
+            self.histogram_xyplot.clear_plot()
+            values = self.image.histogram()
+            for i in range(0, len(values)//3, 4):
+                v = numpy.sum(values[i:i+3])
+                self.histogram_xyplot.append(i,v)
+            self.histogram_xyplot.update_plot()
+        
+            self.next_scheduled_update_histogram = App.app.root.after(100, self.update_histogram)
+
 
     def create_behaviour_popups(self):
         popup_camera = PopupMenu(
@@ -1191,7 +1213,7 @@ class XYPlot(Figure):
         self.x = []
         self.y = []
         self.x_range = 10
-        self.style = "https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle"
+        # self.style = "https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle"
 
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
@@ -1208,7 +1230,7 @@ class XYPlot(Figure):
 
     def update_plot(self):
         # with plt.style.context(self.style):
-        self.first_axis.plot(self.x, self.y, "ko")
+        self.first_axis.plot(self.x, self.y, "k-")
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -1271,7 +1293,7 @@ if __name__ == "__main__":
     url2.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
 
     popup = PopupMenu(menu_items=["Option 1", "Option 2", "Option 3"])
-    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="nsew")
+    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="")
 
     box = Box("Some title on top of a box at grid position (1,0)")
     box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="ew")
@@ -1303,7 +1325,7 @@ if __name__ == "__main__":
     image = Image("logo.png")
     image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
 
-    video = VideoView(device=1)
+    video = VideoView(device=0)
     video.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
     app.window.all_resize_weight(1)
