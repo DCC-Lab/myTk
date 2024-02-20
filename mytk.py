@@ -18,51 +18,78 @@ import platform
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
 
+
 class Bindable:
-    def __init__(self):
-        self.observed_variables = {}
+    def __init__(self, value = None):
+        self.observing_me = []
+        self.value = value
 
     def bind_property_to_widget_value(self, property_name:str, control_widget:'Base'):
-        if control_widget is not None:
-            value_variable = control_widget.value_variable
-            value_variable.trace_add('write', self.bound_variable_changed)
-            if value_variable._name not in self.observed_variables.keys():
-                self.observed_variables[value_variable._name] = (property_name, value_variable)
-            else:
-                raise RuntimeError("Unable to bind: variable name used {0}".format(value_variable._name))
+        self.bind_properties(property_name, control_widget, other_property_name="value_variable")
 
-            new_value = getattr(self, property_name)
-            self.bound_property_changed(property_name, new_value, value_variable)
+    def add_observer(self, observer, my_property_name, context = None):
+        """
+        We observe the property "my_property_name" of self to notifiy if it changes.
+        However, we treat Tk.Variable() differently: we do not observe for a change 
+        in the actual value_variable (i.e. the Variable()): we observe if the Variable() changes
+        its value.
+        """
+        try:
+            var = getattr(self, my_property_name)
 
-    def bound_variable_changed(self, var, index, mode):
-        property_name, value_variable = self.observed_variables[var]
-        self.bound_widget_value_changed(value_variable, property_name)
+            self.observing_me.append((observer, my_property_name, context))
 
-    def bound_widget_value_changed(self, value_variable, property_name):
-        new_value = value_variable.get()
-        old_value = getattr(self, property_name)
+            if isinstance(var, Variable):
+                var.trace_add('write', self.traced_tk_variable_changed)
 
-        if new_value != old_value:
-            setattr(self, property_name, new_value)
+        except AttributeError as err:
+            raise AttributeError("The property '{1}'' must exist on object {0} to be observed ".format(observer, property_name))
 
-    def bound_property_changed(self, property_name, new_value, value_variable):
-        old_value = value_variable.get()
-        if old_value != new_value:
-            value_variable.set(new_value)
+    def traced_tk_variable_changed(self, var, index, mode):
+        for observer, property_name, context in self.observing_me:
+            observed_var = getattr(self, property_name)
+            if observed_var._name == var:
+                new_value = observed_var.get()
+                observer.observed_property_changed(self, property_name, new_value, context)
+
+    def bind_properties(self, this_property_name, other_object, other_property_name):
+        """
+        Binding properties is a two-way synchronization of the properties in two separate
+        objects.  Changing one will notify the other, which will be changed, and vice-versa.
+        """
+        other_object.add_observer(self, other_property_name, context=this_property_name)
+        self.add_observer(other_object, this_property_name, context=other_property_name)
 
     def __setattr__(self, property_name, new_value):
+        """
+        We always set the property regardless of the value but we notify only if a change occured
+        """
         super().__setattr__(property_name, new_value)
-        try:
-            if self.observed_variables is not None:
-                for bound_property_name, value_variable in self.observed_variables.values():
-                    if bound_property_name == property_name:
-                        self.bound_property_changed(property_name, new_value, value_variable)
-                        break
 
-        except AttributeError:
+        try:
+            for observer, observed_property_name, context in self.observing_me:
+                if observed_property_name == property_name:
+                    observer.observed_property_changed(self, observed_property_name, new_value, context)
+        except AttributeError as err:
             pass
         except Exception as err:
             print(err)
+
+    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
+        """
+        We set the property (stored in context) of self to the new_value.
+        However, we treat Tk.Variable() differently: we do not change the value_variable (i.e. the Variable())
+        but we change its value.
+        """
+        if context is not None:
+            old_value = getattr(self, context)
+            if old_value != new_value:
+                var = getattr(self, context)
+
+                if isinstance(var, Variable):
+                    var.set(new_value)
+                else:
+                    self.__setattr__(context, new_value)
 
 
 class App(Bindable):
