@@ -946,7 +946,9 @@ class VideoView(Base):
             if self.videowriter is not None:
                 self.videowriter.write(frame)
 
-            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if len(frame.shape) == 3:
+                if frame.shape[2] == 3:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
