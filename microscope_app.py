@@ -76,7 +76,7 @@ class MicroscopeApp(App):
         )
         self.camera.bind_properties("zoom_level", self.zoom_level_control, "value_variable")
 
-        self.camera.histogram_xyplot = XYPlot(figsize=(3.5,1))
+        self.camera.histogram_xyplot = Histogram(figsize=(3.5,1))
         self.camera.histogram_xyplot.grid_into(self.controls, column=0, columnspan=2, row=7, pady=5, padx=10, sticky="w")
 
         self.popup_camera = self.camera.create_behaviour_popups()

@@ -1243,6 +1243,39 @@ class XYPlot(Figure):
         # self.x = self.x[-self.x_range : -1]
         # self.y = self.y[-self.x_range : -1]
 
+class Histogram(Figure):
+    def __init__(self, figsize):
+        super().__init__(figsize=figsize)
+        self.x = []
+        self.y = []
+
+    def create_widget(self, master, **kwargs):
+        super().create_widget(master, *kwargs)
+
+        if self.first_axis is None:
+            axis = self.figure.add_subplot()
+            # self.figure.tight_layout()
+        self.update_plot()
+
+    def clear_plot(self):
+        self.x = []
+        self.y = []
+        self.first_axis.clear()
+
+    def update_plot(self):
+        # with plt.style.context(self.style):
+        if len(self.x) > 1:
+            self.first_axis.stairs(self.y[:-1], self.x, color='red')
+            self.first_axis.set_yticklabels([])
+            self.first_axis.set_xticklabels([])
+            self.first_axis.set_xticks([])
+            self.first_axis.set_yticks([])
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
+
+    def append(self, x, y):
+        self.x.append(x)
+        self.y.append(y)
 
 class Slider(Base):
     def __init__(
