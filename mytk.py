@@ -4,23 +4,20 @@ import tkinter.ttk as ttk
 import tkinter.font as tkFont
 from tkinter import filedialog
 from functools import partial
-
+import platform
+import time
+import signal
+import sys
+import weakref
+import numpy
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 import PIL
 from PIL import Image, ImageDraw
-import webbrowser
-import pyperclip
-import platform
-import time
 import cv2
 
-import signal
-import sys
-import weakref
-import numpy
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
@@ -243,7 +240,7 @@ class Base(Bindable):
             self.widget.pack(kwargs)
 
     def bind_event(self, event, callback):
-        self.bind(event, callback)
+        self.widget.bind(event, callback)
 
     def event_generate(self, event: str):
         self.widget.event_generate(event)
@@ -252,6 +249,7 @@ class Base(Bindable):
         if self.widget is not None:
             self.value_variable = variable
             self.widget.configure(textvariable=variable)
+            self.widget.update()
 
     def bind_variable(self, variable):
         if self.widget is not None:
@@ -394,7 +392,7 @@ class PopupMenu(Base):
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
 
-    def add_menu_items(self, menu_items, user_callback=None):
+    def add_menu_items(self, menu_items):
         self.menu_items = menu_items
         labels = menu_items
         for i, label in enumerate(labels):
@@ -413,15 +411,15 @@ class PopupMenu(Base):
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
-        self.initial_text = text
+        self.text = text
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Label(master, **debug_kwargs)
-        self.bind_textvariable(StringVar(value=self.initial_text))
+        self.bind_textvariable(StringVar(value=self.text))
 
 
-class DoubleIndicator(Base):
+class NumericIndicator(Base):
     def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
         self.format_string = format_string
@@ -440,9 +438,9 @@ class DoubleIndicator(Base):
         self.update_text()
 
     def update_text(self):
-        text = self.format_string.format(self.value_variable.get())
+        formatted_text = self.format_string.format(self.value_variable.get())
         if self.widget is not None:
-            self.widget.configure(text=text)
+            self.widget.configure(text=formatted_text)
 
 
 class URLLabel(Label):
@@ -455,7 +453,7 @@ class URLLabel(Label):
     def create_widget(self, master):
         super().create_widget(master)
 
-        if self.url is not None and self.initial_text is None:
+        if self.url is not None and self.text is None:
             self.text_var.set(self.url)
 
         self.widget.bind("<Button>", lambda fct: self.open_url())
@@ -464,8 +462,11 @@ class URLLabel(Label):
         self.widget.configure(font=font)
 
     def open_url(self):
-        webbrowser.open_new_tab(self.url)
-
+        try:
+            from webbrowser import open_new_tab
+            open_new_tab(self.url)
+        except ModuleNotFoundError:
+            print("Cannot open link: module webbrowser not installed.  Install with `pip3 install webbrowser`")
 
 class Box(Base):
     def __init__(self, label="", width=None, height=None):
