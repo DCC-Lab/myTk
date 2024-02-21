@@ -3,6 +3,7 @@ from tkinter import filedialog
 import os
 import csv
 
+
 class StageControllerView(View):
     def __init__(self):
         super().__init__(width=800, height=300)
@@ -80,57 +81,63 @@ class StageControllerView(View):
 
 class OscilloscopeView(Box):
     def __init__(self, width=400, height=300):
-        super().__init__(label="Oscilloscope", width=width, height=height)    
+        super().__init__(label="Oscilloscope", width=width, height=height)
 
     def create_widget(self, master):
         super().create_widget(master)
         self.all_resize_weight(1)
 
-        self.screen = XYPlot(figsize=(3,2))
-        self.screen.grid_into(self, row=0, column = 0, rowspan=3, sticky='nsew', padx=10, pady=10)
-        for x,y in [(1,2),(3,4),(7,3)]:
-            self.screen.append(x,y)
+        self.screen = XYPlot(figsize=(3, 2))
+        self.screen.grid_into(
+            self, row=0, column=0, rowspan=3, sticky="nsew", padx=10, pady=10
+        )
+        for x, y in [(1, 2), (3, 4), (7, 3)]:
+            self.screen.append(x, y)
         self.screen.update_plot()
 
         self.ch1 = Checkbox("Ch. 1", user_callback=self.selection_changed)
-        self.ch1.grid_into(self, row=0, column = 1, sticky='nw', padx=10, pady=10)
+        self.ch1.grid_into(self, row=0, column=1, sticky="nw", padx=10, pady=10)
         self.ch2 = Checkbox("Ch. 2", user_callback=self.selection_changed)
-        self.ch2.grid_into(self, row=0, column = 2, sticky='nw', padx=10, pady=10)
+        self.ch2.grid_into(self, row=0, column=2, sticky="nw", padx=10, pady=10)
 
         self.start_button = Button("Run", user_event_callback=self.user_clicked)
-        self.start_button.grid_into(self, row=2, column = 1, sticky='s', padx=10, pady=10)
+        self.start_button.grid_into(self, row=2, column=1, sticky="s", padx=10, pady=10)
 
         self.save_button = Button("Save As…", user_event_callback=self.user_clicked)
-        self.save_button.grid_into(self, row=2, column = 2, sticky='s', padx=10, pady=10)
+        self.save_button.grid_into(self, row=2, column=2, sticky="s", padx=10, pady=10)
 
     def selection_changed(self, checkbox):
         print(checkbox)
 
     def user_clicked(self, event, button):
         if button == self.start_button:
-            if button.widget['text'] == 'Run':
-                button.widget.configure(text='Stop')
+            if button.widget["text"] == "Run":
+                button.widget.configure(text="Stop")
             else:
-                button.widget.configure(text='Run')
+                button.widget.configure(text="Run")
         elif button == self.save_button:
             self.save_screen()
 
     def save_screen(self):
-        my_filetypes = [('all files', '.*'), ('text files', '.txt')]
+        my_filetypes = [("all files", ".*"), ("text files", ".txt")]
         cwd = os.getcwd()
-        filepath = filedialog.asksaveasfilename(parent=self.widget,
-                                              initialdir=cwd,
-                                              title="Please select a file name for saving:",
-                                              filetypes=my_filetypes)
+        filepath = filedialog.asksaveasfilename(
+            parent=self.widget,
+            initialdir=cwd,
+            title="Please select a file name for saving:",
+            filetypes=my_filetypes,
+        )
         if filepath != "":
             import csv
-            with open(filepath, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile, delimiter=' ',
-                                        quotechar='|', quoting=csv.QUOTE_MINIMAL)
-                for x,y in zip(self.screen.x, self.screen.y):
-                    writer.writerow((x,y))
 
-    
+            with open(filepath, "w", newline="") as csvfile:
+                writer = csv.writer(
+                    csvfile, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+                )
+                for x, y in zip(self.screen.x, self.screen.y):
+                    writer.writerow((x, y))
+
+
 class TkLabApp(App):
     def __init__(self):
         App.__init__(self, geometry="640x530")
@@ -141,7 +148,9 @@ class TkLabApp(App):
         self.stage = StageControllerView()
         self.stage.grid_into(self.window, row=0, column=0, sticky="ew")
         self.oscilloscope = OscilloscopeView(width=400, height=300)
-        self.oscilloscope.grid_into(self.window, row=1, column=0,padx=10, pady=10, sticky="nsew")
+        self.oscilloscope.grid_into(
+            self.window, row=1, column=0, padx=10, pady=10, sticky="nsew"
+        )
         self.window.row_resize_weight(1, 1)
         self.window.column_resize_weight(0, 1)
 

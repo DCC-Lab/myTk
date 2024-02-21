@@ -83,14 +83,6 @@ class Bindable:
         super().__setattr__(property_name, new_value)
 
         self.property_value_did_change(property_name)
-        # try:
-        #     for observer, observed_property_name, context in self.observing_me:
-        #         if observed_property_name == property_name:
-        #             observer.property_value_did_change(property_name)
-        # except AttributeError as err:
-        #     pass
-        # except Exception as err:
-        #     print(err)
 
     def property_value_did_change(self, property_name):
         new_value = getattr(self, property_name)
@@ -199,6 +191,14 @@ class Base(Bindable):
     class Controller(Bindable):
         def __init__(self, view):
             self.view = weakref.ref(view)
+
+    def enable(self):
+        if self.widget is not None:
+            self.widget["state"] = "normal"
+
+    def disable(self):
+        if self.widget is not None:
+            self.widget["state"] = "disabled"
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -408,7 +408,8 @@ class PopupMenu(Base):
 
         if self.user_callback is not None:
             self.user_callback(selected_index)
-    
+
+
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
@@ -518,6 +519,7 @@ class NumericEntry(Base):
             increment=self.increment,
         )
         self.bind_textvariable(DoubleVar(value=self.value))
+
 
 class IntEntry(Base):
     def __init__(
@@ -938,7 +940,7 @@ class VideoView(Base):
     def update_display(self):
         ret, readonly_frame = self.capture.read()
         if ret:
-            # The OpenCV documentation is clear: the returned frame from read() is read-only 
+            # The OpenCV documentation is clear: the returned frame from read() is read-only
             # and must be copied to be used (I assume it can be overwritten internally)
             # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
             # Without this copy, the program crashes in a few seconds
@@ -977,17 +979,18 @@ class VideoView(Base):
             self.stop_capturing()
             self.previous_handler(signal.SIGINT, 0)
 
-    def update_histogram(self): 
+    def update_histogram(self):
         if self.histogram_xyplot is not None:
             self.histogram_xyplot.clear_plot()
             values = self.image.histogram()
-            for i in range(0, len(values)//3, 4):
-                v = numpy.sum(values[i:i+3])
-                self.histogram_xyplot.append(i,v)
+            for i in range(0, len(values) // 3, 4):
+                v = numpy.sum(values[i : i + 3])
+                self.histogram_xyplot.append(i, v)
             self.histogram_xyplot.update_plot()
-        
-            self.next_scheduled_update_histogram = App.app.root.after(100, self.update_histogram)
 
+            self.next_scheduled_update_histogram = App.app.root.after(
+                100, self.update_histogram
+            )
 
     def create_behaviour_popups(self):
         popup_camera = PopupMenu(
@@ -1011,9 +1014,7 @@ class VideoView(Base):
         return start_button, save_button, stream_button
 
     def bind_button_to_startstop_behaviour(self, button):
-        button.user_event_callback = (
-            self.click_start_stop_button
-        )
+        button.user_event_callback = self.click_start_stop_button
 
     def bind_button_to_save_behaviour(self, button):
         button.user_event_callback = self.click_save_button
@@ -1243,6 +1244,7 @@ class XYPlot(Figure):
         # self.x = self.x[-self.x_range : -1]
         # self.y = self.y[-self.x_range : -1]
 
+
 class Histogram(Figure):
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
@@ -1265,7 +1267,7 @@ class Histogram(Figure):
     def update_plot(self):
         # with plt.style.context(self.style):
         if len(self.x) > 1:
-            self.first_axis.stairs(self.y[:-1], self.x, color='red')
+            self.first_axis.stairs(self.y[:-1], self.x, color="red")
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
@@ -1276,6 +1278,7 @@ class Histogram(Figure):
     def append(self, x, y):
         self.x.append(x)
         self.y.append(y)
+
 
 class Slider(Base):
     def __init__(
@@ -1290,8 +1293,8 @@ class Slider(Base):
         self.delegate = delegate
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(master,
-            from_=0, to=100, value=75, length=self.width, orient=self.orient
+        self.widget = ttk.Scale(
+            master, from_=0, to=100, value=75, length=self.width, orient=self.orient
         )
 
         self.bind_variable(DoubleVar())
@@ -1300,6 +1303,7 @@ class Slider(Base):
     def value_updated(self, var, index, mode):
         if self.delegate is not None:
             self.delegate.value_updated(object=self, value_variable=self.value_variable)
+
 
 if __name__ == "__main__":
     app = App()
