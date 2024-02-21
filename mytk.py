@@ -920,7 +920,8 @@ class VideoView(Base):
 
     def stop_capturing(self):
         if self.is_running:
-            App.app.root.after_cancel(self.next_scheduled_update)
+            if self.next_scheduled_update is not None:
+                App.app.root.after_cancel(self.next_scheduled_update)
             self.capture.release()
             self.capture = None
 
@@ -983,9 +984,13 @@ class VideoView(Base):
         if self.histogram_xyplot is not None:
             self.histogram_xyplot.clear_plot()
             values = self.image.histogram()
-            for i in range(0, len(values) // 3, 4):
-                v = numpy.sum(values[i : i + 3])
-                self.histogram_xyplot.append(i, v)
+            bins_per_channel = len(values)//3
+            decimate = 8
+            self.histogram_xyplot.x = list(range(bins_per_channel//decimate))
+            self.histogram_xyplot.y.append(values[0:bins_per_channel:decimate])
+            self.histogram_xyplot.y.append(values[bins_per_channel:2*bins_per_channel:decimate])
+            self.histogram_xyplot.y.append(values[2*bins_per_channel::decimate])
+
             self.histogram_xyplot.update_plot()
 
             self.next_scheduled_update_histogram = App.app.root.after(
@@ -1256,7 +1261,6 @@ class Histogram(Figure):
 
         if self.first_axis is None:
             axis = self.figure.add_subplot()
-            # self.figure.tight_layout()
         self.update_plot()
 
     def clear_plot(self):
@@ -1265,20 +1269,18 @@ class Histogram(Figure):
         self.first_axis.clear()
 
     def update_plot(self):
-        # with plt.style.context(self.style):
         if len(self.x) > 1:
-            self.first_axis.stairs(self.y[:-1], self.x, color="red")
+            colors = ['red','green','blue']
+            for i, y in enumerate(self.y):
+                self.first_axis.stairs(y[:-1], self.x, color=colors[i])
+
+            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
             self.first_axis.set_yticks([])
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
-
-    def append(self, x, y):
-        self.x.append(x)
-        self.y.append(y)
-
 
 class Slider(Base):
     def __init__(
