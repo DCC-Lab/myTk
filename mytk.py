@@ -4,23 +4,20 @@ import tkinter.ttk as ttk
 import tkinter.font as tkFont
 from tkinter import filedialog
 from functools import partial
-
+import platform
+import time
+import signal
+import sys
+import weakref
+import numpy
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 import PIL
 from PIL import Image, ImageDraw
-import webbrowser
-import pyperclip
-import platform
-import time
 import cv2
 
-import signal
-import sys
-import weakref
-import numpy
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
@@ -86,14 +83,6 @@ class Bindable:
         super().__setattr__(property_name, new_value)
 
         self.property_value_did_change(property_name)
-        # try:
-        #     for observer, observed_property_name, context in self.observing_me:
-        #         if observed_property_name == property_name:
-        #             observer.property_value_did_change(property_name)
-        # except AttributeError as err:
-        #     pass
-        # except Exception as err:
-        #     print(err)
 
     def property_value_did_change(self, property_name):
         new_value = getattr(self, property_name)
@@ -203,6 +192,14 @@ class Base(Bindable):
         def __init__(self, view):
             self.view = weakref.ref(view)
 
+    def enable(self):
+        if self.widget is not None:
+            self.widget["state"] = "normal"
+
+    def disable(self):
+        if self.widget is not None:
+            self.widget["state"] = "disabled"
+
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
 
@@ -246,7 +243,7 @@ class Base(Bindable):
             self.widget.pack(kwargs)
 
     def bind_event(self, event, callback):
-        self.bind(event, callback)
+        self.widget.bind(event, callback)
 
     def event_generate(self, event: str):
         self.widget.event_generate(event)
@@ -255,6 +252,7 @@ class Base(Bindable):
         if self.widget is not None:
             self.value_variable = variable
             self.widget.configure(textvariable=variable)
+            self.widget.update()
 
     def bind_variable(self, variable):
         if self.widget is not None:
@@ -397,7 +395,7 @@ class PopupMenu(Base):
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
 
-    def add_menu_items(self, menu_items, user_callback=None):
+    def add_menu_items(self, menu_items):
         self.menu_items = menu_items
         labels = menu_items
         for i, label in enumerate(labels):
@@ -411,19 +409,20 @@ class PopupMenu(Base):
 
         if self.user_callback is not None:
             self.user_callback(selected_index)
-    
+
+
 class Label(Base):
     def __init__(self, text=None):
         Base.__init__(self)
-        self.initial_text = text
+        self.text = text
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Label(master, **debug_kwargs)
-        self.bind_textvariable(StringVar(value=self.initial_text))
+        self.bind_textvariable(StringVar(value=self.text))
 
 
-class DoubleIndicator(Base):
+class NumericIndicator(Base):
     def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
         self.format_string = format_string
@@ -443,9 +442,9 @@ class DoubleIndicator(Base):
 
     def update_text(self):
         try:
-            text = self.format_string.format(self.value_variable.get())
+            formatted_text = self.format_string.format(self.value_variable.get())
             if self.widget is not None:
-                self.widget.configure(text=text)
+                self.widget.configure(text=formatted_text)
         except Exception as err:
             print(err)
 
@@ -459,7 +458,7 @@ class URLLabel(Label):
     def create_widget(self, master):
         super().create_widget(master)
 
-        if self.url is not None and self.initial_text is None:
+        if self.url is not None and self.text is None:
             self.text_var.set(self.url)
 
         self.widget.bind("<Button>", lambda fct: self.open_url())
@@ -468,8 +467,11 @@ class URLLabel(Label):
         self.widget.configure(font=font)
 
     def open_url(self):
-        webbrowser.open_new_tab(self.url)
-
+        try:
+            from webbrowser import open_new_tab
+            open_new_tab(self.url)
+        except ModuleNotFoundError:
+            print("Cannot open link: module webbrowser not installed.  Install with `pip3 install webbrowser`")
 
 class Box(Base):
     def __init__(self, label="", width=None, height=None):
@@ -504,8 +506,7 @@ class Entry(Base):
 
 class NumericEntry(Base):
     def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
-    ):
+        self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = value
         self.minimum = minimum
@@ -524,10 +525,10 @@ class NumericEntry(Base):
         )
         self.bind_textvariable(DoubleVar(value=self.value))
 
+
 class IntEntry(Base):
     def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
-    ):
+        self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = int(value)
         self.minimum = minimum
@@ -658,6 +659,7 @@ class TableView(Base):
             value = item_dict["values"][column_id - 1]
             if isinstance(value, str):
                 if value.startswith("http"):
+                    import webbrowser
                     webbrowser.open(value)
 
         return True
@@ -947,7 +949,8 @@ class VideoView(Base):
 
     def stop_capturing(self):
         if self.is_running:
-            App.app.root.after_cancel(self.next_scheduled_update)
+            if self.next_scheduled_update is not None:
+                App.app.root.after_cancel(self.next_scheduled_update)
             self.capture.release()
             self.capture = None
 
@@ -967,7 +970,7 @@ class VideoView(Base):
     def update_display(self):
         ret, readonly_frame = self.capture.read()
         if ret:
-            # The OpenCV documentation is clear: the returned frame from read() is read-only 
+            # The OpenCV documentation is clear: the returned frame from read() is read-only
             # and must be copied to be used (I assume it can be overwritten internally)
             # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
             # Without this copy, the program crashes in a few seconds
@@ -1006,17 +1009,22 @@ class VideoView(Base):
             self.stop_capturing()
             self.previous_handler(signal.SIGINT, 0)
 
-    def update_histogram(self): 
+    def update_histogram(self):
         if self.histogram_xyplot is not None:
             self.histogram_xyplot.clear_plot()
             values = self.image.histogram()
-            for i in range(0, len(values)//3, 4):
-                v = numpy.sum(values[i:i+3])
-                self.histogram_xyplot.append(i,v)
-            self.histogram_xyplot.update_plot()
-        
-            self.next_scheduled_update_histogram = App.app.root.after(100, self.update_histogram)
+            bins_per_channel = len(values)//3
+            decimate = 8
+            self.histogram_xyplot.x = list(range(bins_per_channel//decimate))
+            self.histogram_xyplot.y.append(values[0:bins_per_channel:decimate])
+            self.histogram_xyplot.y.append(values[bins_per_channel:2*bins_per_channel:decimate])
+            self.histogram_xyplot.y.append(values[2*bins_per_channel::decimate])
 
+            self.histogram_xyplot.update_plot()
+
+            self.next_scheduled_update_histogram = App.app.root.after(
+                100, self.update_histogram
+            )
 
     def create_behaviour_popups(self):
         popup_camera = PopupMenu(
@@ -1040,9 +1048,7 @@ class VideoView(Base):
         return start_button, save_button, stream_button
 
     def bind_button_to_startstop_behaviour(self, button):
-        button.user_event_callback = (
-            self.click_start_stop_button
-        )
+        button.user_event_callback = self.click_start_stop_button
 
     def bind_button_to_save_behaviour(self, button):
         button.user_event_callback = self.click_save_button
@@ -1272,6 +1278,38 @@ class XYPlot(Figure):
         # self.x = self.x[-self.x_range : -1]
         # self.y = self.y[-self.x_range : -1]
 
+
+class Histogram(Figure):
+    def __init__(self, figsize):
+        super().__init__(figsize=figsize)
+        self.x = []
+        self.y = []
+
+    def create_widget(self, master, **kwargs):
+        super().create_widget(master, *kwargs)
+
+        if self.first_axis is None:
+            axis = self.figure.add_subplot()
+        self.update_plot()
+
+    def clear_plot(self):
+        self.x = []
+        self.y = []
+        self.first_axis.clear()
+
+    def update_plot(self):
+        if len(self.x) > 1:
+            colors = ['red','green','blue']
+            for i, y in enumerate(self.y):
+                self.first_axis.stairs(y[:-1], self.x, color=colors[i])
+
+            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
+            self.first_axis.set_yticklabels([])
+            self.first_axis.set_xticklabels([])
+            self.first_axis.set_xticks([])
+            self.first_axis.set_yticks([])
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
 
 
 if __name__ == "__main__":

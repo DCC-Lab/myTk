@@ -52,14 +52,18 @@ class MicroscopeApp(App):
             self.controls, column=0, row=3, pady=5, padx=5, sticky="e"
         )
         self.exposure_time_slider = Slider()
-        self.exposure_time_slider.grid_into(self.controls, column=1, row=3, pady=5, padx=10, sticky="nw")
-        
+        self.exposure_time_slider.grid_into(
+            self.controls, column=1, row=3, pady=5, padx=10, sticky="nw"
+        )
+
         self.gain_label = Label("Gain:")
         self.gain_label.grid_into(
             self.controls, column=0, row=4, pady=5, padx=5, sticky="e"
         )
         self.gain_slider = Slider()
-        self.gain_slider.grid_into(self.controls, column=1, row=4, pady=5, padx=10, sticky="nw")
+        self.gain_slider.grid_into(
+            self.controls, column=1, row=4, pady=5, padx=10, sticky="nw"
+        )
 
         self.popup_label = Label("Camera:")
         self.popup_label.grid_into(
@@ -74,16 +78,20 @@ class MicroscopeApp(App):
         self.zoom_level_control.grid_into(
             self.controls, column=1, row=6, pady=5, padx=10, sticky="w"
         )
-        self.camera.bind_properties("zoom_level", self.zoom_level_control, "value_variable")
+        self.camera.bind_properties(
+            "zoom_level", self.zoom_level_control, "value_variable"
+        )
 
-        self.camera.histogram_xyplot = XYPlot(figsize=(3.5,1))
-        self.camera.histogram_xyplot.grid_into(self.controls, column=0, columnspan=2, row=7, pady=5, padx=10, sticky="w")
+        self.camera.histogram_xyplot = Histogram(figsize=(3.5, 1))
+        self.camera.histogram_xyplot.grid_into(
+            self.controls, column=0, columnspan=2, row=7, pady=5, padx=10, sticky="w"
+        )
 
         self.popup_camera = self.camera.create_behaviour_popups()
         self.popup_camera.grid_into(
             self.controls, column=1, row=2, pady=5, padx=10, sticky="w"
         )
-        
+
     def about(self):
         showinfo(
             title="About Microscope",

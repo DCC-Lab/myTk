@@ -151,6 +151,7 @@ class OpticalComponentViewer(App):
 
     def doubleclick_cell(self, item_id, column_id, item_dict):
         value = item_dict["values"][column_id - 1]
+        print(value)
         pyperclip.copy(value)
         return True
 
