@@ -630,6 +630,7 @@ class TableView(Base):
             value = item_dict["values"][column_id - 1]
             if isinstance(value, str):
                 if value.startswith("http"):
+                    import webbrowser
                     webbrowser.open(value)
 
         return True
