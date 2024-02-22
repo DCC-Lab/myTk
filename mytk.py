@@ -62,10 +62,13 @@ class Bindable:
         for observer, property_name, context in self.observing_me:
             observed_var = getattr(self, property_name)
             if observed_var._name == var:
-                new_value = observed_var.get()
-                observer.observed_property_changed(
-                    self, property_name, new_value, context
-                )
+                try:
+                    new_value = observed_var.get()
+                    observer.observed_property_changed(
+                        self, property_name, new_value, context
+                    )
+                except Exception as err:
+                    print(err)
 
     def bind_properties(self, this_property_name, other_object, other_property_name):
         """
@@ -329,15 +332,15 @@ class View(Base):
 
 
 class Checkbox(Base):
-    def __init__(self, text="", user_callback=None):
+    def __init__(self, label="", user_callback=None):
         super().__init__()
-        self.text = text
+        self.label = label
         self.user_callback = user_callback
 
     def create_widget(self, master):
         self.widget = ttk.Checkbutton(
             master,
-            text=self.text,
+            text=self.label,
             onvalue=1,
             offvalue=0,
             command=self.selection_changed,
@@ -439,10 +442,12 @@ class DoubleIndicator(Base):
         self.update_text()
 
     def update_text(self):
-        text = self.format_string.format(self.value_variable.get())
-        if self.widget is not None:
-            self.widget.configure(text=text)
-
+        try:
+            text = self.format_string.format(self.value_variable.get())
+            if self.widget is not None:
+                self.widget.configure(text=text)
+        except Exception as err:
+            print(err)
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
@@ -1153,7 +1158,7 @@ class Figure(Base):
 
 
 class CanvasView(Base):
-    def __init__(self, width=200, height=20):
+    def __init__(self, width=200, height=200):
         super().__init__()
         self.width = width
         self.height = height
@@ -1269,66 +1274,139 @@ class Slider(Base):
             self.delegate.value_updated(object=self, value_variable=self.value_variable)
 
 if __name__ == "__main__":
-    app = App()
+    app = App(geometry="1600x900")
 
     # You would typically put this into the__init__ of your subclass of App:
     app.window.widget.title("Example application myTk")
 
-    label1 = Label("This is a label in grid position (0,0)")
-    label1.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
+    label1 = Label("This is a label centered in grid position (0,0)")
+    label1.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="")
+    label2 = Label("This is another label top-aligned in grid position (0,1)")
+    label2.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="n")
+
+    box1 = Box(label="This is a labelled box in grid (0,2)")
+    box1.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
+    
+    thing1 = LabelledEntry(label="Some entry (centered)", character_width=5)
+    thing1.grid_into(box1, column=0, row=0, padx=10)
+    thing2 = LabelledEntry(label="Some other entry (left)", character_width=5)
+    thing2.grid_into(box1, column=0, row=1, padx=5, sticky='w')
+
+    # app.window.widget.grid_columnconfigure(1, weight=1)
+    # entry1 = Entry()
+    # entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="ew")
+    # entry2 = Entry(text="initial text")
+    # entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="ew")
+
 
     view = View(width=100, height=100)
-    view.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="nsew")
+    view.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
     view.grid_propagate(True)
-    view.widget.grid_columnconfigure(0, weight=2)
-    app.window.widget.grid_columnconfigure(1, weight=1)
-    label2 = Label("This is another label in grid position (1,1)")
-    label2.grid_into(view, column=0, row=0, pady=5, padx=5, sticky="nsew")
-    entry1 = Entry()
-    entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="ew")
-    entry2 = Entry(text="initial text")
-    entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="ew")
-
-    url1 = URLLabel("http://www.python.org")
-    url1.grid_into(app.window, column=0, row=2, pady=5, padx=5)
-    url2 = URLLabel(url="http://www.python.org", text="The text can be something else")
-    url2.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
-
+    view.widget.grid_rowconfigure(0, weight=0)
+    view.widget.grid_rowconfigure(1, weight=0)
+    view.widget.grid_rowconfigure(2, weight=1)
+    popup_label = Label(text='A popup menu')
+    popup_label.grid_into(view, column=0, row=0, pady=5, padx=5, sticky="")
     popup = PopupMenu(menu_items=["Option 1", "Option 2", "Option 3"])
-    popup.grid_into(app.window, column=1, row=0, pady=5, padx=5, sticky="")
+    popup.grid_into(view, column=1, row=0, pady=5, padx=5, sticky="")
+    linked_label = Label(text='The label below is bound to the popup')
+    linked_label.grid_into(view, column=0, columnspan=2, row=1, pady=5, padx=5, sticky="w")
+    linked_label2 = Label(text='')
+    linked_label2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="n")
+    popup.bind_properties("value_variable", linked_label2, "value_variable")
+    popup.selection_changed(0)
+    def choose_file(event, button):
+        filedialog.askopenfilename()
+    button = Button("Choose file…", user_event_callback=choose_file)
+    button.grid_into(view, column=0, row=3, pady=5, padx=5, sticky="n")
+
+    view2 = View(width=100, height=100)
+    view2.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="nsew")
+    view2.grid_propagate(True)
+    view2.widget.grid_columnconfigure(0, weight=2)
+
+    url1_label = Label(text='Links in labels are clickable:')
+    url1_label.grid_into(view2, column=0, row=0, pady=5, padx=5)
+    url1 = URLLabel("http://www.python.org")
+    url1.grid_into(view2, column=1, row=0, pady=5, padx=5)
+
+    url2_label = Label(text='Links in labels are clickable:')
+    url2_label.grid_into(view2, column=0, row=1, pady=5, padx=5)
+    url2 = URLLabel(url="http://www.python.org", text="The text can be something else")
+    url2.grid_into(view2, column=1, row=1, pady=5, padx=5, sticky="nsew")
+
+    image = Image("logo.png")
+    image.grid_into(app.window, column=2, row=1, pady=5, padx=5, sticky="")
 
     box = Box("Some title on top of a box at grid position (1,0)")
-    box.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="ew")
+    box.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
 
     columns = {"column1": "Column #1", "name": "The name", "url": "Clickable URL"}
     table = TableView(columns=columns)
-    table.grid_into(box, column=0, row=0, pady=5, padx=5, sticky="ew")
+    table.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
 
-    for i in range(10):
+    for i in range(20):
         table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
 
-    figure1 = Figure(figsize=(3, 3))
-    figure1.grid_into(app.window, column=2, row=1, pady=5, padx=5)
+    figure1 = Figure(figsize=(6, 4))
+    figure1.grid_into(app.window, column=3, row=1, pady=5, padx=5)
     axis = figure1.figure.add_subplot()
     axis.plot([1, 2, 3], [4, 5, 6])
-    axis.set_title("The plot in grid position (2,1)")
+    axis.set_title("A matplotlib figure in grid position (3,1)")
 
-    some_fig = MPLFigure(figsize=(3, 3))
+    some_fig = MPLFigure(figsize=(6, 4))
     axis = some_fig.add_subplot()
     axis.plot([1, 2, 3], [-4, -5, -6])
     axis.set_title("You can provide your plt.figure")
 
     figure2 = Figure(figure=some_fig)
-    figure2.grid_into(app.window, column=2, row=2, pady=5, padx=5)
+    figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
+
+    try:
+        raise NotImplementedError()
+        video = VideoView(device=1)
+        video.zoom_level = 4
+        video.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="")
+    except Exception as err:
+        video = Label("Unable to load VideoView")
+        video.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="")
+
+    def i_was_changed(checkbox):
+        showwarning(message="The checkbox was modified")
 
     view3 = View(width=100, height=100)
-    view3.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    view3.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="nsew")
+    view3.widget.grid_rowconfigure(0,weight=0)
+    view3.widget.grid_rowconfigure(1,weight=0)
+    view3.widget.grid_rowconfigure(2,weight=0)
+    checkbox = Checkbox(label="Check me!", user_callback=i_was_changed)
+    checkbox.grid_into(view3, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    slider = Slider()
+    slider.grid_into(view3, column=0, row=1, pady=5, padx=5, sticky="nsew")
+    slider.value_variable.set(0)
+    indicator = DoubleIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
+    slider.bind_properties('value_variable', indicator, 'value_variable')
+    indicator.grid_into(view3, column=0, row=2, pady=5, padx=5, sticky="nsew")
+    level = Level()
+    
+    level.grid_into(view3, column=0, row=3, pady=5, padx=5, sticky="nsew")
+    level.bind_properties('value_variable', slider, 'value_variable')
+    # view3 = View(width=100, height=100)
+    # view3.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
-    image = Image("logo.png")
-    image.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
-
-    video = VideoView(device=0)
-    video.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+    canvas = CanvasView()
+    canvas.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="nsew")
+    canvas.widget.create_rectangle(
+            4, 4, 200, 200, outline="black", fill="white", width=2
+        )
+    canvas.widget.create_text((25,50), text="I can draw stuff!", anchor='w')
+    canvas.widget.create_text((25,70), text="I can draw rect, ovals!", anchor='w')
+    canvas.widget.create_rectangle(
+            10, 10, 30, 30, outline="black", fill="blue", width=2
+        )
+    canvas.widget.create_oval(
+            (140, 140, 140+40, 140+30), outline="green", fill="red", width=2
+        )
 
     app.window.all_resize_weight(1)
 
