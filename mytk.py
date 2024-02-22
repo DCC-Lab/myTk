@@ -308,11 +308,11 @@ class Window(Base):
 
     @property
     def resizable(self):
-        return self.window
+        return True
 
     @resizable.setter
-    def resizable(self, value):
-        return self.widget.resizable(value, value)
+    def is_resizable(self, value):
+        self.widget.resizable(value, value)
 
 
 class View(Base):
@@ -559,6 +559,30 @@ class LabelledEntry(View):
         self.label.grid_into(self, row=0, column=0, padx=5)
         self.entry.grid_into(self, row=0, column=1, padx=5)
         self.value_variable = self.entry.value_variable
+
+class Slider(Base):
+    def __init__(
+        self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None
+    ):
+        super().__init__()
+        self.maximum = maximum
+        self.width = width
+        self.height = height
+        self.delegate = delegate
+        self.orient = orient
+        self.delegate = delegate
+
+    def create_widget(self, master, **kwargs):
+        self.widget = ttk.Scale(master,
+            from_=0, to=100, value=75, length=self.width, orient=self.orient
+        )
+
+        self.bind_variable(DoubleVar())
+        self.value_variable.trace_add("write", self.value_updated)
+
+    def value_updated(self, var, index, mode):
+        if self.delegate is not None:
+            self.delegate.value_updated(object=self, value_variable=self.value_variable)
 
 
 class TableView(Base):
@@ -1249,29 +1273,6 @@ class XYPlot(Figure):
         # self.y = self.y[-self.x_range : -1]
 
 
-class Slider(Base):
-    def __init__(
-        self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None
-    ):
-        super().__init__()
-        self.maximum = maximum
-        self.width = width
-        self.height = height
-        self.delegate = delegate
-        self.orient = orient
-        self.delegate = delegate
-
-    def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(master,
-            from_=0, to=100, value=75, length=self.width, orient=self.orient
-        )
-
-        self.bind_variable(DoubleVar())
-        self.value_variable.trace_add("write", self.value_updated)
-
-    def value_updated(self, var, index, mode):
-        if self.delegate is not None:
-            self.delegate.value_updated(object=self, value_variable=self.value_variable)
 
 if __name__ == "__main__":
     app = App(geometry="1450x900")
