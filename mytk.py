@@ -501,8 +501,7 @@ class Entry(Base):
 
 class NumericEntry(Base):
     def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
-    ):
+        self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = value
         self.minimum = minimum
@@ -524,8 +523,7 @@ class NumericEntry(Base):
 
 class IntEntry(Base):
     def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1, delegate=None
-    ):
+        self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = int(value)
         self.minimum = minimum
