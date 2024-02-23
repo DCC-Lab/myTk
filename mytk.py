@@ -925,6 +925,7 @@ class VideoView(Base):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
+
         if self.auto_start:
             self.start_capturing()
 
@@ -944,6 +945,7 @@ class VideoView(Base):
                 self.capture = cv2.VideoCapture(self.device)
                 if self.capture.isOpened():
                     self.update_display()
+                self.prop_ids()
             except Exception as err:
                 print(err)
 
@@ -1137,6 +1139,31 @@ class VideoView(Base):
             return self.capture.get(prop_id)
         return None
 
+    def supported_prop_ids(self):
+        props = {"CAP_PROP_FRAME_WIDTH":cv2.CAP_PROP_FRAME_WIDTH, 
+        "CAP_PROP_FRAME_HEIGHT":cv2.CAP_PROP_FRAME_HEIGHT, 
+        "CAP_PROP_FPS":cv2.CAP_PROP_FPS,
+        "CAP_PROP_POS_MSEC":cv2.CAP_PROP_POS_MSEC,
+        "CAP_PROP_FRAME_COUNT":cv2.CAP_PROP_FRAME_COUNT,
+        "CAP_PROP_BRIGHTNESS":cv2.CAP_PROP_BRIGHTNESS,
+        "CAP_PROP_CONTRAST":cv2.CAP_PROP_CONTRAST,
+        "CAP_PROP_SATURATION":cv2.CAP_PROP_SATURATION,
+        "CAP_PROP_HUE":cv2.CAP_PROP_HUE,
+        "CAP_PROP_GAIN":cv2.CAP_PROP_GAIN,
+        "CAP_PROP_CONVERT_RGB":cv2.CAP_PROP_CONVERT_RGB}
+
+        print("Supported prop_id:")
+        for name, prop in props.items():
+            print(name, self.get_prop_id(prop))
+            if self.is_supported(prop):
+                print(name)
+
+    def is_supported(self, prop_id):
+        if self.capture is not None:
+            value = self.capture.get(prop_id)
+            return self.capture.set(prop_id, value)
+        return None
+
 
 class Figure(Base):
     def __init__(self, figure=None, figsize=None):
@@ -1312,6 +1339,7 @@ class Histogram(Figure):
             self.figure.canvas.flush_events()
 
 
+
 if __name__ == "__main__":
     app = App(geometry="1450x900")
 
@@ -1330,13 +1358,6 @@ if __name__ == "__main__":
     thing1.grid_into(box1, column=0, row=0, padx=10)
     thing2 = LabelledEntry(label="Left-aligned entry", character_width=5)
     thing2.grid_into(box1, column=0, row=1, padx=5, sticky='w')
-
-    # app.window.widget.grid_columnconfigure(1, weight=1)
-    # entry1 = Entry()
-    # entry1.grid_into(view, column=0, row=1, pady=5, padx=5, sticky="ew")
-    # entry2 = Entry(text="initial text")
-    # entry2.grid_into(view, column=0, row=2, pady=5, padx=5, sticky="ew")
-
 
     view = View(width=100, height=100)
     view.grid_into(app.window, column=0, row=1, pady=5, padx=5, sticky="nsew")
@@ -1375,7 +1396,8 @@ if __name__ == "__main__":
     url2.grid_into(view2, column=1, row=1, pady=5, padx=5, sticky="nsew")
 
     image = Image("logo.png")
-    image.grid_into(app.window, column=2, row=1, pady=5, padx=5, sticky="")
+    image.is_rescalable = True
+    image.grid_into(app.window, column=2, row=1, pady=5, padx=5, sticky="nsew")
 
     box = Box("Some title on top of a box at grid position (1,0)")
     box.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
@@ -1422,7 +1444,7 @@ if __name__ == "__main__":
     slider = Slider(width=50)
     slider.grid_into(view3, column=0, row=1, pady=5, padx=5, sticky="nsew")
     slider.value_variable.set(0)
-    indicator = DoubleIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
+    indicator = NumericIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
     slider.bind_properties('value_variable', indicator, 'value_variable')
     indicator.grid_into(view3, column=0, row=2, pady=5, padx=5, sticky="nsew")
     level = Level()
@@ -1445,6 +1467,7 @@ if __name__ == "__main__":
     canvas.widget.create_oval(
             (140, 140, 140+40, 140+30), outline="green", fill="red", width=2
         )
+
 
     app.window.all_resize_weight(1)
 
