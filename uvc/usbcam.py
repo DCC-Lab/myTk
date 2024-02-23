@@ -19,69 +19,44 @@ class USBDevRequest(NamedTuple):
     wIndex:int = 0
     wLength:int = None
     pData:bytearray = None
-    wLenDone:int = 0
 
 
 """
-USB information available at https://www.beyondlogic.org/usbnutshell/usb6.shtml
+ UVC Camera-specific constants for USB Cameras
 """
-class RequestType(enum.IntEnum):
-    outVendorDevice = usb.util.CTRL_OUT | usb.util.CTRL_TYPE_VENDOR | usb.util.CTRL_RECIPIENT_DEVICE
-    inVendorDevice = usb.util.CTRL_IN | usb.util.CTRL_TYPE_VENDOR | usb.util.CTRL_RECIPIENT_DEVICE
 
-"""
-Vendor-specific request for StellarNet and EZUSB, as accepted by the USB
-standard and defined in the firmware for EZUSB. 
-"""
-class Request(enum.IntEnum):
-    startAcquiringSpectrum      =   0xB2
-    isSpectrumDataReady         =   0xB3
-    setDigitalSamplingFrequency =   0xB4
-    readDataFromAddress         =   0xB5
-    writeAddressForRead         =   0xB6
-    setFIFOFlags                =   0xB7
+class Dest(enum.IntEnum):
+    UVC_CONTROL_INTERFACE_CLASS = 14
+    UVC_CONTROL_INTERFACE_SUBCLASS = 1
 
-    EZUSBAnchorCommand          =   0xA0 #to reset ON/OFF device and load firmware
+class Unit(enum.IntEnum):
+    UVC_INPUT_TERMINAL_ID = 0x01
+    UVC_PROCESSING_UNIT_ID = 0x02
 
-"""
-Memory address for Reset on EZUSB chip
-"""
-class Value(enum.IntEnum):
-    reset    = 0xE600
 
+class UVCRequestType(enum.IntEnum):        
+    UVC_SET_CUR = 0x01
+    UVC_GET_CUR = 0x81
+    UVC_GET_MIN = 0x82
+    UVC_GET_MAX = 0x83
+
+uvc_controls = {"autoExposure":{"unit":Unit.UVC_INPUT_TERMINAL_ID, "selector":0x02, "size":1},
+                "exposure":{"unit":Unit.UVC_INPUT_TERMINAL_ID, "selector":0x04, "size":4},
+                "brightness":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x02, "size":2},
+                "contrast":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x03, "size":2},
+                "gain":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x04, "size":2},
+                "saturation":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x07, "size":2},
+                "sharpness":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x08, "size":2},
+                "whiteBalance":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x0a, "size":2},
+                "autoWhiteBalance":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x0b, "size":1}
+                }
 
 class MyUSBCamera:
-    pass
 
-if __name__ == "__main__":
-    class Unit(enum.IntEnum):
-        UVC_INPUT_TERMINAL_ID = 0x01
-        UVC_PROCESSING_UNIT_ID = 0x02
+    def __init__(self, dev):
+        self.dev = dev
 
-
-    class Dest(enum.IntEnum):
-        UVC_CONTROL_INTERFACE_CLASS = 14
-        UVC_CONTROL_INTERFACE_SUBCLASS = 1
-
-    class UVCRequest(enum.IntEnum):        
-        UVC_SET_CUR = 0x01
-        UVC_GET_CUR = 0x81
-        UVC_GET_MIN = 0x82
-        UVC_GET_MAX = 0x83
-
-    uvc_controls = {"autoExposure":{"unit":Unit.UVC_INPUT_TERMINAL_ID, "selector":0x02, "size":1},
-                    "exposure":{"unit":Unit.UVC_INPUT_TERMINAL_ID, "selector":0x04, "size":4},
-                    "brightness":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x02, "size":2},
-                    "contrast":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x03, "size":2},
-                    "gain":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x04, "size":2},
-                    "saturation":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x07, "size":2},
-                    "sharpness":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x08, "size":2},
-                    "whiteBalance":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x0a, "size":2},
-                    "autoWhiteBalance":{"unit":Unit.UVC_PROCESSING_UNIT_ID, "selector":0x0b, "size":1}
-                    }
-
-
-    def setData(dev, value, length, selector, unitId):
+    def setUVCData(self, value, length, selector, unitId):
         if length == 1:
             pData = struct.pack('c', value)
         elif length == 2:
@@ -93,84 +68,77 @@ if __name__ == "__main__":
             print("Error in pData conversion")
 
         request = USBDevRequest(bmRequestType=0x21,
-                                bRequest=UVCRequest.UVC_SET_CUR,
+                                bRequest=UVCRequestType.UVC_SET_CUR,
                                 wValue=(selector<<8) | 0x00,
                                 wIndex=(unitId << 8) | 0x00,
                                 pData=pData)
 
-        return sendWriteControlRequest(dev, request)
+        bytesWritten = self.dev.ctrl_transfer(request.bmRequestType,
+                         bRequest=request.bRequest,
+                         wValue=request.wValue,
+                         wIndex=request.wIndex,
+                         data_or_wLength=request.pData)        
 
-    def getData(dev, type, length, selector, unitId):
+        return bytesWritten
+
+    def getUVCData(self, type, length, selector, unitId):
         request = USBDevRequest(bmRequestType=0xa1,
                                 bRequest=type,
                                 wValue=(selector<<8) | 0x00,
                                 wIndex=(unitId << 8) | 0x00,
                                 wLength=length)
 
-        return sendReadControlRequest(dev, request)
+        return self.sendReadControlRequest(request)
 
-    def sendReadControlRequest(dev, request:USBDevRequest):
-        bytesRead = dev.ctrl_transfer(request.bmRequestType,
+    def sendReadControlRequest(self, request:USBDevRequest):
+        bytesRead = self.dev.ctrl_transfer(request.bmRequestType,
                          bRequest=request.bRequest,
                          wValue=request.wValue,
                          wIndex=request.wIndex,
                          data_or_wLength=request.wLength)        
         return bytesRead
 
-    def sendWriteControlRequest(dev, request:USBDevRequest):
-        bytesWritten = dev.ctrl_transfer(request.bmRequestType,
+    def sendWriteControlRequest(self, request:USBDevRequest):
+        bytesWritten = self.dev.ctrl_transfer(request.bmRequestType,
                          bRequest=request.bRequest,
                          wValue=request.wValue,
                          wIndex=request.wIndex,
                          data_or_wLength=request.pData)        
-        if bytesWritten != len(request.pData):
-            print("Error writing bytes", request.pData)
+
         return bytesWritten
 
-    def getRangeForControl(dev, control_name):
+    def getRangeForControl(self, control_name):
         uvc_control = uvc_controls[control_name]
-        minValue = getData(dev, type = UVCRequest.UVC_GET_MIN, 
+        minValue = self.getUVCData(type = UVCRequestType.UVC_GET_MIN, 
                      length = uvc_control["size"], 
                      selector=uvc_control["selector"], 
                      unitId=uvc_control["unit"])
-        maxValue = getData(dev, type = UVCRequest.UVC_GET_MAX, 
+        maxValue = self.getUVCData(type = UVCRequestType.UVC_GET_MAX, 
                      length = uvc_control["size"], 
                      selector=uvc_control["selector"], 
                      unitId=uvc_control["unit"])
         return minValue, maxValue
 
-    def setAutoExposure(dev, value):
-
-        uvc_control = uvc_controls["autoExposure"]
-        return setData(dev, value=value, 
-                     length = uvc_control["size"], 
-                     selector=uvc_control["selector"], 
-                     unitId=uvc_control["unit"])
-
-    def getAutoExposure(dev):
-        uvc_control = uvc_controls["autoExposure"]
-        value = getData(dev, type = UVCRequest.UVC_GET_CUR, 
-                     length = uvc_control["size"], 
-                     selector=uvc_control["selector"], 
-                     unitId=uvc_control["unit"])
-        return value
-
-    def getValue(dev, key):
+    def getValue(self, key):
         uvc_control = uvc_controls[key]
-        value = getData(dev, type = UVCRequest.UVC_GET_CUR, 
+        value = self.getUVCData(type = UVCRequestType.UVC_GET_CUR, 
                      length = uvc_control["size"], 
                      selector=uvc_control["selector"], 
                      unitId=uvc_control["unit"])
         return value
 
 
-    def setValue(dev, key, value):
+    def setValue(self, key, value):
         uvc_control = uvc_controls[key]
-        value = setData(dev, value = value, 
+        value = self.setUVCData(value = value, 
                      length = uvc_control["size"], 
                      selector=uvc_control["selector"], 
                      unitId=uvc_control["unit"])
         return value
+
+
+if __name__ == "__main__":
+
 
     backend = usb.backend.libusb1.get_backend(find_library=lambda x: "/opt/homebrew/lib/libusb-1.0.dylib")
 
@@ -190,15 +158,17 @@ if __name__ == "__main__":
 
     interface = configuration[(0,0)]
 
+    camera = MyUSBCamera(dev)
+
     for key in uvc_controls.keys():
-        print(key, "\t", getRangeForControl(dev, key))
-        print("\tCurrent ", getValue(dev, key))
+        print(key, "\t", camera.getRangeForControl(key))
+        print("\tCurrent ", camera.getValue(key))
 
 
-    print(getValue(dev, "gain"))
-    setValue(dev, "gain", 100)
-    print(getValue(dev, "gain"))
+    print(camera.getValue("gain"))
+    # setValue(dev, "gain", 100)
+    # print(getValue(dev, "gain"))
 
-    print(getValue(dev, "saturation"))
-    setValue(dev, "saturation", 60)
-    print(getValue(dev, "saturation"))
+    # print(getValue(dev, "saturation"))
+    # setValue(dev, "saturation", 60)
+    # print(getValue(dev, "saturation"))
