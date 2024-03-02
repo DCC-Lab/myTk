@@ -1354,7 +1354,7 @@ if __name__ == "__main__":
     box1 = Box(label="This is a labelled box in grid (0,2)")
     box1.grid_into(app.window, column=2, row=0, pady=5, padx=5, sticky="nsew")
     
-    thing1 = LabelledEntry(label="Centerd entry", character_width=5)
+    thing1 = LabelledEntry(label="Centered entry", character_width=5)
     thing1.grid_into(box1, column=0, row=0, padx=10)
     thing2 = LabelledEntry(label="Left-aligned entry", character_width=5)
     thing2.grid_into(box1, column=0, row=1, padx=5, sticky='w')
