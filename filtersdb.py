@@ -1,6 +1,7 @@
 from mytk import *
 import os
 import re
+import json
 
 class FilterDBApp(App):
     def __init__(self):
@@ -22,7 +23,7 @@ class FilterDBApp(App):
         self.filter_plot.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
 
         self.data = {}
-        self.load_filters_into_table()  
+        self.load_filters_from_json()  
 
     def selection_changed(self, event, table):
         for selected_item in table.widget.selection():
@@ -55,7 +56,17 @@ class FilterDBApp(App):
 
         return "",""
 
-    def load_filters_into_table(self):
+    def load_filters_from_json(self):
+        filepath = os.path.join(self.filter_root, "filters.json")
+        with open(filepath,"r") as fp:
+            filters_list = json.load(fp)
+
+            for record in filters_list:
+                values = [record[key] for key in ["part_number","description","supplier","filename"]]
+                self.filters.append(values=values)
+
+
+    def load_filters_from_spectra(self):
         files = os.listdir(self.filter_root)
 
         for i, filename in enumerate(files):
@@ -93,7 +104,7 @@ class FilterDBApp(App):
     def about(self):
         showinfo(
             title="About Filter Database",
-            message="An application created with myTk",
+            message="An application created with myTk\n\nhttps://www.dccmlab.ca/",
         )
 
     def help(self):
@@ -102,4 +113,7 @@ class FilterDBApp(App):
 
 if __name__ == "__main__":
     app = FilterDBApp()
+    d = [{"a":"b","bla":[1,2,3,4]}]
+    d = [{"part_number":"<part number>", "description":"<description>", "supplier":"<supplier>","filename":"<filename>"}]
+    print(json.dumps(d, indent=4))
     app.mainloop()
