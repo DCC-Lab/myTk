@@ -13,7 +13,8 @@ class FilterDBApp(App):
         self.filters = TableView(columns={"part_number":"Part number", "description":"Description", "supplier":"Supplier","filename":"Filename"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.filters.widget.column(column=0, width=100)
-        self.filters.widget.column(column=1, width=100)
+        self.filters.widget.column(column=1, width=200)
+        self.filters.widget.column(column=2, width=70)
         self.filters.delegate = self
         self.filter_data = TableView(columns={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nw')
@@ -43,19 +44,6 @@ class FilterDBApp(App):
                 self.filter_plot.update_plot()
 
 
-    def identify_supplier_part_number(self, filename):
-        match = re.match(r'(\D+\d+-\d+)', filename)
-        if match is not None:
-            return 'Semrock', match.group(1)
-        match = re.match(r'(XF.*?)_', filename)
-        if match is not None:
-            return 'Omega', match.group(1)
-        match = re.match(r'(\d+)-ascii', filename)
-        if match is not None:
-            return 'Chroma', match.group(1)
-
-        return "",""
-
     def load_filters_from_json(self):
         filepath = os.path.join(self.filter_root, "filters.json")
         with open(filepath,"r") as fp:
@@ -64,18 +52,6 @@ class FilterDBApp(App):
             for record in filters_list:
                 values = [record[key] for key in ["part_number","description","supplier","filename"]]
                 self.filters.append(values=values)
-
-
-    def load_filters_from_spectra(self):
-        files = os.listdir(self.filter_root)
-
-        for i, filename in enumerate(files):
-            filepath = os.path.join(self.filter_root, filename)
-            supplier, part_number = self.identify_supplier_part_number(filename)
-            data = self.load_filter_file(filepath)
-            if data is not None:
-                self.data[filepath] = data
-                self.filters.append(values=(part_number,"Some filter", supplier,filename))
 
     def load_filter_file(self, filepath):
         data = []
@@ -113,7 +89,4 @@ class FilterDBApp(App):
 
 if __name__ == "__main__":
     app = FilterDBApp()
-    d = [{"a":"b","bla":[1,2,3,4]}]
-    d = [{"part_number":"<part number>", "description":"<description>", "supplier":"<supplier>","filename":"<filename>"}]
-    print(json.dumps(d, indent=4))
     app.mainloop()

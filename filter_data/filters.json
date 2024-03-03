@@ -15,7 +15,7 @@
     },
     {
         "part_number": "FF02-641_75",
-        "description": "<description>",
+        "description": "Bandpass at 641nm ∆75",
         "supplier": "Semrock",
         "filename": "FF02-641_75_Spectrum.txt",
         "data":"transmission"
