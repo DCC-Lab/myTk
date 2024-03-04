@@ -8,7 +8,6 @@ class FilterDBApp(App):
         App.__init__(self, geometry="1000x650")
         self.filter_root = 'filters_data'
         self.window.widget.title("Filters")
-        # self.window.widget.grid_propagate(1)
 
         self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nw')
@@ -17,22 +16,40 @@ class FilterDBApp(App):
         self.filters.widget.column(column=2, width=120)
         self.filters.widget.column(column=3, width=70)
         self.filters.delegate = self
+
         self.filter_data = TableView(columns={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nw')
         self.filter_data.widget.column(column=0, width=70)
+        
+        self.controls = View(width=400, height=50)
+        self.controls.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
+        self.controls.widget.grid_columnconfigure(0, weight=1)
+        self.controls.widget.grid_columnconfigure(1, weight=1)
+        self.controls.widget.grid_columnconfigure(2, weight=1)
+        self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
+        self.open_filter_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='')
+        self.load_filter_data_button = Button("Add filter…")
+        self.load_filter_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='')
+        self.load2_filter_data_button = Button("Copy data to clipboard")
+        self.load2_filter_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='')
+
 
         self.filter_plot = XYPlot(figsize=(4,4))
-        self.filter_plot.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
-        self.data = {}
+        self.filter_plot.grid_into(self.window, row=2, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
+
         self.filters_db = None
         self.load_filters_from_json()  
-        self.save_filters_to_json()
+        # self.save_filters_to_json()
+
+    def show_files(self, event, button):
+        import subprocess
+        subprocess.call(["open", self.filter_root])
 
     def selection_changed(self, event, table):
         for selected_item in table.widget.selection():
                 item = table.widget.item(selected_item)
                 record = item['values']
-                filename = record[4]
+                filename = record[4] #FIXME
                 filepath = os.path.join(self.filter_root, filename)
                 data = self.load_filter_data(filepath)
                 
@@ -52,9 +69,9 @@ class FilterDBApp(App):
             self.filters_db = json.load(fp)
 
             for record in self.filters_db:
-                values = [record[key] for key in ["part_number","description","dimensions", "supplier","filename"]]
+                values = [record[key] for key in self.filters.columns]
                 if not os.path.exists(os.path.join(self.filter_root, record["filename"])):
-                    values[3] = "❌ "+values[3]
+                    values[3] = "❌ "+values[3] #FIXME
 
                 self.filters.append(values=values)
 
