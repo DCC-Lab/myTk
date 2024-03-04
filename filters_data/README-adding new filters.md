@@ -8,7 +8,7 @@ For now, adding a filter is a manual operation.
 
 2. Copy it to the folder `filter_data`
 
-3. Open the file `filters.json` in a text editor. You will see how each filter is described. Add your filter at the end of the file and don't forget to add a comma to separate the entry from the previous entry:
+3. Open the file `filters.json` in a text editor. You will see that each filter is described. Add your filter at the end of the file and don't forget to add a comma to separate the entry from the previous entry:
 
    ```json
    [

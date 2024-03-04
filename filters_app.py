@@ -27,11 +27,9 @@ class FilterDBApp(App):
         self.controls.widget.grid_columnconfigure(1, weight=1)
         self.controls.widget.grid_columnconfigure(2, weight=1)
         self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
-        self.open_filter_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='')
-        self.load_filter_data_button = Button("Add filter…")
-        self.load_filter_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='')
-        self.load2_filter_data_button = Button("Copy data to clipboard")
-        self.load2_filter_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='')
+        self.open_filter_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
+        self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
+        self.copy_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='ne')
 
 
         self.filter_plot = XYPlot(figsize=(4,4))
@@ -40,28 +38,6 @@ class FilterDBApp(App):
         self.filters_db = None
         self.load_filters_from_json()  
         # self.save_filters_to_json()
-
-    def show_files(self, event, button):
-        import subprocess
-        subprocess.call(["open", self.filter_root])
-
-    def selection_changed(self, event, table):
-        for selected_item in table.widget.selection():
-                item = table.widget.item(selected_item)
-                record = item['values']
-                filename = record[4] #FIXME
-                filepath = os.path.join(self.filter_root, filename)
-                data = self.load_filter_data(filepath)
-                
-                self.filter_data.empty()
-                self.filter_plot.clear_plot()
-                for x,y in data:
-                    self.filter_data.append((x,y))
-                    self.filter_plot.append(x,y)
-                self.filter_plot.first_axis.set_ylabel("Transmission")
-                self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
-                self.filter_plot.update_plot()
-
 
     def load_filters_from_json(self):
         filepath = os.path.join(self.filter_root, "filters.json")
@@ -93,7 +69,7 @@ class FilterDBApp(App):
                             y = float(match.group(2))
                             data.append((x,y))
                         except Exception as err:
-                            # not an actal data line
+                            # not an actual data line
                             pass
 
             except Exception as err:
@@ -102,6 +78,62 @@ class FilterDBApp(App):
 
         return data
 
+    def show_files(self, event, button):
+        import platform
+        import subprocess
+
+        try:
+            if platform.system() == 'Windows':
+                os.startfile(self.filter_root)
+            elif platform.system() == 'Darwin':
+                subprocess.call(["open", self.filter_root])
+            else:
+                subprocess.call(['xdg-open', self.filter_root])
+        except:
+            showerror(
+                title="Unable to show the filter_data folder",
+                message="An error occured when trying to open the folder filter_data",
+            )
+
+    def copy_data(self, event, button):
+        try:
+            import pyperclip
+
+            for selected_item in self.filters.widget.selection():
+                item = self.filters.widget.item(selected_item)
+                record = item['values']
+                filename = record[4] #FIXME
+                filepath = os.path.join(self.filter_root, filename)
+                data = self.load_filter_data(filepath)
+                
+                text = ""
+                for x,y in data:
+                    text = text + "{0}\t{1}\n".format(x,y)
+
+                pyperclip.copy(text)
+        except Exception as err:
+            showerror(
+                title="Unable to copy to clipboard",
+                message="You must have the module pyperclip installed to copy the data.",
+            )
+
+
+    def selection_changed(self, event, table):
+        for selected_item in table.widget.selection():
+            item = table.widget.item(selected_item)
+            record = item['values']
+            filename = record[4] #FIXME
+            filepath = os.path.join(self.filter_root, filename)
+            data = self.load_filter_data(filepath)
+            
+            self.filter_data.empty()
+            self.filter_plot.clear_plot()
+            for x,y in data:
+                self.filter_data.append((x,y))
+                self.filter_plot.append(x,y)
+            self.filter_plot.first_axis.set_ylabel("Transmission")
+            self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
+            self.filter_plot.update_plot()
 
     def about(self):
         showinfo(

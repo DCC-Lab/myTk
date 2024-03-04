@@ -4,7 +4,7 @@
         "description": "<description>",
         "supplier": "Chroma",
         "filename": "260-ascii.txt",
-        "dimensions": "1 inch",
+        "dimensions": "1\"",
         "data":"transmission"
     },
     {
@@ -20,7 +20,7 @@
         "description": "Bandpass at 641nm ∆75",
         "supplier": "Semrock",
         "filename": "FF02-641_75_Spectrum.txt",
-        "dimensions": "1 inch",
+        "dimensions": "1\"",
         "data":"transmission"
     },
     {
@@ -28,7 +28,7 @@
         "description": "Bandpass at 578nm ∆21",
         "supplier": "Semrock",
         "filename": "FF01-578_21_Spectrum.txt",
-        "dimensions": "1 inch",
+        "dimensions": "1\"",
         "data":"transmission"
     },
     {
@@ -36,7 +36,7 @@
         "description": "Bandpass at 504nm ∆24",
         "supplier": "Semrock",
         "filename": "AF01-504_24_measured.txt",
-        "dimensions": "1 inch",
+        "dimensions": "1\"",
         "data":"transmission"
     },
     {
@@ -44,7 +44,7 @@
         "description": "Bandpass at 530nm ∆28",
         "supplier": "Omega",
         "filename": "XF3017R_T.csv",
-        "dimensions": "1 inch",
+        "dimensions": "1\"",
         "data":"transmission"
     }
 ]
