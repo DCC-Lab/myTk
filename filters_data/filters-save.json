@@ -1,49 +1,50 @@
 [
     {
-        "part_number": "<part number>",
+        "part_number": "260",
         "description": "<description>",
         "supplier": "Chroma",
         "filename": "260-ascii.txt",
-        "data":"transmission"
+        "dimensions": "1 inch",
+        "data": "transmission"
     },
     {
         "part_number": "FF596-Di01",
         "description": "Dichroic 596 nm",
         "supplier": "Semrock",
         "filename": "FF596-Di01_Spectrum.txt",
-        "data":"transmission"
+        "dimensions": "25 mm x 36 mm",
+        "data": "transmission"
     },
     {
         "part_number": "FF02-641_75",
         "description": "Bandpass at 641nm ∆75",
         "supplier": "Semrock",
         "filename": "FF02-641_75_Spectrum.txt",
-        "data":"transmission"
+        "dimensions": "1 inch",
+        "data": "transmission"
     },
     {
         "part_number": "FF01-578_21",
-        "description": "<description>",
+        "description": "Bandpass at 578nm ∆21",
         "supplier": "Semrock",
         "filename": "FF01-578_21_Spectrum.txt",
-        "data":"transmission"
+        "dimensions": "1 inch",
+        "data": "transmission"
     },
     {
         "part_number": "AF01-504-24",
         "description": "Bandpass at 504nm ∆24",
         "supplier": "Semrock",
         "filename": "AF01-504_24_measured.txt",
-        "data":"transmission"
+        "dimensions": "1 inch",
+        "data": "transmission"
     },
     {
-        "part_number": "XF3017R",
-        "description": "<description>",
+        "part_number": "XF3017R/25",
+        "description": "Bandpass at 530nm ∆28",
         "supplier": "Omega",
         "filename": "XF3017R_T.csv",
-        "data":"transmission"
+        "dimensions": "1 inch",
+        "data": "transmission"
     }
 ]
-
-
-
-
-

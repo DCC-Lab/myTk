@@ -5,16 +5,17 @@ import json
 
 class FilterDBApp(App):
     def __init__(self):
-        App.__init__(self, geometry="900x650")
-        self.filter_root = 'filter_data'
-        self.window.widget.title("Spectrum viewer")
-        self.window.widget.grid_propagate(1)
+        App.__init__(self, geometry="1000x650")
+        self.filter_root = 'filters_data'
+        self.window.widget.title("Filters")
+        # self.window.widget.grid_propagate(1)
 
-        self.filters = TableView(columns={"part_number":"Part number", "description":"Description", "supplier":"Supplier","filename":"Filename"})
+        self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.filters.widget.column(column=0, width=100)
         self.filters.widget.column(column=1, width=200)
-        self.filters.widget.column(column=2, width=70)
+        self.filters.widget.column(column=2, width=120)
+        self.filters.widget.column(column=3, width=70)
         self.filters.delegate = self
         self.filter_data = TableView(columns={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nw')
@@ -22,17 +23,18 @@ class FilterDBApp(App):
 
         self.filter_plot = XYPlot(figsize=(4,4))
         self.filter_plot.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
-
         self.data = {}
+        self.filters_db = None
         self.load_filters_from_json()  
+        self.save_filters_to_json()
 
     def selection_changed(self, event, table):
         for selected_item in table.widget.selection():
                 item = table.widget.item(selected_item)
                 record = item['values']
-                filename = record[3]
+                filename = record[4]
                 filepath = os.path.join(self.filter_root, filename)
-                data = self.load_filter_file(filepath)
+                data = self.load_filter_data(filepath)
                 
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()
@@ -47,16 +49,23 @@ class FilterDBApp(App):
     def load_filters_from_json(self):
         filepath = os.path.join(self.filter_root, "filters.json")
         with open(filepath,"r") as fp:
-            filters_list = json.load(fp)
+            self.filters_db = json.load(fp)
 
-            for record in filters_list:
-                values = [record[key] for key in ["part_number","description","supplier","filename"]]
+            for record in self.filters_db:
+                values = [record[key] for key in ["part_number","description","dimensions", "supplier","filename"]]
+                if not os.path.exists(os.path.join(self.filter_root, record["filename"])):
+                    values[3] = "❌ "+values[3]
+
                 self.filters.append(values=values)
 
-    def load_filter_file(self, filepath):
+    def save_filters_to_json(self):
+        filepath = os.path.join(self.filter_root, "filters-save.json")
+        with open(filepath,"w") as fp:
+            json.dump(self.filters_db, fp, indent=4, ensure_ascii=False)
+
+    def load_filter_data(self, filepath):
         data = []
         with open(filepath,'r') as file:
-            line = None
             try:
                 lines = file.readlines()
                 for line in lines:
@@ -84,7 +93,14 @@ class FilterDBApp(App):
         )
 
     def help(self):
-        webbrowser.open("https://www.dccmlab.ca/")
+        try:
+            import webbrowser
+            webbrowser.open("https://www.dccmlab.ca/")
+        except:
+            showinfo(
+                title="Help",
+                message="No help available.",
+            )
 
 
 if __name__ == "__main__":
