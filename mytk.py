@@ -600,7 +600,9 @@ class TableView(Base):
             show="headings",
             selectmode="browse",
             takefocus=True,
-        )
+        )        
+        self.widget.configure(displaycolumn=list(self.columns.keys()))
+
         # self.widget.grid_propagate(0)
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
@@ -668,7 +670,7 @@ class TableView(Base):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click_cell(item_id, column_id)
+                keep_running = self.delegate.click_header(column_id)
             except:
                 pass
 
