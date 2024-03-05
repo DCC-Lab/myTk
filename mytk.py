@@ -119,7 +119,9 @@ class Bindable:
 class App(Bindable):
     app = None
 
-    def __init__(self, geometry=None):
+    def __init__(self, geometry=None, name="myTk App", help_url=None):
+        self.name = name
+        self.help_url = help_url
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
@@ -148,7 +150,7 @@ class App(Bindable):
 
         appmenu = Menu(menubar, name="apple")
         menubar.add_cascade(menu=appmenu)
-        appmenu.add_command(label="About This App", command=self.about)
+        appmenu.add_command(label=f"About {self.name}", command=self.about)
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
@@ -164,7 +166,11 @@ class App(Bindable):
 
         menubar.add_cascade(label="Edit", menu=editmenu)
         helpmenu = Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="Documentation web site", command=self.help)
+        if self.help_url is None:
+            helpmenu.add_command(label="No help available", command=self.help, state="disabled")
+        else:
+            helpmenu.add_command(label="Documentation web site", command=self.help)
+
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         root.config(menu=menubar)
@@ -187,10 +193,18 @@ class App(Bindable):
             )
 
     def about(self):
-        showinfo(title="About this App", message="Created with myTk")
+        showinfo(title=f"About {self.name}", message="Created with myTk")
 
     def help(self):
-        pass
+        try:
+            if self.help_url is not None:
+                import webbrowser
+                webbrowser.open(self.help_url)
+        except:
+            showinfo(
+                title="Help",
+                message="No help available.",
+            )
 
     def quit(self):
         root = self.window.widget
@@ -258,6 +272,13 @@ class Base(Bindable):
 
         if self.widget is not None:
             self.widget.pack(kwargs)
+
+    def place_into(self, parent, x, y, width, height):
+        self.create_widget(master=parent.widget)
+        self.parent = parent
+
+        if self.widget is not None:
+            self.widget.place(x=x, y=y, width=width, height=height)
 
     def bind_event(self, event, callback):
         self.widget.bind(event, callback)
@@ -735,8 +756,17 @@ class TableView(Base):
 
         return True
 
+    def is_editable(self, item_id, column_id):
+        return True
+
     def doubleclick_cell(self, item_id, column_id):
         item_dict = self.widget.item(item_id)
+
+        if self.is_editable(item_id, column_id):
+            bbox = self.widget.bbox(item_id, column_id-1)
+            entry_box = Entry()
+            entry_box.place_into(self, bbox[0], bbox[1], bbox[2], bbox[3])
+            
 
         keep_running = True
         if self.delegate is not None:
@@ -1441,7 +1471,7 @@ if __name__ == "__main__":
     slider = Slider(width=50)
     slider.grid_into(view3, column=0, row=1, pady=5, padx=5, sticky="nsew")
     slider.value_variable.set(0)
-    indicator = DoubleIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
+    indicator = NumericIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
     slider.bind_properties('value_variable', indicator, 'value_variable')
     indicator.grid_into(view3, column=0, row=2, pady=5, padx=5, sticky="nsew")
     level = Level()

@@ -5,10 +5,9 @@ import json
 
 class FilterDBApp(App):
     def __init__(self):
-        App.__init__(self, geometry="1000x650")
+        App.__init__(self, geometry="1000x650", name="Filter Database")
         self.filter_root = 'filters_data'
         self.window.widget.title("Filters")
-
         self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.filters.widget.column(column=0, width=100)
@@ -37,7 +36,6 @@ class FilterDBApp(App):
 
         self.filters_db = None
         self.load_filters_from_json()  
-        # self.save_filters_to_json()
 
     def load_filters_from_json(self):
         filepath = os.path.join(self.filter_root, "filters.json")
@@ -120,22 +118,6 @@ class FilterDBApp(App):
             self.filter_plot.first_axis.set_ylabel("Transmission")
             self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
             self.filter_plot.update_plot()
-
-    def about(self):
-        showinfo(
-            title="About Filter Database",
-            message="An application created with myTk\n\nhttps://www.dccmlab.ca/",
-        )
-
-    def help(self):
-        try:
-            import webbrowser
-            webbrowser.open("https://www.dccmlab.ca/")
-        except:
-            showinfo(
-                title="Help",
-                message="No help available.",
-            )
 
 
 if __name__ == "__main__":
