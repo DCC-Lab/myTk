@@ -4,7 +4,7 @@
 
 For now, adding a filter is a manual operation. 
 
-1. Get the data file from the vendor.  It will likely be a file with at least two columns of data: `wavelength` and `transmission/reflection`
+1. Get the data file from the vendor.  It will likely be a file with at least two columns of data: `wavelength` and `transmission/reflection`.  The exact format should not matter, as long as it is two columns of numbers, with or without a header.
 
 2. Copy it to the folder `filter_data`
 

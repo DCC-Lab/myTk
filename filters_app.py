@@ -79,21 +79,7 @@ class FilterDBApp(App):
         return data
 
     def show_files(self, event, button):
-        import platform
-        import subprocess
-
-        try:
-            if platform.system() == 'Windows':
-                os.startfile(self.filter_root)
-            elif platform.system() == 'Darwin':
-                subprocess.call(["open", self.filter_root])
-            else:
-                subprocess.call(['xdg-open', self.filter_root])
-        except:
-            showerror(
-                title="Unable to show the filter_data folder",
-                message="An error occured when trying to open the folder filter_data",
-            )
+        self.reveal_path(self.filter_root)
 
     def copy_data(self, event, button):
         try:

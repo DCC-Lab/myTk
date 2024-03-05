@@ -169,6 +169,23 @@ class App(Bindable):
 
         root.config(menu=menubar)
 
+    def reveal_path(self, path):
+        import platform
+        import subprocess
+
+        try:
+            if platform.system() == 'Windows':
+                os.startfile(path)
+            elif platform.system() == 'Darwin':
+                subprocess.call(["open", path])
+            else:
+                subprocess.call(['xdg-open', path])
+        except:
+            showerror(
+                title=f"Unable to show {path}",
+                message=f"An error occured when trying to reveal {path}",
+            )
+
     def about(self):
         showinfo(title="About this App", message="Created with myTk")
 
