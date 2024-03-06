@@ -540,7 +540,42 @@ class Entry(Base):
         self.widget = ttk.Entry(master, width=self.character_width)
 
         self.bind_textvariable(StringVar(value=self.initial_text))
+        self.widget.update()
 
+class CellEntry(Base):
+    def __init__(self,  tableview, item_id, column_id, user_event_callback=None):
+        Base.__init__(self)
+        self.tableview = tableview
+        self.item_id = item_id
+        self.column_id = column_id
+        self.user_event_callback = user_event_callback
+
+    def create_widget(self, master):
+        bbox = self.tableview.widget.bbox(self.item_id, self.column_id-1)
+
+        item_dict = self.tableview.widget.item(self.item_id)
+        selected_text = item_dict["values"][self.column_id-1]
+
+        self.parent = master
+        self.value_variable = StringVar()
+        self.widget = ttk.Entry(master, textvariable=self.value_variable)
+        self.widget.insert(0, selected_text)
+        self.widget.bind("<FocusOut>", self.event_focusout_callback)
+        self.widget.bind("<Return>", self.event_return_callback)
+        # self.bind_textvariable()
+        # self.widget.update()
+
+    def event_focusout_callback(self, event):
+        if self.user_event_callback is not None:
+            self.user_event_callback(event, cell)
+
+        self.widget.destroy()
+
+    def event_return_callback(self, event):
+        values = self.tableview.widget.item(self.item_id).get("values")
+        values[self.column_id-1] = self.value_variable.get()
+        self.tableview.widget.item(self.item_id, values=values)
+        self.event_generate("<FocusOut>")
 
 class NumericEntry(Base):
     def __init__(
@@ -754,7 +789,7 @@ class TableView(Base):
                 item_id = self.widget.identify_row(event.y)
                 self.doubleclick_cell(item_id=item_id, column_id=int(column_id))
 
-        return True
+        # return True
 
     def is_editable(self, item_id, column_id):
         return True
@@ -764,20 +799,19 @@ class TableView(Base):
 
         if self.is_editable(item_id, column_id):
             bbox = self.widget.bbox(item_id, column_id-1)
-            entry_box = Entry()
-            entry_box.place_into(self, bbox[0], bbox[1], bbox[2], bbox[3])
+            entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
+            entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
+            entry_box.widget.focus()
             
-
-        keep_running = True
-        if self.delegate is not None:
-            try:
-                keep_running = self.delegate.doubleclick_cell(
-                    item_id, column_id, item_dict
-                )
-            except:
-                pass
-
-        return True
+        else:
+            keep_running = True
+            if self.delegate is not None:
+                try:
+                    keep_running = self.delegate.doubleclick_cell(
+                        item_id, column_id, item_dict
+                    )
+                except:
+                    pass
 
     def doubleclick_header(self, column_id):
         keep_running = True
