@@ -10,6 +10,7 @@ import signal
 import sys
 import weakref
 import numpy
+import json
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -154,7 +155,8 @@ class App(Bindable):
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Quit", command=root.quit)
+        filemenu.add_command(label="Save…", command=self.save, accelerator="Command+S")
+        filemenu.add_command(label="Quit", command=root.quit, accelerator="Command+Q")
         menubar.add_cascade(label="File", menu=filemenu)
         editmenu = Menu(menubar, tearoff=0)
         editmenu.add_command(label="Undo", state="disabled")
@@ -191,6 +193,9 @@ class App(Bindable):
                 title=f"Unable to show {path}",
                 message=f"An error occured when trying to reveal {path}",
             )
+
+    def save(self):
+        pass
 
     def about(self):
         showinfo(title=f"About {self.name}", message="Created with myTk")
@@ -559,23 +564,21 @@ class CellEntry(Base):
         self.parent = master
         self.value_variable = StringVar()
         self.widget = ttk.Entry(master, textvariable=self.value_variable)
-        self.widget.insert(0, selected_text)
         self.widget.bind("<FocusOut>", self.event_focusout_callback)
         self.widget.bind("<Return>", self.event_return_callback)
-        # self.bind_textvariable()
-        # self.widget.update()
-
-    def event_focusout_callback(self, event):
-        if self.user_event_callback is not None:
-            self.user_event_callback(event, cell)
-
-        self.widget.destroy()
+        self.widget.insert(0, selected_text)
 
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
         values[self.column_id-1] = self.value_variable.get()
         self.tableview.widget.item(self.item_id, values=values)
         self.event_generate("<FocusOut>")
+
+    def event_focusout_callback(self, event):
+        if self.user_event_callback is not None:
+            self.user_event_callback(event, cell)
+        self.widget.destroy()
+
 
 class NumericEntry(Base):
     def __init__(
@@ -664,6 +667,7 @@ class TableView(Base):
         Base.__init__(self)
         self.columns = columns
         self.delegate = None
+        self.records = []
 
     def create_widget(self, master):
         self.parent = master
@@ -686,6 +690,30 @@ class TableView(Base):
 
     def append(self, values):
         return self.widget.insert("", END, values=values)
+
+    def load_records_from_json(self, filepath):
+        with open(filepath,"r") as fp:
+            return json.load(fp)
+
+    def copy_records_to_table_data(self, records):
+        for record in records:
+            ordered_values = [record[key] for key in self.columns]
+            self.append(ordered_values)
+
+    def save_records_to_json(self, records, filepath):
+        with open(filepath,"w") as fp:
+            json.dump(records, fp, indent=4, ensure_ascii=False)
+
+    def copy_table_data_to_records(self):
+        records = []
+        for item in self.widget.get_children():
+            item_dict = self.widget.item(item)
+            item_values = list(item_dict["values"])
+            item_keys = list(self.columns.keys())
+
+            record = dict(zip(item_keys, item_values))
+            records.append(record)
+        return records
 
     def empty(self):
         for item in self.widget.get_children():

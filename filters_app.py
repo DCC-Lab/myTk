@@ -37,22 +37,18 @@ class FilterDBApp(App):
         self.filters_db = None
         self.load_filters_from_json()  
 
+    def save(self):
+        self.save_filters_to_json()
+
     def load_filters_from_json(self):
         filepath = os.path.join(self.filter_root, "filters.json")
-        with open(filepath,"r") as fp:
-            self.filters_db = json.load(fp)
-
-            for record in self.filters_db:
-                values = [record[key] for key in self.filters.columns]
-                if not os.path.exists(os.path.join(self.filter_root, record["filename"])):
-                    values[3] = "❌ "+values[3] #FIXME
-
-                self.filters.append(values=values)
+        records = self.filters.load_records_from_json(filepath)
+        self.filters.copy_records_to_table_data(records)
 
     def save_filters_to_json(self):
         filepath = os.path.join(self.filter_root, "filters-save.json")
-        with open(filepath,"w") as fp:
-            json.dump(self.filters_db, fp, indent=4, ensure_ascii=False)
+        records = self.filters.copy_table_data_to_records()
+        self.filters.save_records_to_json(records, filepath)
 
     def load_filter_data(self, filepath):
         data = []
