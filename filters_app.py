@@ -3,12 +3,14 @@ import os
 import re
 import json
 import requests
+import tempfile
 
 class FilterDBApp(App):
     def __init__(self):
         App.__init__(self, geometry="1000x650", name="Filter Database")
         self.filepath_root = 'filters_data'
         self.web_root = 'http://www.dccmlab.ca'
+        self.temp_root = os.path.join(tempfile.TemporaryDirectory().name,'filters_data')
         self.download_files = True
 
         self.window.widget.title("Filters")
@@ -50,7 +52,7 @@ class FilterDBApp(App):
 
     def load(self):
         if self.download_files:
-            filepath = self.get_files_from_web()
+            self.filepath_root, filepath = self.get_files_from_web()
         else:
             filepath = os.path.join(self.filepath_root, "filters.json")
 
@@ -59,14 +61,14 @@ class FilterDBApp(App):
     def get_files_from_web(self):
         import zipfile
 
-        url = "/".join([self.web_root, 'filters.json.zip'])
+        url = "/".join([self.web_root, 'filters_data.zip'])
         req = requests.get(url, allow_redirects=True)
-        open('filters.json.zip', 'wb').write(req.content)
+        open('filters_data.zip', 'wb').write(req.content)
 
-        with zipfile.ZipFile('filters.json.zip', 'r') as zip_ref:
-            zip_ref.extractall("/tmp")
+        with zipfile.ZipFile('filters_data.zip', 'r') as zip_ref:
+            zip_ref.extractall(self.temp_root)
         
-        return "/tmp/filters.json"
+        return os.path.join(self.temp_root, 'filters_data'), os.path.join(self.temp_root, 'filters_data', 'filters.json')
 
     def save(self):
         filepath = os.path.join(self.filepath_root, "filters.json")
