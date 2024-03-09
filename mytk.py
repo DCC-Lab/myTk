@@ -19,10 +19,8 @@ import PIL
 from PIL import Image, ImageDraw
 import cv2
 
-
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
-
 
 class Bindable:
     def __init__(self, value=None):
@@ -156,7 +154,7 @@ class App(Bindable):
 
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label="Save…", command=self.save, accelerator="Command+S")
-        filemenu.add_command(label="Quit", command=root.quit, accelerator="Command+Q")
+        filemenu.add_command(label="Quit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         editmenu = Menu(menubar, tearoff=0)
         editmenu.add_command(label="Undo", state="disabled")
@@ -691,14 +689,22 @@ class TableView(Base):
     def append(self, values):
         return self.widget.insert("", END, values=values)
 
+    def load(self, filepath):
+        records = self.load_records_from_json(filepath)
+        self.copy_records_to_table_data(records)
+
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
             return json.load(fp)
 
     def copy_records_to_table_data(self, records):
         for record in records:
-            ordered_values = [record[key] for key in self.columns]
+            ordered_values = [record.get(key, None) for key in self.columns]
             self.append(ordered_values)
+
+    def save(self, filepath):
+        records = self.copy_table_data_to_records()
+        self.save_records_to_json(records, filepath)
 
     def save_records_to_json(self, records, filepath):
         with open(filepath,"w") as fp:
