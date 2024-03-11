@@ -1,5 +1,6 @@
 from tkinter import *
-from tkinter.messagebox import showerror, showwarning, showinfo
+from tkinter.messagebox import showerror, showwarning, showinfo, askquestion
+
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 from tkinter import filedialog
@@ -10,6 +11,7 @@ import signal
 import sys
 import weakref
 import numpy
+import json
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MPLFigure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -18,10 +20,8 @@ import PIL
 from PIL import Image, ImageDraw
 import cv2
 
-
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
-
 
 class Bindable:
     def __init__(self, value=None):
@@ -119,7 +119,9 @@ class Bindable:
 class App(Bindable):
     app = None
 
-    def __init__(self, geometry=None):
+    def __init__(self, geometry=None, name="myTk App", help_url=None):
+        self.name = name
+        self.help_url = help_url
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
@@ -139,6 +141,31 @@ class App(Bindable):
                 message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
             )
 
+    def install_modules_if_absent(self, modulenames, ask_for_confirmation=True):
+        missing_modules = []
+
+        for modulename in modulenames:
+            try:
+                new_module = __import__(modulename)
+            except ModuleNotFoundError:
+                missing_modules.append(modulename)
+
+        if ask_for_confirmation and missing_modules != []:
+            result = askquestion(f"""Module(s) '{",".join(missing_modules)}' missing""", 
+                f"""Do you want to install missing module(s) '{",".join(missing_modules)}'?
+If you do not wish to do so, the application may not work. You may also install them manually with 
+'pip install modulename'""", icon='warning')
+
+            if result == "yes":
+                import subprocess
+                import sys
+
+                for modulename in missing_modules:
+                    try:
+                        subprocess.check_call([sys.executable, "-m", "pip3", "install", modulename])
+                    except Exception as err:
+                        print(err)
+
     def mainloop(self):
         self.window.widget.mainloop()
 
@@ -148,10 +175,11 @@ class App(Bindable):
 
         appmenu = Menu(menubar, name="apple")
         menubar.add_cascade(menu=appmenu)
-        appmenu.add_command(label="About This App", command=self.about)
+        appmenu.add_command(label=f"About {self.name}", command=self.about)
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Save…", command=self.save, accelerator="Command+S")
         filemenu.add_command(label="Quit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         editmenu = Menu(menubar, tearoff=0)
@@ -164,7 +192,11 @@ class App(Bindable):
 
         menubar.add_cascade(label="Edit", menu=editmenu)
         helpmenu = Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="Documentation web site", command=self.help)
+        if self.help_url is None:
+            helpmenu.add_command(label="No help available", command=self.help, state="disabled")
+        else:
+            helpmenu.add_command(label="Documentation web site", command=self.help)
+
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         root.config(menu=menubar)
@@ -186,11 +218,22 @@ class App(Bindable):
                 message=f"An error occured when trying to reveal {path}",
             )
 
+    def save(self):
+        pass
+
     def about(self):
-        showinfo(title="About this App", message="Created with myTk")
+        showinfo(title=f"About {self.name}", message="Created with myTk")
 
     def help(self):
-        pass
+        try:
+            if self.help_url is not None:
+                import webbrowser
+                webbrowser.open(self.help_url)
+        except:
+            showinfo(
+                title="Help",
+                message="No help available.",
+            )
 
     def quit(self):
         root = self.window.widget
@@ -258,6 +301,13 @@ class Base(Bindable):
 
         if self.widget is not None:
             self.widget.pack(kwargs)
+
+    def place_into(self, parent, x, y, width, height):
+        self.create_widget(master=parent.widget)
+        self.parent = parent
+
+        if self.widget is not None:
+            self.widget.place(x=x, y=y, width=width, height=height)
 
     def bind_event(self, event, callback):
         self.widget.bind(event, callback)
@@ -519,6 +569,39 @@ class Entry(Base):
         self.widget = ttk.Entry(master, width=self.character_width)
 
         self.bind_textvariable(StringVar(value=self.initial_text))
+        self.widget.update()
+
+class CellEntry(Base):
+    def __init__(self,  tableview, item_id, column_id, user_event_callback=None):
+        Base.__init__(self)
+        self.tableview = tableview
+        self.item_id = item_id
+        self.column_id = column_id
+        self.user_event_callback = user_event_callback
+
+    def create_widget(self, master):
+        bbox = self.tableview.widget.bbox(self.item_id, self.column_id-1)
+
+        item_dict = self.tableview.widget.item(self.item_id)
+        selected_text = item_dict["values"][self.column_id-1]
+
+        self.parent = master
+        self.value_variable = StringVar()
+        self.widget = ttk.Entry(master, textvariable=self.value_variable)
+        self.widget.bind("<FocusOut>", self.event_focusout_callback)
+        self.widget.bind("<Return>", self.event_return_callback)
+        self.widget.insert(0, selected_text)
+
+    def event_return_callback(self, event):
+        values = self.tableview.widget.item(self.item_id).get("values")
+        values[self.column_id-1] = self.value_variable.get()
+        self.tableview.widget.item(self.item_id, values=values)
+        self.event_generate("<FocusOut>")
+
+    def event_focusout_callback(self, event):
+        if self.user_event_callback is not None:
+            self.user_event_callback(event, cell)
+        self.widget.destroy()
 
 
 class NumericEntry(Base):
@@ -608,6 +691,7 @@ class TableView(Base):
         Base.__init__(self)
         self.columns = columns
         self.delegate = None
+        self.records = []
 
     def create_widget(self, master):
         self.parent = master
@@ -630,6 +714,38 @@ class TableView(Base):
 
     def append(self, values):
         return self.widget.insert("", END, values=values)
+
+    def load(self, filepath):
+        records = self.load_records_from_json(filepath)
+        self.copy_records_to_table_data(records)
+
+    def load_records_from_json(self, filepath):
+        with open(filepath,"r") as fp:
+            return json.load(fp)
+
+    def copy_records_to_table_data(self, records):
+        for record in records:
+            ordered_values = [record.get(key, None) for key in self.columns]
+            self.append(ordered_values)
+
+    def save(self, filepath):
+        records = self.copy_table_data_to_records()
+        self.save_records_to_json(records, filepath)
+
+    def save_records_to_json(self, records, filepath):
+        with open(filepath,"w") as fp:
+            json.dump(records, fp, indent=4, ensure_ascii=False)
+
+    def copy_table_data_to_records(self):
+        records = []
+        for item in self.widget.get_children():
+            item_dict = self.widget.item(item)
+            item_values = list(item_dict["values"])
+            item_keys = list(self.columns.keys())
+
+            record = dict(zip(item_keys, item_values))
+            records.append(record)
+        return records
 
     def empty(self):
         for item in self.widget.get_children():
@@ -733,21 +849,29 @@ class TableView(Base):
                 item_id = self.widget.identify_row(event.y)
                 self.doubleclick_cell(item_id=item_id, column_id=int(column_id))
 
+        # return True
+
+    def is_editable(self, item_id, column_id):
         return True
 
     def doubleclick_cell(self, item_id, column_id):
         item_dict = self.widget.item(item_id)
 
-        keep_running = True
-        if self.delegate is not None:
-            try:
-                keep_running = self.delegate.doubleclick_cell(
-                    item_id, column_id, item_dict
-                )
-            except:
-                pass
-
-        return True
+        if self.is_editable(item_id, column_id):
+            bbox = self.widget.bbox(item_id, column_id-1)
+            entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
+            entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
+            entry_box.widget.focus()
+            
+        else:
+            keep_running = True
+            if self.delegate is not None:
+                try:
+                    keep_running = self.delegate.doubleclick_cell(
+                        item_id, column_id, item_dict
+                    )
+                except:
+                    pass
 
     def doubleclick_header(self, column_id):
         keep_running = True
@@ -1441,7 +1565,7 @@ if __name__ == "__main__":
     slider = Slider(width=50)
     slider.grid_into(view3, column=0, row=1, pady=5, padx=5, sticky="nsew")
     slider.value_variable.set(0)
-    indicator = DoubleIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
+    indicator = NumericIndicator(value_variable=DoubleVar(value=0), format_string="Formatted slider value: {0:.1f}%")
     slider.bind_properties('value_variable', indicator, 'value_variable')
     indicator.grid_into(view3, column=0, row=2, pady=5, padx=5, sticky="nsew")
     level = Level()
@@ -1466,5 +1590,5 @@ if __name__ == "__main__":
         )
 
     app.window.all_resize_weight(1)
-
+    
     app.mainloop()
