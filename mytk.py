@@ -1,5 +1,6 @@
 from tkinter import *
-from tkinter.messagebox import showerror, showwarning, showinfo
+from tkinter.messagebox import showerror, showwarning, showinfo, askquestion
+
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 from tkinter import filedialog
@@ -139,6 +140,31 @@ class App(Bindable):
             showwarning(
                 message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
             )
+
+    def install_modules_if_absent(self, modulenames, ask_for_confirmation=True):
+        missing_modules = []
+
+        for modulename in modulenames:
+            try:
+                new_module = __import__(modulename)
+            except ModuleNotFoundError:
+                missing_modules.append(modulename)
+
+        if ask_for_confirmation and missing_modules != []:
+            result = askquestion(f"""Module(s) '{",".join(missing_modules)}' missing""", 
+                f"""Do you want to install missing module(s) '{",".join(missing_modules)}'?
+If you do not wish to do so, the application may not work. You may also install them manually with 
+'pip install modulename'""", icon='warning')
+
+            if result == "yes":
+                import subprocess
+                import sys
+
+                for modulename in missing_modules:
+                    try:
+                        subprocess.check_call([sys.executable, "-m", "pip3", "install", modulename])
+                    except Exception as err:
+                        print(err)
 
     def mainloop(self):
         self.window.widget.mainloop()
@@ -1564,5 +1590,5 @@ if __name__ == "__main__":
         )
 
     app.window.all_resize_weight(1)
-
+    
     app.mainloop()

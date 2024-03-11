@@ -2,7 +2,6 @@ from mytk import *
 import os
 import re
 import json
-import requests
 import tempfile
 
 class FilterDBApp(App):
@@ -38,8 +37,6 @@ class FilterDBApp(App):
         self.controls.widget.grid_columnconfigure(2, weight=1)
         self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
         self.open_filter_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
-        self.add_filter_button = Button("Add filter data…", user_event_callback=self.show_files)
-        self.add_filter_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
         self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
         self.copy_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='ne')
 
@@ -59,6 +56,9 @@ class FilterDBApp(App):
         self.filters.load(filepath)
 
     def get_files_from_web(self):
+        self.install_modules_if_absent(modulenames=["requests","zipfile"])
+
+        import requests
         import zipfile
 
         url = "/".join([self.web_root, 'filters_data.zip'])
