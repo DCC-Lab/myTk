@@ -1,4 +1,5 @@
 from mytk import *
+
 import os
 import re
 import json
@@ -6,19 +7,19 @@ import tempfile
 
 class FilterDBApp(App):
     def __init__(self):
-        App.__init__(self, geometry="1000x650", name="Filter Database")
+        App.__init__(self, geometry="1100x650", name="Filter Database")
         self.filepath_root = 'filters_data'
         self.web_root = 'http://www.dccmlab.ca'
-        self.temp_root = os.path.join(tempfile.TemporaryDirectory().name,'filters_data')
+        self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
         self.download_files = True
 
         self.window.widget.title("Filters")
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","spectral_x":"Wavelength", "spectral_y":"Transmission"})
+        self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","url":"URL", "spectral_x":"Wavelength", "spectral_y":"Transmission"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-        self.filters.widget['displaycolumn']=["part_number","description","dimensions", "supplier","filename"]
+        self.filters.widget['displaycolumn']=["part_number","description","dimensions", "supplier","filename","url"]
 
         self.filters.widget.column(column=0, width=100)
         self.filters.widget.column(column=1, width=200)
@@ -56,7 +57,7 @@ class FilterDBApp(App):
         self.filters.load(filepath)
 
     def get_files_from_web(self):
-        self.install_modules_if_absent(modulenames=["requests","zipfile"])
+        install_modules_if_absent(modules={"requests":"requests"})
 
         import requests
         import zipfile
@@ -114,6 +115,7 @@ class FilterDBApp(App):
         self.reveal_path(self.filepath_root)
 
     def copy_data(self, event, button):
+        install_modules_if_absent(modules={"pyperclip":"pyperclip"})
         try:
             import pyperclip
 
@@ -122,14 +124,16 @@ class FilterDBApp(App):
                 record = item['values']
                 filename = record[4] #FIXME
                 filepath = os.path.join(self.filepath_root, filename)
-                data = self.load_filter_data(filepath)
-                
-                text = ""
-                for x,y in data:
-                    text = text + "{0}\t{1}\n".format(x,y)
+                if os.path.isfile(filepath):
+                    data = self.load_filter_data(filepath)
+                    
+                    text = ""
+                    for x,y in data:
+                        text = text + "{0}\t{1}\n".format(x,y)
 
-                pyperclip.copy(text)
+                    pyperclip.copy(text)
         except Exception as err:
+            print(err)
             showerror(
                 title="Unable to copy to clipboard",
                 message="You must have the module pyperclip installed to copy the data.",
@@ -144,6 +148,7 @@ class FilterDBApp(App):
             filepath = os.path.join(self.filepath_root, filename)
             
             if os.path.exists(filepath) and not os.path.isdir(filepath):
+
                 data = self.load_filter_data(filepath)
                 
                 self.filter_data.empty()
@@ -154,7 +159,15 @@ class FilterDBApp(App):
                 self.filter_plot.first_axis.set_ylabel("Transmission")
                 self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
                 self.filter_plot.update_plot()
+                self.copy_data_button.enable()
+            else:
+                self.filter_data.empty()
+                self.filter_plot.clear_plot()
+                self.filter_plot.update_plot()
+                self.copy_data_button.disable()
+
 
 if __name__ == "__main__":
+    install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = FilterDBApp()
     app.mainloop()

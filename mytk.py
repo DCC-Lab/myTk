@@ -1,27 +1,58 @@
 from tkinter import *
+from tkinter import filedialog
 from tkinter.messagebox import showerror, showwarning, showinfo, askquestion
-
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
-from tkinter import filedialog
+
 from functools import partial
 import platform
 import time
 import signal
 import sys
 import weakref
-import numpy
 import json
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure as MPLFigure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-
-import PIL
-from PIL import Image, ImageDraw
-import cv2
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
+requirements = {'NumPy':'numpy',
+                'Pillow':'PIL',
+                'opencv-python':'cv2', 
+                'webbrowser':'webbrowser',
+                'matplotlib':'matplotlib'}
+                
+
+def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
+    missing_modules = {}
+
+    for pip_name, import_name in modules.items():
+        try:
+            new_module = __import__(import_name)
+        except ModuleNotFoundError:
+            missing_modules[pip_name] = import_name
+        except Exception as err:
+            print(err)
+
+    if len(missing_modules) > 0:
+        if ask_for_confirmation:
+            result = askquestion(f"""Module(s) '{",".join(missing_modules.values())}' missing""", 
+                f"""Do you want to install missing module(s) '{",".join(missing_modules.values())}'?
+    If you do not wish to do so, the application may not work.""", icon='warning')
+
+            if result != "yes":
+                return
+
+        for pip_name, import_name in modules.items():        
+            install_module(pip_name)
+
+def install_module(pip_name):
+    import subprocess
+    import sys
+
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
+    except Exception as err:
+        print(err)
+
 
 class Bindable:
     def __init__(self, value=None):
@@ -141,31 +172,6 @@ class App(Bindable):
                 message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
             )
 
-    def install_modules_if_absent(self, modulenames, ask_for_confirmation=True):
-        missing_modules = []
-
-        for modulename in modulenames:
-            try:
-                new_module = __import__(modulename)
-            except ModuleNotFoundError:
-                missing_modules.append(modulename)
-
-        if ask_for_confirmation and missing_modules != []:
-            result = askquestion(f"""Module(s) '{",".join(missing_modules)}' missing""", 
-                f"""Do you want to install missing module(s) '{",".join(missing_modules)}'?
-If you do not wish to do so, the application may not work. You may also install them manually with 
-'pip install modulename'""", icon='warning')
-
-            if result == "yes":
-                import subprocess
-                import sys
-
-                for modulename in missing_modules:
-                    try:
-                        subprocess.check_call([sys.executable, "-m", "pip3", "install", modulename])
-                    except Exception as err:
-                        print(err)
-
     def mainloop(self):
         self.window.widget.mainloop()
 
@@ -227,6 +233,7 @@ If you do not wish to do so, the application may not work. You may also install 
     def help(self):
         try:
             if self.help_url is not None:
+                install_modules_if_absent({'webbrowser':'webbrowser'})
                 import webbrowser
                 webbrowser.open(self.help_url)
         except:
@@ -708,6 +715,15 @@ class TableView(Base):
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
 
+        # # Create a Scrollbar
+        # scrollbar = ttk.Scrollbar(master, orient="vertical", command=self.widget.yview)
+
+        # # Configure the Treeview to use the scrollbar
+        # self.widget.configure(yscrollcommand=scrollbar.set)
+
+        # # Place the scrollbar on the right side of the Treeview
+        # scrollbar.pack(side="right", fill="y")            
+
         self.widget.bind("<Button>", self.click)
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
@@ -725,7 +741,7 @@ class TableView(Base):
 
     def copy_records_to_table_data(self, records):
         for record in records:
-            ordered_values = [record.get(key, None) for key in self.columns]
+            ordered_values = [record.get(key, "") for key in self.columns]
             self.append(ordered_values)
 
     def save(self, filepath):
@@ -883,6 +899,9 @@ class TableView(Base):
 
 
 class Image(Base):
+    install_modules_if_absent({'Pillow':"PIL"})
+    import PIL
+
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
         self.pil_image = pil_image
@@ -933,13 +952,13 @@ class Image(Base):
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
-            return PIL.Image.open(filepath)
+            return self.PIL.Image.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
 
             response = requests.get(url)
-            return PIL.Image.open(BytesIO(response.content))
+            return self.PIL.Image.open(BytesIO(response.content))
 
         return None
 
@@ -966,7 +985,7 @@ class Image(Base):
 
                 if self.pil_image.width != width or self.pil_image.height != height:
                     resized_image = self.pil_image.resize(
-                        (width, height), PIL.Image.NEAREST
+                        (width, height), self.PIL.Image.NEAREST
                     )
 
                     self.update_display(resized_image)
@@ -984,7 +1003,7 @@ class Image(Base):
             image_to_display = self.image_with_grid_overlay(image_to_display)
 
         if image_to_display is not None:
-            self._displayed_tkimage = PIL.ImageTk.PhotoImage(image=image_to_display)
+            self._displayed_tkimage = self.PIL.ImageTk.PhotoImage(image=image_to_display)
         else:
             self._displayed_tkimage = None
 
@@ -995,7 +1014,7 @@ class Image(Base):
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
             image = pil_image.copy()
-            draw = ImageDraw.Draw(image)
+            draw = self.PIL.ImageDraw.Draw(image)
 
             y_start = 0
             y_end = image.height
@@ -1018,6 +1037,10 @@ class Image(Base):
 
 
 class VideoView(Base):
+    install_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
+    import cv2
+    import PIL
+
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
         self.device = device
@@ -1054,7 +1077,7 @@ class VideoView(Base):
             index = 0
             available_devices = []
             while True:
-                cap = cv2.VideoCapture(index)
+                cap = self.cv2.VideoCapture(index)
                 if not cap.read()[0]:
                     break
                 else:
@@ -1084,7 +1107,7 @@ class VideoView(Base):
     def start_capturing(self):
         if not self.is_running:
             try:
-                self.capture = cv2.VideoCapture(self.device)
+                self.capture = self.cv2.VideoCapture(self.device)
                 if self.capture.isOpened():
                     self.update_display()
             except Exception as err:
@@ -1100,8 +1123,8 @@ class VideoView(Base):
     def start_streaming(self, filepath):
         width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
-        fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
-        self.videowriter = cv2.VideoWriter(
+        fourcc = self.cv2.VideoWriter_fourcc("I", "4", "2", "0")
+        self.videowriter = self.cv2.VideoWriter(
             filepath, fourcc, 20.0, (int(width), int(height)), True
         )
 
@@ -1123,19 +1146,19 @@ class VideoView(Base):
 
             if len(frame.shape) == 3:
                 if frame.shape[2] == 3:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2RGB)
             # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
-            img = PIL.Image.fromarray(frame)
+            img = self.PIL.Image.fromarray(frame)
             resized_image = img.resize(
                 (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
-                PIL.Image.NEAREST,
+                self.PIL.Image.NEAREST,
             )
             self.image = resized_image
 
             # convert to Tkinter image
-            photo = PIL.ImageTk.PhotoImage(image=self.image)
+            photo = self.PIL.ImageTk.PhotoImage(image=self.image)
 
             # solution for bug in `PhotoImage`
             self._displayed_tkimage = photo
@@ -1210,7 +1233,7 @@ class VideoView(Base):
         button.widget.configure(text=self.startstop_button_label)
 
     def click_save_button(self, event, button):
-        exts = PIL.Image.registered_extensions()
+        exts = self.PIL.Image.registered_extensions()
         supported_extensions = [
             (f, ex) for ex, f in exts.items() if f in PIL.Image.SAVE
         ]
@@ -1241,26 +1264,26 @@ class VideoView(Base):
         capture = self.capture
         print(
             "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
-                capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+                capture.get(self.cv2.CAP_PROP_FRAME_WIDTH)
             )
         )
         print(
             "CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(
-                capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT)
             )
         )
-        print("CAP_PROP_FPS : '{}'".format(capture.get(cv2.CAP_PROP_FPS)))
-        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(cv2.CAP_PROP_POS_MSEC)))
+        print("CAP_PROP_FPS : '{}'".format(capture.get(self.cv2.CAP_PROP_FPS)))
+        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC)))
         print(
-            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(self.cv2.CAP_PROP_FRAME_COUNT))
         )
-        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(cv2.CAP_PROP_BRIGHTNESS)))
-        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(cv2.CAP_PROP_CONTRAST)))
-        print("CAP_PROP_SATURATION : '{}'".format(capture.get(cv2.CAP_PROP_SATURATION)))
-        print("CAP_PROP_HUE : '{}'".format(capture.get(cv2.CAP_PROP_HUE)))
-        print("CAP_PROP_GAIN  : '{}'".format(capture.get(cv2.CAP_PROP_GAIN)))
+        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(self.cv2.CAP_PROP_BRIGHTNESS)))
+        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST)))
+        print("CAP_PROP_SATURATION : '{}'".format(capture.get(self.cv2.CAP_PROP_SATURATION)))
+        print("CAP_PROP_HUE : '{}'".format(capture.get(self.cv2.CAP_PROP_HUE)))
+        print("CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN)))
         print(
-            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(cv2.CAP_PROP_CONVERT_RGB))
+            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(self.cv2.CAP_PROP_CONVERT_RGB))
         )
 
     def get_prop_id(self, prop_id):
@@ -1282,6 +1305,12 @@ class VideoView(Base):
 
 
 class Figure(Base):
+    install_modules_if_absent({'matplotlib':'matplotlib'})
+
+    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure as MPLFigure
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+
     def __init__(self, figure=None, figsize=None):
         Base.__init__(self)
 
@@ -1295,12 +1324,12 @@ class Figure(Base):
     def create_widget(self, master):
         self.parent = master
         if self.figure is None:
-            self.figure = MPLFigure(figsize=self.figsize, dpi=100)
+            self.figure = self.MPLFigure(figsize=self.figsize, dpi=100)
 
-        self.canvas = FigureCanvasTkAgg(self.figure, master=master)
+        self.canvas = self.FigureCanvasTkAgg(self.figure, master=master)
         self.widget = self.canvas.get_tk_widget()
 
-        self.toolbar = NavigationToolbar2Tk(self.canvas, master, pack_toolbar=False)
+        self.toolbar = self.NavigationToolbar2Tk(self.canvas, master, pack_toolbar=False)
         self.toolbar.update()
 
     @property
@@ -1423,6 +1452,8 @@ class XYPlot(Figure):
 
 
 class Histogram(Figure):
+    import numpy
+
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
         self.x = []
@@ -1446,7 +1477,7 @@ class Histogram(Figure):
             for i, y in enumerate(self.y):
                 self.first_axis.stairs(y[:-1], self.x, color=colors[i])
 
-            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
+            self.first_axis.set_ylim( (0, self.numpy.mean(self.y)+self.numpy.std(self.y)*2) )
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
@@ -1456,8 +1487,11 @@ class Histogram(Figure):
 
 
 if __name__ == "__main__":
-    app = App(geometry="1450x900")
+    install_modules_if_absent(requirements)
 
+    from matplotlib.figure import Figure as MPLFigure
+
+    app = App(geometry="1450x900")
     # You would typically put this into the__init__ of your subclass of App:
     app.window.widget.title("Example application myTk")
 
