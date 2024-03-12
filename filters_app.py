@@ -56,7 +56,7 @@ class FilterDBApp(App):
         self.filters.load(filepath)
 
     def get_files_from_web(self):
-        self.install_modules_if_absent(modulenames=["requests","zipfile"])
+        install_modules_if_absent(modules={"requests":"requests"})
 
         import requests
         import zipfile
@@ -114,7 +114,7 @@ class FilterDBApp(App):
         self.reveal_path(self.filepath_root)
 
     def copy_data(self, event, button):
-        self.install_modules_if_absent(modulenames=["pyperclip"])
+        install_modules_if_absent(modules={"pyperclip":"pyperclip"})
         try:
             import pyperclip
 
@@ -123,14 +123,16 @@ class FilterDBApp(App):
                 record = item['values']
                 filename = record[4] #FIXME
                 filepath = os.path.join(self.filepath_root, filename)
-                data = self.load_filter_data(filepath)
-                
-                text = ""
-                for x,y in data:
-                    text = text + "{0}\t{1}\n".format(x,y)
+                if os.path.isfile(filepath):
+                    data = self.load_filter_data(filepath)
+                    
+                    text = ""
+                    for x,y in data:
+                        text = text + "{0}\t{1}\n".format(x,y)
 
-                pyperclip.copy(text)
+                    pyperclip.copy(text)
         except Exception as err:
+            print(err)
             showerror(
                 title="Unable to copy to clipboard",
                 message="You must have the module pyperclip installed to copy the data.",
@@ -145,6 +147,7 @@ class FilterDBApp(App):
             filepath = os.path.join(self.filepath_root, filename)
             
             if os.path.exists(filepath) and not os.path.isdir(filepath):
+
                 data = self.load_filter_data(filepath)
                 
                 self.filter_data.empty()
@@ -155,10 +158,12 @@ class FilterDBApp(App):
                 self.filter_plot.first_axis.set_ylabel("Transmission")
                 self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
                 self.filter_plot.update_plot()
+                self.copy_data_button.enable()
             else:
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()
                 self.filter_plot.update_plot()
+                self.copy_data_button.disable()
 
 
 if __name__ == "__main__":
