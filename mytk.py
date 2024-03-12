@@ -36,8 +36,9 @@ def install_modules_if_absent(modules, ask_for_confirmation=True):
 
             if result != "yes":
                 return
-    
-        install_module(pip_name)
+
+        for pip_name, import_name in modules.items():        
+            install_module(pip_name)
 
 def install_module(pip_name):
     import subprocess
