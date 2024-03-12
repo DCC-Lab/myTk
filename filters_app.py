@@ -1,4 +1,5 @@
 from mytk import *
+
 import os
 import re
 import json
@@ -167,5 +168,6 @@ class FilterDBApp(App):
 
 
 if __name__ == "__main__":
+    install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = FilterDBApp()
     app.mainloop()

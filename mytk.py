@@ -14,8 +14,14 @@ import json
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
+requirements = {'NumPy':'numpy',
+                'Pillow':'PIL',
+                'opencv-python':'cv2', 
+                'webbrowser':'webbrowser',
+                'matplotlib':'matplotlib'}
+                
 
-def install_modules_if_absent(modules, ask_for_confirmation=True):
+def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
     missing_modules = {}
 
     for pip_name, import_name in modules.items():
@@ -26,13 +32,11 @@ def install_modules_if_absent(modules, ask_for_confirmation=True):
         except Exception as err:
             print(err)
 
-    # breakpoint()            
     if len(missing_modules) > 0:
         if ask_for_confirmation:
             result = askquestion(f"""Module(s) '{",".join(missing_modules.values())}' missing""", 
                 f"""Do you want to install missing module(s) '{",".join(missing_modules.values())}'?
-    If you do not wish to do so, the application may not work. You may also install them manually with 
-    'pip install modulename'""", icon='warning')
+    If you do not wish to do so, the application may not work.""", icon='warning')
 
             if result != "yes":
                 return
@@ -1483,7 +1487,7 @@ class Histogram(Figure):
 
 
 if __name__ == "__main__":
-    install_modules_if_absent({'NumPy':'numpy','Pillow':'PIL','opencv-python':'cv2'})
+    install_modules_if_absent(requirements)
 
     from matplotlib.figure import Figure as MPLFigure
 
