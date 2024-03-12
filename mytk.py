@@ -725,7 +725,7 @@ class TableView(Base):
 
     def copy_records_to_table_data(self, records):
         for record in records:
-            ordered_values = [record.get(key, None) for key in self.columns]
+            ordered_values = [record.get(key, "") for key in self.columns]
             self.append(ordered_values)
 
     def save(self, filepath):
