@@ -7,6 +7,8 @@ import tempfile
 import shutil
 import webbrowser
 import urllib
+import zipfile
+import subprocess
 
 class FilterDBApp(App):
     def __init__(self):
@@ -15,6 +17,7 @@ class FilterDBApp(App):
         self.web_root = 'http://www.dccmlab.ca'
         self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
         self.download_files = True
+        self.webbrowser_download_path = None
 
         self.window.widget.title("Filters")
         self.window.row_resize_weight(0,1) # Tables
@@ -67,7 +70,6 @@ class FilterDBApp(App):
         install_modules_if_absent(modules={"requests":"requests"})
 
         import requests
-        import zipfile
 
         url = "/".join([self.web_root, 'filters_data.zip'])
         req = requests.get(url, allow_redirects=True)
@@ -127,11 +129,31 @@ class FilterDBApp(App):
             query = query+f"+{record[3]}+filter"
 
             webbrowser.open(f"https://www.google.com/search?q={query}")
+            time.sleep(0.3)
+            browser_app = subprocess.run(["osascript","-e","return path to frontmost application as text"],capture_output=True, encoding='utf8').stdout
 
-            filepath = filedialog.askopenfilename()
+            filepath = None
+
+            if self.webbrowser_download_path is None:
+                filepath = filedialog.askopenfilename()
+            else:
+                pre_list = os.listdir(self.webbrowser_download_path)
+                frontmost_app = subprocess.run(["osascript","-e","return path to frontmost application as text"],capture_output=True, encoding='utf8').stdout
+                while frontmost_app == browser_app:
+                    self.window.widget.update_idletasks()
+                    frontmost_app = subprocess.run(["osascript","-e","return path to frontmost application as text"],capture_output=True, encoding='utf8').stdout
+                post_list = os.listdir(self.webbrowser_download_path)
+
+                new_filepaths = list(set(post_list) - set(pre_list))
+                if len(new_filepaths) == 1:
+                    filepath = os.path.join(self.webbrowser_download_path, new_filepaths[0])
+                else:
+                    filepath = ''
+
             if filepath != '':
                 shutil.copy2(filepath, self.filepath_root)
                 record[4] = os.path.basename(filepath)
+                self.webbrowser_download_path = os.path.dirname(filepath)
                 self.filters.widget.item(selected_item, values=record)
                 self.save()
 
