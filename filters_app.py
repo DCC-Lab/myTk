@@ -4,6 +4,9 @@ import os
 import re
 import json
 import tempfile
+import shutil
+import webbrowser
+import urllib
 
 class FilterDBApp(App):
     def __init__(self):
@@ -36,8 +39,12 @@ class FilterDBApp(App):
         self.controls.widget.grid_columnconfigure(0, weight=1)
         self.controls.widget.grid_columnconfigure(1, weight=1)
         self.controls.widget.grid_columnconfigure(2, weight=1)
+        self.associate_file_button = Button("Associate spectral file…", user_event_callback=self.associate_file)
+        self.associate_file_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
-        self.open_filter_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
+        self.open_filter_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
+        # self.export_filters_button = Button("Export table as CSV…", user_event_callback=self.export_filters)
+        # self.export_filters_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
         self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
         self.copy_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='ne')
 
@@ -111,6 +118,26 @@ class FilterDBApp(App):
 
         return data
 
+    def associate_file(self, event, button):
+        for selected_item in self.filters.widget.selection():
+            item = self.filters.widget.item(selected_item)
+            record = item['values']
+
+            query = str(record[0])+"+"+str(record[1])
+            query = query+f"+{record[3]}+filter"
+
+            webbrowser.open(f"https://www.google.com/search?q={query}")
+
+            filepath = filedialog.askopenfilename()
+            if filepath != '':
+                shutil.copy2(filepath, self.filepath_root)
+                record[4] = os.path.basename(filepath)
+                self.filters.widget.item(selected_item, values=record)
+                self.save()
+
+    def export_filters(self, event, button):
+        pass
+
     def show_files(self, event, button):
         self.reveal_path(self.filepath_root)
 
@@ -169,5 +196,5 @@ class FilterDBApp(App):
 
 if __name__ == "__main__":
     install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
-    app = FilterDBApp()
+    app = FilterDBApp()    
     app.mainloop()

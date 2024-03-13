@@ -20,7 +20,6 @@ requirements = {'NumPy':'numpy',
                 'webbrowser':'webbrowser',
                 'matplotlib':'matplotlib'}
                 
-
 def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
     missing_modules = {}
 
@@ -901,6 +900,7 @@ class TableView(Base):
 class Image(Base):
     install_modules_if_absent({'Pillow':"PIL"})
     import PIL
+    from PIL import ImageDraw 
 
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
