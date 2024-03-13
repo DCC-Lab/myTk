@@ -141,6 +141,7 @@ class FilterDBApp(App):
                 frontmost_app = subprocess.run(["osascript","-e","return path to frontmost application as text"],capture_output=True, encoding='utf8').stdout
                 while frontmost_app == browser_app:
                     self.window.widget.update_idletasks()
+                    self.window.widget.update()
                     frontmost_app = subprocess.run(["osascript","-e","return path to frontmost application as text"],capture_output=True, encoding='utf8').stdout
                 post_list = os.listdir(self.webbrowser_download_path)
 
