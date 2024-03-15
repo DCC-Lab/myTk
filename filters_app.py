@@ -9,6 +9,7 @@ import webbrowser
 import urllib
 import zipfile
 import subprocess
+from pathlib import Path
 
 class FilterDBApp(App):
     def __init__(self):
@@ -46,10 +47,10 @@ class FilterDBApp(App):
         self.associate_file_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
         self.open_filter_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
-        # self.export_filters_button = Button("Export table as CSV…", user_event_callback=self.export_filters)
-        # self.export_filters_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
+        self.export_filters_button = Button("Export data as Zip…", user_event_callback=self.export_filters)
+        self.export_filters_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='nw')
         self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
-        self.copy_data_button.grid_into(self.controls, row=0, column=2, padx=10, pady=10, sticky='ne')
+        self.copy_data_button.grid_into(self.controls, row=0, column=3, padx=10, pady=10, sticky='ne')
 
 
         self.filter_plot = XYPlot(figsize=(4,4))
@@ -125,8 +126,12 @@ class FilterDBApp(App):
             item = self.filters.widget.item(selected_item)
             record = item['values']
 
-            query = str(record[0])+"+"+str(record[1])
-            query = query+f"+{record[3]}+filter"
+            part_number_idx = list(self.filters.columns.keys()).index('part_number')
+            description_idx = list(self.filters.columns.keys()).index('description')
+            supplier_idx = list(self.filters.columns.keys()).index('supplier')
+
+            query = str(record[part_number_idx])+"+"+str(record[description_idx])
+            query = query+f"+{record[supplier_idx]}+filter"
 
             webbrowser.open(f"https://www.google.com/search?q={query}")
             time.sleep(0.3)
@@ -153,13 +158,24 @@ class FilterDBApp(App):
 
             if filepath != '':
                 shutil.copy2(filepath, self.filepath_root)
-                record[4] = os.path.basename(filepath)
+                filename_idx = list(self.filters.columns.keys()).index('filename')
+
+                record[filename_idx] = os.path.basename(filepath)
                 self.webbrowser_download_path = os.path.dirname(filepath)
                 self.filters.widget.item(selected_item, values=record)
                 self.save()
 
     def export_filters(self, event, button):
-        pass
+        zip_filepath = filedialog.asksaveasfilename(
+            parent=self.window.widget,
+            title="Choose a filename:",
+            filetypes=[('Zip files','.zip')],
+        )
+        if zip_filepath:
+            with zipfile.ZipFile(zip_filepath, 'w') as zip_ref:          
+                zip_ref.mkdir(self.filepath_root)
+                for filepath in Path(self.filepath_root).iterdir():
+                    zip_ref.write(filepath, arcname=os.path.join(self.filepath_root,filepath.name))
 
     def show_files(self, event, button):
         self.reveal_path(self.filepath_root)
@@ -172,7 +188,10 @@ class FilterDBApp(App):
             for selected_item in self.filters.widget.selection():
                 item = self.filters.widget.item(selected_item)
                 record = item['values']
-                filename = record[4] #FIXME
+
+                filename_idx = list(self.filters.columns.keys()).index('filename')
+                filename = record[filename_idx] 
+
                 filepath = os.path.join(self.filepath_root, filename)
                 if os.path.isfile(filepath):
                     data = self.load_filter_data(filepath)
@@ -194,7 +213,9 @@ class FilterDBApp(App):
         for selected_item in table.widget.selection():
             item = table.widget.item(selected_item)
             record = item['values']
-            filename = record[4] #FIXME
+
+            filename_idx = list(self.filters.columns.keys()).index('filename')
+            filename = record[filename_idx] 
             filepath = os.path.join(self.filepath_root, filename)
             
             if os.path.exists(filepath) and not os.path.isdir(filepath):
@@ -218,6 +239,7 @@ class FilterDBApp(App):
 
 
 if __name__ == "__main__":
+    package_app_script(__file__)    
     install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = FilterDBApp()    
     app.mainloop()

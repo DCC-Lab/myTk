@@ -11,7 +11,7 @@ import numpy as np
 import scipy
 import threading as Th
 from queue import Queue, Empty
-
+import PIL
 
 def tile_image(image, M=5, N=5):
     img_array = np.array(image, dtype=np.float64)

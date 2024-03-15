@@ -1486,7 +1486,29 @@ class Histogram(Figure):
             self.figure.canvas.flush_events()
 
 
+def package_app_script(filepath=None):
+    from inspect import currentframe, getframeinfo
+    frameinfo = getframeinfo(currentframe())
+
+    script = ""
+    with open(__file__, 'r') as file:
+        lines = file.readlines()
+        embeddable_lines = lines[:frameinfo.lineno-3]
+        script += (''.join(embeddable_lines))
+
+    if filepath is not None:
+        with open(filepath, 'r') as file:
+            lines = file.readlines()
+            embeddable_lines = [ line for line in lines if "from mytk import *" not in line  and 'app_script' not in line]
+            script += (''.join(embeddable_lines))
+    try:
+        import pyperclip
+        pyperclip.copy(script)
+    except:
+        pass
+
 if __name__ == "__main__":
+    package_app_script()
     install_modules_if_absent(requirements)
 
     from matplotlib.figure import Figure as MPLFigure
@@ -1578,13 +1600,13 @@ if __name__ == "__main__":
     figure2 = Figure(figure=some_fig)
     figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
 
-    # try:
-    #     video = VideoView(device=0)
-    #     video.zoom_level = 5
-    #     video.grid_into(app.window, column=1, columnspan=2, row=2, pady=5, padx=5, sticky="")
-    # except Exception as err:
-    #     video = Label("Unable to load VideoView")
-    #     video.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="")
+    try:
+        video = VideoView(device=0)
+        video.zoom_level = 5
+        video.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="")
+    except Exception as err:
+        video = Label("Unable to load VideoView")
+        video.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="")
 
     def i_was_changed(checkbox):
         showwarning(message="The checkbox was modified")
