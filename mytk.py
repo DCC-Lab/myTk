@@ -1,26 +1,56 @@
 from tkinter import *
-from tkinter.messagebox import showerror, showwarning, showinfo
+from tkinter import filedialog
+from tkinter.messagebox import showerror, showwarning, showinfo, askquestion
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
-from tkinter import filedialog
+
 from functools import partial
 import platform
 import time
 import signal
 import sys
 import weakref
-import numpy
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure as MPLFigure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-
-import PIL
-from PIL import Image, ImageDraw
-import cv2
-
+import json
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
+requirements = {'NumPy':'numpy',
+                'Pillow':'PIL',
+                'opencv-python':'cv2', 
+                'webbrowser':'webbrowser',
+                'matplotlib':'matplotlib'}
+                
+def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
+    missing_modules = {}
+
+    for pip_name, import_name in modules.items():
+        try:
+            new_module = __import__(import_name)
+        except ModuleNotFoundError:
+            missing_modules[pip_name] = import_name
+        except Exception as err:
+            print(err)
+
+    if len(missing_modules) > 0:
+        if ask_for_confirmation:
+            result = askquestion(f"""Module(s) '{",".join(missing_modules.values())}' missing""", 
+                f"""Do you want to install missing module(s) '{",".join(missing_modules.values())}'?
+    If you do not wish to do so, the application may not work.""", icon='warning')
+
+            if result != "yes":
+                return
+
+        for pip_name, import_name in modules.items():        
+            install_module(pip_name)
+
+def install_module(pip_name):
+    import subprocess
+    import sys
+
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
+    except Exception as err:
+        print(err)
 
 
 class Bindable:
@@ -119,7 +149,9 @@ class Bindable:
 class App(Bindable):
     app = None
 
-    def __init__(self, geometry=None):
+    def __init__(self, geometry=None, name="myTk App", help_url=None):
+        self.name = name
+        self.help_url = help_url
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
@@ -148,10 +180,11 @@ class App(Bindable):
 
         appmenu = Menu(menubar, name="apple")
         menubar.add_cascade(menu=appmenu)
-        appmenu.add_command(label="About This App", command=self.about)
+        appmenu.add_command(label=f"About {self.name}", command=self.about)
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Save…", command=self.save, accelerator="Command+S")
         filemenu.add_command(label="Quit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         editmenu = Menu(menubar, tearoff=0)
@@ -164,16 +197,49 @@ class App(Bindable):
 
         menubar.add_cascade(label="Edit", menu=editmenu)
         helpmenu = Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="Documentation web site", command=self.help)
+        if self.help_url is None:
+            helpmenu.add_command(label="No help available", command=self.help, state="disabled")
+        else:
+            helpmenu.add_command(label="Documentation web site", command=self.help)
+
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         root.config(menu=menubar)
 
+    def reveal_path(self, path):
+        import platform
+        import subprocess
+
+        try:
+            if platform.system() == 'Windows':
+                os.startfile(path)
+            elif platform.system() == 'Darwin':
+                subprocess.call(["open", path])
+            else:
+                subprocess.call(['xdg-open', path])
+        except:
+            showerror(
+                title=f"Unable to show {path}",
+                message=f"An error occured when trying to reveal {path}",
+            )
+
+    def save(self):
+        pass
+
     def about(self):
-        showinfo(title="About this App", message="Created with myTk")
+        showinfo(title=f"About {self.name}", message="Created with myTk")
 
     def help(self):
-        pass
+        try:
+            if self.help_url is not None:
+                install_modules_if_absent({'webbrowser':'webbrowser'})
+                import webbrowser
+                webbrowser.open(self.help_url)
+        except:
+            showinfo(
+                title="Help",
+                message="No help available.",
+            )
 
     def quit(self):
         root = self.window.widget
@@ -241,6 +307,13 @@ class Base(Bindable):
 
         if self.widget is not None:
             self.widget.pack(kwargs)
+
+    def place_into(self, parent, x, y, width, height):
+        self.create_widget(master=parent.widget)
+        self.parent = parent
+
+        if self.widget is not None:
+            self.widget.place(x=x, y=y, width=width, height=height)
 
     def bind_event(self, event, callback):
         self.widget.bind(event, callback)
@@ -502,6 +575,39 @@ class Entry(Base):
         self.widget = ttk.Entry(master, width=self.character_width)
 
         self.bind_textvariable(StringVar(value=self.initial_text))
+        self.widget.update()
+
+class CellEntry(Base):
+    def __init__(self,  tableview, item_id, column_id, user_event_callback=None):
+        Base.__init__(self)
+        self.tableview = tableview
+        self.item_id = item_id
+        self.column_id = column_id
+        self.user_event_callback = user_event_callback
+
+    def create_widget(self, master):
+        bbox = self.tableview.widget.bbox(self.item_id, self.column_id-1)
+
+        item_dict = self.tableview.widget.item(self.item_id)
+        selected_text = item_dict["values"][self.column_id-1]
+
+        self.parent = master
+        self.value_variable = StringVar()
+        self.widget = ttk.Entry(master, textvariable=self.value_variable)
+        self.widget.bind("<FocusOut>", self.event_focusout_callback)
+        self.widget.bind("<Return>", self.event_return_callback)
+        self.widget.insert(0, selected_text)
+
+    def event_return_callback(self, event):
+        values = self.tableview.widget.item(self.item_id).get("values")
+        values[self.column_id-1] = self.value_variable.get()
+        self.tableview.widget.item(self.item_id, values=values)
+        self.event_generate("<FocusOut>")
+
+    def event_focusout_callback(self, event):
+        if self.user_event_callback is not None:
+            self.user_event_callback(event, cell)
+        self.widget.destroy()
 
 
 class NumericEntry(Base):
@@ -591,6 +697,7 @@ class TableView(Base):
         Base.__init__(self)
         self.columns = columns
         self.delegate = None
+        self.records = []
 
     def create_widget(self, master):
         self.parent = master
@@ -607,12 +714,53 @@ class TableView(Base):
         for key, value in self.columns.items():
             self.widget.heading(key, text=value)
 
+        # # Create a Scrollbar
+        # scrollbar = ttk.Scrollbar(master, orient="vertical", command=self.widget.yview)
+
+        # # Configure the Treeview to use the scrollbar
+        # self.widget.configure(yscrollcommand=scrollbar.set)
+
+        # # Place the scrollbar on the right side of the Treeview
+        # scrollbar.pack(side="right", fill="y")            
+
         self.widget.bind("<Button>", self.click)
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
     def append(self, values):
         return self.widget.insert("", END, values=values)
+
+    def load(self, filepath):
+        records = self.load_records_from_json(filepath)
+        self.copy_records_to_table_data(records)
+
+    def load_records_from_json(self, filepath):
+        with open(filepath,"r") as fp:
+            return json.load(fp)
+
+    def copy_records_to_table_data(self, records):
+        for record in records:
+            ordered_values = [record.get(key, "") for key in self.columns]
+            self.append(ordered_values)
+
+    def save(self, filepath):
+        records = self.copy_table_data_to_records()
+        self.save_records_to_json(records, filepath)
+
+    def save_records_to_json(self, records, filepath):
+        with open(filepath,"w") as fp:
+            json.dump(records, fp, indent=4, ensure_ascii=False)
+
+    def copy_table_data_to_records(self):
+        records = []
+        for item in self.widget.get_children():
+            item_dict = self.widget.item(item)
+            item_values = list(item_dict["values"])
+            item_keys = list(self.columns.keys())
+
+            record = dict(zip(item_keys, item_values))
+            records.append(record)
+        return records
 
     def empty(self):
         for item in self.widget.get_children():
@@ -716,21 +864,29 @@ class TableView(Base):
                 item_id = self.widget.identify_row(event.y)
                 self.doubleclick_cell(item_id=item_id, column_id=int(column_id))
 
+        # return True
+
+    def is_editable(self, item_id, column_id):
         return True
 
     def doubleclick_cell(self, item_id, column_id):
         item_dict = self.widget.item(item_id)
 
-        keep_running = True
-        if self.delegate is not None:
-            try:
-                keep_running = self.delegate.doubleclick_cell(
-                    item_id, column_id, item_dict
-                )
-            except:
-                pass
-
-        return True
+        if self.is_editable(item_id, column_id):
+            bbox = self.widget.bbox(item_id, column_id-1)
+            entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
+            entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
+            entry_box.widget.focus()
+            
+        else:
+            keep_running = True
+            if self.delegate is not None:
+                try:
+                    keep_running = self.delegate.doubleclick_cell(
+                        item_id, column_id, item_dict
+                    )
+                except:
+                    pass
 
     def doubleclick_header(self, column_id):
         keep_running = True
@@ -742,6 +898,10 @@ class TableView(Base):
 
 
 class Image(Base):
+    install_modules_if_absent({'Pillow':"PIL"})
+    import PIL
+    from PIL import ImageDraw 
+
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
         self.pil_image = pil_image
@@ -792,13 +952,13 @@ class Image(Base):
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
-            return PIL.Image.open(filepath)
+            return self.PIL.Image.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
 
             response = requests.get(url)
-            return PIL.Image.open(BytesIO(response.content))
+            return self.PIL.Image.open(BytesIO(response.content))
 
         return None
 
@@ -825,7 +985,7 @@ class Image(Base):
 
                 if self.pil_image.width != width or self.pil_image.height != height:
                     resized_image = self.pil_image.resize(
-                        (width, height), PIL.Image.NEAREST
+                        (width, height), self.PIL.Image.NEAREST
                     )
 
                     self.update_display(resized_image)
@@ -843,7 +1003,7 @@ class Image(Base):
             image_to_display = self.image_with_grid_overlay(image_to_display)
 
         if image_to_display is not None:
-            self._displayed_tkimage = PIL.ImageTk.PhotoImage(image=image_to_display)
+            self._displayed_tkimage = self.PIL.ImageTk.PhotoImage(image=image_to_display)
         else:
             self._displayed_tkimage = None
 
@@ -854,7 +1014,7 @@ class Image(Base):
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
             image = pil_image.copy()
-            draw = ImageDraw.Draw(image)
+            draw = self.PIL.ImageDraw.Draw(image)
 
             y_start = 0
             y_end = image.height
@@ -877,6 +1037,10 @@ class Image(Base):
 
 
 class VideoView(Base):
+    install_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
+    import cv2
+    import PIL
+
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
         self.device = device
@@ -913,7 +1077,7 @@ class VideoView(Base):
             index = 0
             available_devices = []
             while True:
-                cap = cv2.VideoCapture(index)
+                cap = self.cv2.VideoCapture(index)
                 if not cap.read()[0]:
                     break
                 else:
@@ -944,7 +1108,7 @@ class VideoView(Base):
     def start_capturing(self):
         if not self.is_running:
             try:
-                self.capture = cv2.VideoCapture(self.device)
+                self.capture = self.cv2.VideoCapture(self.device)
                 if self.capture.isOpened():
                     self.update_display()
                 self.prop_ids()
@@ -961,8 +1125,8 @@ class VideoView(Base):
     def start_streaming(self, filepath):
         width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
-        fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
-        self.videowriter = cv2.VideoWriter(
+        fourcc = self.cv2.VideoWriter_fourcc("I", "4", "2", "0")
+        self.videowriter = self.cv2.VideoWriter(
             filepath, fourcc, 20.0, (int(width), int(height)), True
         )
 
@@ -984,19 +1148,19 @@ class VideoView(Base):
 
             if len(frame.shape) == 3:
                 if frame.shape[2] == 3:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2RGB)
             # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
-            img = PIL.Image.fromarray(frame)
+            img = self.PIL.Image.fromarray(frame)
             resized_image = img.resize(
                 (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
-                PIL.Image.NEAREST,
+                self.PIL.Image.NEAREST,
             )
             self.image = resized_image
 
             # convert to Tkinter image
-            photo = PIL.ImageTk.PhotoImage(image=self.image)
+            photo = self.PIL.ImageTk.PhotoImage(image=self.image)
 
             # solution for bug in `PhotoImage`
             self._displayed_tkimage = photo
@@ -1071,7 +1235,7 @@ class VideoView(Base):
         button.widget.configure(text=self.startstop_button_label)
 
     def click_save_button(self, event, button):
-        exts = PIL.Image.registered_extensions()
+        exts = self.PIL.Image.registered_extensions()
         supported_extensions = [
             (f, ex) for ex, f in exts.items() if f in PIL.Image.SAVE
         ]
@@ -1102,26 +1266,26 @@ class VideoView(Base):
         capture = self.capture
         print(
             "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
-                capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+                capture.get(self.cv2.CAP_PROP_FRAME_WIDTH)
             )
         )
         print(
             "CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(
-                capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT)
             )
         )
-        print("CAP_PROP_FPS : '{}'".format(capture.get(cv2.CAP_PROP_FPS)))
-        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(cv2.CAP_PROP_POS_MSEC)))
+        print("CAP_PROP_FPS : '{}'".format(capture.get(self.cv2.CAP_PROP_FPS)))
+        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC)))
         print(
-            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(self.cv2.CAP_PROP_FRAME_COUNT))
         )
-        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(cv2.CAP_PROP_BRIGHTNESS)))
-        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(cv2.CAP_PROP_CONTRAST)))
-        print("CAP_PROP_SATURATION : '{}'".format(capture.get(cv2.CAP_PROP_SATURATION)))
-        print("CAP_PROP_HUE : '{}'".format(capture.get(cv2.CAP_PROP_HUE)))
-        print("CAP_PROP_GAIN  : '{}'".format(capture.get(cv2.CAP_PROP_GAIN)))
+        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(self.cv2.CAP_PROP_BRIGHTNESS)))
+        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST)))
+        print("CAP_PROP_SATURATION : '{}'".format(capture.get(self.cv2.CAP_PROP_SATURATION)))
+        print("CAP_PROP_HUE : '{}'".format(capture.get(self.cv2.CAP_PROP_HUE)))
+        print("CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN)))
         print(
-            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(cv2.CAP_PROP_CONVERT_RGB))
+            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(self.cv2.CAP_PROP_CONVERT_RGB))
         )
 
     def get_prop_id(self, prop_id):
@@ -1168,6 +1332,12 @@ class VideoView(Base):
 
 
 class Figure(Base):
+    install_modules_if_absent({'matplotlib':'matplotlib'})
+
+    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure as MPLFigure
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+
     def __init__(self, figure=None, figsize=None):
         Base.__init__(self)
 
@@ -1181,12 +1351,12 @@ class Figure(Base):
     def create_widget(self, master):
         self.parent = master
         if self.figure is None:
-            self.figure = MPLFigure(figsize=self.figsize, dpi=100)
+            self.figure = self.MPLFigure(figsize=self.figsize, dpi=100)
 
-        self.canvas = FigureCanvasTkAgg(self.figure, master=master)
+        self.canvas = self.FigureCanvasTkAgg(self.figure, master=master)
         self.widget = self.canvas.get_tk_widget()
 
-        self.toolbar = NavigationToolbar2Tk(self.canvas, master, pack_toolbar=False)
+        self.toolbar = self.NavigationToolbar2Tk(self.canvas, master, pack_toolbar=False)
         self.toolbar.update()
 
     @property
@@ -1309,6 +1479,8 @@ class XYPlot(Figure):
 
 
 class Histogram(Figure):
+    import numpy
+
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
         self.x = []
@@ -1332,7 +1504,7 @@ class Histogram(Figure):
             for i, y in enumerate(self.y):
                 self.first_axis.stairs(y[:-1], self.x, color=colors[i])
 
-            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
+            self.first_axis.set_ylim( (0, self.numpy.mean(self.y)+self.numpy.std(self.y)*2) )
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
@@ -1341,10 +1513,34 @@ class Histogram(Figure):
             self.figure.canvas.flush_events()
 
 
+def package_app_script(filepath=None):
+    from inspect import currentframe, getframeinfo
+    frameinfo = getframeinfo(currentframe())
+
+    script = ""
+    with open(__file__, 'r') as file:
+        lines = file.readlines()
+        embeddable_lines = lines[:frameinfo.lineno-3]
+        script += (''.join(embeddable_lines))
+
+    if filepath is not None:
+        with open(filepath, 'r') as file:
+            lines = file.readlines()
+            embeddable_lines = [ line for line in lines if "from mytk import *" not in line  and 'app_script' not in line]
+            script += (''.join(embeddable_lines))
+    try:
+        import pyperclip
+        pyperclip.copy(script)
+    except:
+        pass
 
 if __name__ == "__main__":
-    app = App(geometry="1450x900")
+    package_app_script()
+    install_modules_if_absent(requirements)
 
+    from matplotlib.figure import Figure as MPLFigure
+
+    app = App(geometry="1450x900")
     # You would typically put this into the__init__ of your subclass of App:
     app.window.widget.title("Example application myTk")
 
@@ -1428,7 +1624,7 @@ if __name__ == "__main__":
     # try:
     #     video = VideoView(device=0)
     #     video.zoom_level = 5
-    #     video.grid_into(app.window, column=1, columnspan=2, row=2, pady=5, padx=5, sticky="")
+    #     video.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="")
     # except Exception as err:
     #     video = Label("Unable to load VideoView")
     #     video.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="")
@@ -1472,5 +1668,5 @@ if __name__ == "__main__":
 
 
     app.window.all_resize_weight(1)
-
+    
     app.mainloop()
