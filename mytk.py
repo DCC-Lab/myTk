@@ -1420,10 +1420,10 @@ class Figure(Base):
                            markerfacecoloralt='black',
                            markeredgecolor='black')
 
-        circle_black = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
+        circle_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
                            color='black',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
+                           markerfacecolor='white',
+                           markerfacecoloralt='white',
                            markeredgecolor='black')
 
         plain_s_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
@@ -1432,10 +1432,10 @@ class Figure(Base):
                            markerfacecoloralt='black',
                            markeredgecolor='black')
 
-        square_black = dict(fillstyle='none', marker='s', linestyle=linestyle, markersize=default_size,
+        square_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
                            color='black',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
+                           markerfacecolor='white',
+                           markerfacecoloralt='white',
                            markeredgecolor='black')
 
         plain_red = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
@@ -1446,8 +1446,8 @@ class Figure(Base):
 
         circle_red = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
                            color='red',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
+                           markerfacecolor='white',
+                           markerfacecoloralt='white',
                            markeredgecolor='red')
 
         styles = [plain_black, circle_black, plain_s_black, square_black, plain_red, circle_red]
