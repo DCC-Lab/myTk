@@ -81,7 +81,7 @@ class Bindable:
         except AttributeError as err:
             raise AttributeError(
                 "The property '{1}'' must exist on object {0} to be observed ".format(
-                    observer, property_name
+                    self, my_property_name
                 )
             )
 
@@ -102,8 +102,8 @@ class Bindable:
         Binding properties is a two-way synchronization of the properties in two separate
         objects.  Changing one will notify the other, which will be changed, and vice-versa.
         """
-        other_object.add_observer(self, other_property_name, context=this_property_name)
-        self.add_observer(other_object, this_property_name, context=other_property_name)
+        other_object.add_observer(self, other_property_name, context={'binding':this_property_name})
+        self.add_observer(other_object, this_property_name, context={'binding':other_property_name})
         self.property_value_did_change(this_property_name)
 
     def __setattr__(self, property_name, new_value):
@@ -131,25 +131,30 @@ class Bindable:
         self, observed_object, observed_property_name, new_value, context
     ):
         """
-        We set the property (stored in context) of self to the new_value.
+        By default, we assume it is a binding and we treat it.
+        We set the property (stored in context {'binding':variable_name}) of self to the new_value.
         However, we treat Tk.Variable() differently: we do not change the value_variable (i.e. the Variable())
         but we change its value.
         """
-        if context is not None:
-            old_value = getattr(self, context)
-            if old_value != new_value:
-                var = getattr(self, context)
+        if isinstance(context, dict):
+            bound_variable = context.get('binding')
+            if bound_variable is not None:
+                old_value = getattr(self, bound_variable)
+                if old_value != new_value:
+                    var = getattr(self, bound_variable)
 
-                if isinstance(var, Variable):
-                    var.set(new_value)
-                else:
-                    self.__setattr__(context, new_value)
+                    if isinstance(var, Variable):
+                        var.set(new_value)
+                    else:
+                        self.__setattr__(bound_variable, new_value)
 
 
 class App(Bindable):
     app = None
 
     def __init__(self, geometry=None, name="myTk App", help_url=None):
+        super().__init__()
+
         self.name = name
         self.help_url = help_url
         self.window = Window(geometry)
@@ -468,6 +473,10 @@ class PopupMenu(Base):
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
 
+    def clear_menu_items(self):
+        self.menu.delete(0,'end')
+        self.menu_items = []
+
     def add_menu_items(self, menu_items):
         self.menu_items = menu_items
         labels = menu_items
@@ -575,7 +584,13 @@ class Entry(Base):
         self.widget = ttk.Entry(master, width=self.character_width)
 
         self.bind_textvariable(StringVar(value=self.initial_text))
+        self.widget.bind("<Return>", self.event_return_callback)
         self.widget.update()
+
+    def event_return_callback(self, event):
+        self.parent.widget.focus_set()
+
+
 
 class CellEntry(Base):
     def __init__(self,  tableview, item_id, column_id, user_event_callback=None):
@@ -603,6 +618,7 @@ class CellEntry(Base):
         values[self.column_id-1] = self.value_variable.get()
         self.tableview.widget.item(self.item_id, values=values)
         self.event_generate("<FocusOut>")
+        self.tableview.table_data_changed()
 
     def event_focusout_callback(self, event):
         if self.user_event_callback is not None:
@@ -727,6 +743,12 @@ class TableView(Base):
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
+    def column_names(self):
+        return self.widget['columns']
+
+    def displaycolumn_names(self):
+        return self.widget['displaycolumns']
+
     def append(self, values):
         return self.widget.insert("", END, values=values)
 
@@ -742,6 +764,7 @@ class TableView(Base):
         for record in records:
             ordered_values = [record.get(key, "") for key in self.columns]
             self.append(ordered_values)
+        self.table_data_changed()
 
     def save(self, filepath):
         records = self.copy_table_data_to_records()
@@ -756,11 +779,34 @@ class TableView(Base):
         for item in self.widget.get_children():
             item_dict = self.widget.item(item)
             item_values = list(item_dict["values"])
-            item_keys = list(self.columns.keys())
+            item_keys = list(self.widget["columns"])
 
             record = dict(zip(item_keys, item_values))
             records.append(record)
         return records
+
+    def copy_dataframe_to_table_data(self, df):
+        self.clear()
+        headings = df.columns.to_list()
+        self.widget['columns'] = headings
+        self.widget['displaycolumns'] = headings
+
+        for heading in headings:
+            self.widget.heading(heading, text=heading)
+
+        for row in list(df.itertuples(index=False)):
+            self.append(row)
+
+        self.table_data_changed()
+
+    def clear(self):
+        self.clear_content()
+        self.widget['columns'] = []
+        self.widget['displaycolumns'] = []
+
+    def clear_content(self):
+        for item in self.widget.get_children():
+            self.widget.delete(item)
 
     def empty(self):
         for item in self.widget.get_children():
@@ -771,6 +817,15 @@ class TableView(Base):
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.selection_changed(event, self)
+            except Exception as err:
+                print(err)
+                pass
+
+    def table_data_changed(self):
+        keep_running = True
+        if self.delegate is not None:
+            try:
+                keep_running = self.delegate.table_data_changed(self)
             except Exception as err:
                 print(err)
                 pass
@@ -877,7 +932,6 @@ class TableView(Base):
             entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
             entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
             entry_box.widget.focus()
-            
         else:
             keep_running = True
             if self.delegate is not None:
@@ -1358,6 +1412,89 @@ class Figure(Base):
             return self.figure.axes
         return None
 
+    def styles_pointmarker(self, linestyle=''):
+        default_size = 8
+        plain_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor='black',
+                           markerfacecoloralt='black',
+                           markeredgecolor='black')
+
+        circle_black = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='black')
+
+        plain_s_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor='black',
+                           markerfacecoloralt='black',
+                           markeredgecolor='black')
+
+        square_black = dict(fillstyle='none', marker='s', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='black')
+
+        plain_red = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='red',
+                           markerfacecolor='red',
+                           markerfacecoloralt='red',
+                           markeredgecolor='red')
+
+        circle_red = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='red',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='red')
+
+        styles = [plain_black, circle_black, plain_s_black, square_black, plain_red, circle_red]
+
+        return styles
+
+    def styles_points_linemarkers(self, linestyle='-'):
+        default_size = 8
+        plain_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor='black',
+                           markerfacecoloralt='black',
+                           markeredgecolor='black')
+
+        circle_black = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='black')
+
+        plain_s_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor='black',
+                           markerfacecoloralt='black',
+                           markeredgecolor='black')
+
+        square_black = dict(fillstyle='none', marker='s', linestyle=linestyle, markersize=default_size,
+                           color='black',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='black')
+
+        plain_red = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='red',
+                           markerfacecolor='red',
+                           markerfacecoloralt='red',
+                           markeredgecolor='red')
+
+        circle_red = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
+                           color='red',
+                           markerfacecolor=None,
+                           markerfacecoloralt=None,
+                           markeredgecolor='red')
+
+        styles = [plain_black, circle_black, plain_s_black, square_black, plain_red, circle_red]
+
+        return styles
 
 class CanvasView(Base):
     def __init__(self, width=200, height=200):
