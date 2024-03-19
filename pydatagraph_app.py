@@ -72,10 +72,6 @@ class PyDatagraphApp(App):
         self.is_independent = Checkbox(label="is X")
         self.is_independent.grid_into(self.inspector, row=6, column=1, padx=10, pady=2, sticky='w')
 
-        self.apply = Button(label="Apply", user_event_callback=self.column_inspector_apply)
-        self.apply.grid_into(self.inspector, row=7, column=0, columnspan=2, padx=10, pady=2, sticky='')
-
-
         self.controls = View(width=400, height=50)
         self.controls.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
         self.controls.widget.grid_columnconfigure(0, weight=1)
@@ -125,7 +121,9 @@ class PyDatagraphApp(App):
         self.add_observer(self, 'selected_column_visible', 'inspector_values_changed')
         self.add_observer(self, 'selected_column_is_independent', 'inspector_values_changed')
 
-        self.load_data('/Users/dccote/Desktop/tes-excel.xlsx')
+        test_file = '/Users/dccote/Desktop/test-excel.xlsx'
+        if os.path.exists(test_file):
+            self.load_data(test_file)
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -225,36 +223,42 @@ class PyDatagraphApp(App):
 
     def load_data(self, filepath):
         if filepath != '':
-            if filepath.endswith('.csv'):
-                df = pandas.read_csv(filepath)
-            elif filepath.endswith('.xls') or filepath.endswith('.xlsx'):
-                df = pandas.read_excel(filepath, header=None)
-            else:
-                raise LogicError(f'Format not recognized: {filepath}')
-            rows, cols = df.shape
-            if cols <= 3:
-                first_heading = ord('x')
-            else:
-                first_heading = ord('a')
-            df.columns = [ chr(first_heading + c) for c in range(cols)]
-            
-            styles = self.plot.styles_pointmarker(linestyle='')
-            for i, name in enumerate(df.columns):
-                properties = styles[(i-1)%len(styles)]
-                if i == 0:
-                    properties['is_independent'] = True
+            try:
+                df = self.data.load_tabular_numeric_data(filepath)
+                rows, cols = df.shape
+                if cols <= 3:
+                    first_heading = ord('x')
                 else:
-                    properties['is_independent'] = False
+                    first_heading = ord('a')
+                df.columns = [ chr(first_heading + c) for c in range(cols)]
+                
+                styles = self.plot.styles_pointmarker(linestyle='')
+                for i, name in enumerate(df.columns):
+                    properties = styles[(i-1)%len(styles)]
+                    if i == 0:
+                        properties['is_independent'] = True
+                    else:
+                        properties['is_independent'] = False
 
-                properties['visible'] = True
+                    properties['visible'] = True
 
-                self.column_properties[name] = dict(properties)
+                    self.column_properties[name] = dict(properties)
 
-            self.data.copy_dataframe_to_table_data(df)
-            for column in df.columns:
-                self.data.widget.column(column, width=40)
+                # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
+                # I destroy the table and recreate it.        
+                self.data.widget.destroy()
+                self.data = TableView(columns={})
+                self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
+                self.data.delegate = self
 
-            self.column_headings_changed()
+                self.data.copy_dataframe_to_table_data(df)
+                for column in df.columns:
+                    self.data.widget.column(column, width=40)
+
+                self.column_headings_changed()
+
+            except Exception as err:
+                print(f"load_data : {err}")
 
     def table_data_changed(self, table):
         self.refresh_plot()

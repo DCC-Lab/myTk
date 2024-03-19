@@ -18,7 +18,8 @@ requirements = {'NumPy':'numpy',
                 'Pillow':'PIL',
                 'opencv-python':'cv2', 
                 'webbrowser':'webbrowser',
-                'matplotlib':'matplotlib'}
+                'matplotlib':'matplotlib',
+                'pandas':'pandas'}
                 
 def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
     missing_modules = {}
@@ -95,7 +96,7 @@ class Bindable:
                         self, property_name, new_value, context
                     )
                 except Exception as err:
-                    print(err)
+                    print(f"Tracing: {err}")
 
     def bind_properties(self, this_property_name, other_object, other_property_name):
         """
@@ -125,7 +126,7 @@ class Bindable:
         except AttributeError as err:
             pass
         except Exception as err:
-            print(err)
+            print(f"did change: {property_name} {err}")
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -258,6 +259,7 @@ class Base(Bindable):
         self.parent = None
         self.value_variable = None
         self.controller = self.Controller(view=self)
+        self._grid_kwargs = None
 
     class Controller(Bindable):
         def __init__(self, view):
@@ -278,6 +280,7 @@ class Base(Bindable):
         raise NotImplementedError("grid_fill_into_expanding_cell")
 
     def grid_into(self, parent=None, widget=None, **kwargs):
+        self._grid_kwargs = kwargs
         if widget is not None:
             self.create_widget(master=widget)
         else:
@@ -711,23 +714,24 @@ class Slider(Base):
 class TableView(Base):
     def __init__(self, columns):
         Base.__init__(self)
-        self.columns = columns
+        self.initial_columns = columns
         self.delegate = None
         self.records = []
+        self.default_format_string = "{0:.4f}"
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Treeview(
             master,
-            columns=list(self.columns.keys()),
             show="headings",
             selectmode="browse",
             takefocus=True,
         )        
-        self.widget.configure(displaycolumn=list(self.columns.keys()))
+        self.widget.configure(columns=list(self.initial_columns.keys()))
+        self.widget.configure(displaycolumns=list(self.initial_columns.keys()))
 
         # self.widget.grid_propagate(0)
-        for key, value in self.columns.items():
+        for key, value in self.initial_columns.items():
             self.widget.heading(key, text=value)
 
         # # Create a Scrollbar
@@ -750,7 +754,17 @@ class TableView(Base):
         return self.widget['displaycolumns']
 
     def append(self, values):
-        return self.widget.insert("", END, values=values)
+        columns = self.widget['columns']
+
+        formatted_values = []
+        for i, value in enumerate(values):
+            
+            try:
+                formatted_values.append(self.default_format_string.format(value))
+            except Exception as err:
+                formatted_values.append(value)
+
+        return self.widget.insert("", END, values=formatted_values)
 
     def load(self, filepath):
         records = self.load_records_from_json(filepath)
@@ -786,31 +800,46 @@ class TableView(Base):
         return records
 
     def copy_dataframe_to_table_data(self, df):
-        self.clear()
-        headings = df.columns.to_list()
-        self.widget['columns'] = headings
-        self.widget['displaycolumns'] = headings
+        try:
+            headings = df.columns.to_list()
+            self.widget['columns'] = headings
 
-        for heading in headings:
-            self.widget.heading(heading, text=heading)
+            for heading in headings:
+                self.widget.heading(heading, text=heading)
 
-        for row in list(df.itertuples(index=False)):
-            self.append(row)
+            for row in list(df.itertuples(index=False)):
+                self.append(row)
 
-        self.table_data_changed()
+            self.widget['displaycolumns'] = headings
+
+            self.table_data_changed()
+        except Exception as err:
+            print(f"Copy data {err} : {err.__traceback__.tb_lineno}")
+
+    def load_tabular_numeric_data(self, filepath):
+        import pandas
+        if filepath.endswith('.csv'):
+            df = pandas.read_csv(filepath, sep=r"[\s+,]", engine='python')
+        elif filepath.endswith('.xls') or filepath.endswith('.xlsx'):
+            df = pandas.read_excel(filepath, header=None)
+        else:
+            raise LogicError(f'Format not recognized: {filepath}')
+
+        return df
 
     def clear(self):
-        self.clear_content()
-        self.widget['columns'] = []
-        self.widget['displaycolumns'] = []
+        try:
+            self.widget.configure(columns=(''))
+            self.widget.configure(displaycolumn=(''))
+
+        except Exception as err:
+            print(f"Configure {err}")
 
     def clear_content(self):
-        for item in self.widget.get_children():
-            self.widget.delete(item)
+        self.widget.delete(*self.widget.get_children())
 
     def empty(self):
-        for item in self.widget.get_children():
-            self.widget.delete(item)
+        self.clear_content()
 
     def selection_changed(self, event):
         keep_running = True
