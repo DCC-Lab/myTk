@@ -206,7 +206,7 @@ class PyDatagraphApp(App):
 
     def column_headings_changed(self):
         self.name_menu.clear_menu_items()
-        new_names = self.data.column_names()
+        new_names = self.data.record_fields()
         self.name_menu.add_menu_items(new_names)
 
         if len(new_names) >= 2:
@@ -223,42 +223,47 @@ class PyDatagraphApp(App):
 
     def load_data(self, filepath):
         if filepath != '':
-            try:
-                df = self.data.load_tabular_numeric_data(filepath)
-                rows, cols = df.shape
-                if cols <= 3:
-                    first_heading = ord('x')
+            # try:
+            df = self.data.data_source.load_tabular_data(filepath)
+            rows, cols = df.shape
+            if cols <= 3:
+                first_heading = ord('x')
+            else:
+                first_heading = ord('a')
+            df.columns = [ chr(first_heading + c) for c in range(cols)]
+            
+            styles = self.plot.styles_pointmarker(linestyle='')
+            for i, name in enumerate(df.columns):
+                properties = styles[(i-1)%len(styles)]
+                if i == 0:
+                    properties['is_independent'] = True
                 else:
-                    first_heading = ord('a')
-                df.columns = [ chr(first_heading + c) for c in range(cols)]
-                
-                styles = self.plot.styles_pointmarker(linestyle='')
-                for i, name in enumerate(df.columns):
-                    properties = styles[(i-1)%len(styles)]
-                    if i == 0:
-                        properties['is_independent'] = True
-                    else:
-                        properties['is_independent'] = False
+                    properties['is_independent'] = False
 
-                    properties['visible'] = True
+                properties['visible'] = True
 
-                    self.column_properties[name] = dict(properties)
+                self.column_properties[name] = dict(properties)
 
-                # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
-                # I destroy the table and recreate it.        
-                self.data.widget.destroy()
-                self.data = TableView(columns={})
-                self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-                self.data.delegate = self
+            # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
+            # I destroy the table and recreate it.        
+            self.data.widget.destroy()
+            self.data = TableView(columns=dict.fromkeys(df.columns,df.columns))
+            self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
+            self.data.delegate = self
 
-                self.data.copy_dataframe_to_table_data(df)
-                for column in df.columns:
-                    self.data.widget.column(column, width=40)
+            for name in df.columns:
+                self.data.widget.heading(name, text=name)
 
-                self.column_headings_changed()
 
-            except Exception as err:
-                print(f"load_data : {err}")
+            self.data.data_source.set_records_from_dataframe(df)
+
+            for column in df.columns:
+                self.data.widget.column(column, width=40)
+
+            # self.column_headings_changed()
+
+            # except Exception as err:
+            #     print(f"load_data : {err}")
 
     def table_data_changed(self, table):
         self.refresh_plot()

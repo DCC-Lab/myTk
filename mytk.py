@@ -11,6 +11,7 @@ import signal
 import sys
 import weakref
 import json
+import uuid
 
 # debug_kwargs = {"borderwidth": 2, "relief": "groove"}
 debug_kwargs = {}
@@ -710,113 +711,121 @@ class Slider(Base):
         if self.delegate is not None:
             self.delegate.value_updated(object=self, value_variable=self.value_variable)
 
-
-class TableView(Base):
-    def __init__(self, columns):
-        Base.__init__(self)
-        self.initial_columns = columns
-        self.delegate = None
+class TabularData(Bindable):
+    def __init__(self, tableview=None):
         self.records = []
-        self.default_format_string = "{0:.4f}"
+        self._tableview = None
+        if tableview is not None:
+            self._tableview = weakref.ref(tableview)
 
-    def create_widget(self, master):
-        self.parent = master
-        self.widget = ttk.Treeview(
-            master,
-            show="headings",
-            selectmode="browse",
-            takefocus=True,
-        )        
-        self.widget.configure(columns=list(self.initial_columns.keys()))
-        self.widget.configure(displaycolumns=list(self.initial_columns.keys()))
+    @property
+    def record_count(self):
+        return len(self.records)
 
-        # self.widget.grid_propagate(0)
-        for key, value in self.initial_columns.items():
-            self.widget.heading(key, text=value)
+    def append_record(self, values):
+        if not isinstance(values, dict):
+            raise RuntimeError('Pass dictionaries, not arrays')
 
-        # # Create a Scrollbar
-        # scrollbar = ttk.Scrollbar(master, orient="vertical", command=self.widget.yview)
+        return self.insert_record(None, values)
 
-        # # Configure the Treeview to use the scrollbar
-        # self.widget.configure(yscrollcommand=scrollbar.set)
+    def remove_record(self, index_or_uuid):
+        index = index_or_uuid
+        if isinstance(index_or_uuid, uuid.UUID):
+            index = self.field('uuid').index(index_or_uuid) 
 
-        # # Place the scrollbar on the right side of the Treeview
-        # scrollbar.pack(side="right", fill="y")            
+        record = self.records.pop(index)
+        self.source_records_changed()
+        return record
 
-        self.widget.bind("<Button>", self.click)
-        self.widget.bind("<Double-Button>", self.doubleclick)
-        self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
+    def insert_record(self, index, values):
+        if not isinstance(values, dict):
+            raise RuntimeError('Pass dictionaries, not arrays')
 
-    def column_names(self):
-        return self.widget['columns']
+        if values.get('uuid') is None:
+            values['uuid'] = uuid.uuid4()
+        
+        if index is None:
+            index = len(self.records)
 
-    def displaycolumn_names(self):
-        return self.widget['displaycolumns']
+        self.records.insert(index, values)
+        self.source_records_changed()
+        return values
 
-    def append(self, values):
-        columns = self.widget['columns']
+    def update_record(self, index_or_uuid, values):
+        if not isinstance(values, dict):
+            raise RuntimeError('Pass dictionaries, not arrays')
 
-        formatted_values = []
+        index = index_or_uuid
+        if isinstance(index_or_uuid, uuid.UUID):
+            index = self.field('uuid').index(index_or_uuid) 
+
+        self.records[index].update(values)
+        self.source_records_changed()
+
+    def update_field(self, name, values):
         for i, value in enumerate(values):
-            
-            try:
-                formatted_values.append(self.default_format_string.format(value))
-            except Exception as err:
-                formatted_values.append(value)
+            self.records[i][name] = value
+        self.source_records_changed()
 
-        return self.widget.insert("", END, values=formatted_values)
+    def record(self, index_or_uuid):
+        index = index_or_uuid
+        if isinstance(index_or_uuid, uuid.UUID):
+            index = self.field('uuid').index(index_or_uuid) 
+
+        return self.records[index]
+
+    def field(self, name):
+        return [ record[name] for record in self.records]
+
+    def element(self, index_or_uuid, name):
+        index = index_or_uuid
+        if isinstance(index_or_uuid, uuid.UUID):
+            index = self.field('uuid').index(index_or_uuid) 
+
+        return self.records[index][name]
+
+    def rename_field(self, old_name, new_name):
+        if new_name in self.record_fields():
+            raise RuntimeError('Name already used')
+
+        for record in self.records:
+            record[new_name] = record[old_name]
+            del record[old_name]        
+        self.source_records_changed()
+
+    def record_fields(self):
+        fields = set()
+        for record in self.records:
+            fields.update(list(record.keys()))
+        return sorted(fields)
+
+    def source_records_changed(self):
+        if self._tableview is not None:
+            self._tableview().source_data_changed(self.records)
 
     def load(self, filepath):
-        records = self.load_records_from_json(filepath)
-        self.copy_records_to_table_data(records)
+        self.records = self.load_records_from_json(filepath)
+        for record in self.records:
+            record['uuid'] = uuid.UUID(record['uuid'])
+        self.source_records_changed()
 
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
             return json.load(fp)
 
-    def copy_records_to_table_data(self, records):
-        for record in records:
-            ordered_values = [record.get(key, "") for key in self.columns]
-            self.append(ordered_values)
-        self.table_data_changed()
-
     def save(self, filepath):
-        records = self.copy_table_data_to_records()
-        self.save_records_to_json(records, filepath)
+        serialized_records = []
+        for record in self.records:
+            serialized_record = record
+            serialized_record['uuid'] = "{0}".format(record['uuid'])
+            serialized_records.append(serialized_record)
+        self.save_records_to_json(serialized_records, filepath)
 
     def save_records_to_json(self, records, filepath):
         with open(filepath,"w") as fp:
             json.dump(records, fp, indent=4, ensure_ascii=False)
 
-    def copy_table_data_to_records(self):
-        records = []
-        for item in self.widget.get_children():
-            item_dict = self.widget.item(item)
-            item_values = list(item_dict["values"])
-            item_keys = list(self.widget["columns"])
-
-            record = dict(zip(item_keys, item_values))
-            records.append(record)
-        return records
-
-    def copy_dataframe_to_table_data(self, df):
-        try:
-            headings = df.columns.to_list()
-            self.widget['columns'] = headings
-
-            for heading in headings:
-                self.widget.heading(heading, text=heading)
-
-            for row in list(df.itertuples(index=False)):
-                self.append(row)
-
-            self.widget['displaycolumns'] = headings
-
-            self.table_data_changed()
-        except Exception as err:
-            print(f"Copy data {err} : {err.__traceback__.tb_lineno}")
-
-    def load_tabular_numeric_data(self, filepath):
+    def load_tabular_data(self, filepath):
         import pandas
         if filepath.endswith('.csv'):
             df = pandas.read_csv(filepath, sep=r"[\s+,]", engine='python')
@@ -826,6 +835,55 @@ class TableView(Base):
             raise LogicError(f'Format not recognized: {filepath}')
 
         return df
+
+    def set_records_from_dataframe(self, df):
+        fields = df.columns.to_list()
+
+        for row in df.to_dict(orient='records'):
+            self.append_record(row)
+        self.source_records_changed()
+
+
+class TableView(Base):
+    def __init__(self, columns):
+        Base.__init__(self)
+        self.displaycolumns = columns
+        self.delegate = None
+        self.data_source = TabularData(self)
+        self.default_format_string = "{0:.4f}"
+
+    def create_widget(self, master):
+        self.parent = master
+        self.widget = ttk.Treeview(
+            master,
+            show="headings",
+            selectmode="browse",
+            takefocus=True,
+        )
+        self.widget.configure(columns=list(self.displaycolumns.keys()))
+        self.widget.configure(displaycolumns=list(self.displaycolumns.keys()))
+
+        for key, value in self.displaycolumns.items():
+            self.widget.heading(key, text=value)
+
+        self.widget.bind("<Button>", self.click)
+        self.widget.bind("<Double-Button>", self.doubleclick)
+        self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
+
+    def source_data_changed(self, records):
+        self.clear_content()
+
+        for record in records:
+            values = [value for key,value in record.items() if key in self.displaycolumns ]
+            
+            formatted_values = []
+            for i, value in enumerate(values):
+                try:
+                    formatted_values.append(self.default_format_string.format(value))
+                except Exception as err:
+                    formatted_values.append(value)
+
+            self.widget.insert("", END, iid=record['uuid'], values=formatted_values)
 
     def clear(self):
         try:
@@ -1750,7 +1808,7 @@ if __name__ == "__main__":
     table.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
 
     for i in range(20):
-        table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
+        table.data_source.append_record({"column1":"Item {0}".format(i), "name":"Something", "url":"http://www.python.org"})
 
     figure1 = Figure(figsize=(4, 3))
     figure1.grid_into(app.window, column=3, row=1, pady=5, padx=5)
