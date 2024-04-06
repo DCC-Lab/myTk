@@ -714,13 +714,25 @@ class Slider(Base):
 class TabularData(Bindable):
     def __init__(self, tableview=None):
         self.records = []
+        self.field_properties = {}
         self._tableview = None
         if tableview is not None:
             self._tableview = weakref.ref(tableview)
+        self.disable_change_calls = False
 
     @property
     def record_count(self):
         return len(self.records)
+
+    def record_fields(self, internal=False):
+        fields = set()
+        for record in self.records:
+            if internal:
+                visible_names = name
+            else:
+                visible_names = [name for name in list(record.keys()) if not name.startswith('__') ]
+            fields.update(visible_names)
+        return sorted(fields)
 
     def append_record(self, values):
         if not isinstance(values, dict):
@@ -731,7 +743,7 @@ class TabularData(Bindable):
     def remove_record(self, index_or_uuid):
         index = index_or_uuid
         if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('uuid').index(index_or_uuid) 
+            index = self.field('__uuid').index(index_or_uuid) 
 
         record = self.records.pop(index)
         self.source_records_changed()
@@ -741,8 +753,8 @@ class TabularData(Bindable):
         if not isinstance(values, dict):
             raise RuntimeError('Pass dictionaries, not arrays')
 
-        if values.get('uuid') is None:
-            values['uuid'] = uuid.uuid4()
+        if values.get('__uuid') is None:
+            values['__uuid'] = uuid.uuid4()
         
         if index is None:
             index = len(self.records)
@@ -757,7 +769,7 @@ class TabularData(Bindable):
 
         index = index_or_uuid
         if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('uuid').index(index_or_uuid) 
+            index = self.field('__uuid').index(index_or_uuid) 
 
         self.records[index].update(values)
         self.source_records_changed()
@@ -770,7 +782,7 @@ class TabularData(Bindable):
     def record(self, index_or_uuid):
         index = index_or_uuid
         if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('uuid').index(index_or_uuid) 
+            index = self.field('__uuid').index(index_or_uuid) 
 
         return self.records[index]
 
@@ -780,7 +792,7 @@ class TabularData(Bindable):
     def element(self, index_or_uuid, name):
         index = index_or_uuid
         if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('uuid').index(index_or_uuid) 
+            index = self.field('__uuid').index(index_or_uuid) 
 
         return self.records[index][name]
 
@@ -793,20 +805,15 @@ class TabularData(Bindable):
             del record[old_name]        
         self.source_records_changed()
 
-    def record_fields(self):
-        fields = set()
-        for record in self.records:
-            fields.update(list(record.keys()))
-        return sorted(fields)
-
     def source_records_changed(self):
-        if self._tableview is not None:
-            self._tableview().source_data_changed(self.records)
+        if not self.disable_change_calls:
+            if self._tableview is not None:
+                self._tableview().source_data_changed(self.records)
 
     def load(self, filepath):
         self.records = self.load_records_from_json(filepath)
         for record in self.records:
-            record['uuid'] = uuid.UUID(record['uuid'])
+            record['__uuid'] = uuid.UUID(record['__uuid'])
         self.source_records_changed()
 
     def load_records_from_json(self, filepath):
@@ -817,7 +824,7 @@ class TabularData(Bindable):
         serialized_records = []
         for record in self.records:
             serialized_record = record
-            serialized_record['uuid'] = "{0}".format(record['uuid'])
+            serialized_record['__uuid'] = "{0}".format(record['__uuid'])
             serialized_records.append(serialized_record)
         self.save_records_to_json(serialized_records, filepath)
 
@@ -839,8 +846,10 @@ class TabularData(Bindable):
     def set_records_from_dataframe(self, df):
         fields = df.columns.to_list()
 
+        self.disable_change_calls = True
         for row in df.to_dict(orient='records'):
             self.append_record(row)
+        self.disable_change_calls = False
         self.source_records_changed()
 
 
@@ -883,7 +892,10 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            self.widget.insert("", END, iid=record['uuid'], values=formatted_values)
+            self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
+
+        if self.delegate is not None:
+            self.delegate.table_data_changed()
 
     def clear(self):
         try:

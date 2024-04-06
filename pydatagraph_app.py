@@ -204,9 +204,8 @@ class PyDatagraphApp(App):
     def column_inspector_data_changed(self, menu):
         pass
 
-    def column_headings_changed(self):
+    def column_headings_changed(self, new_names):
         self.name_menu.clear_menu_items()
-        new_names = self.data.record_fields()
         self.name_menu.add_menu_items(new_names)
 
         if len(new_names) >= 2:
@@ -223,7 +222,6 @@ class PyDatagraphApp(App):
 
     def load_data(self, filepath):
         if filepath != '':
-            # try:
             df = self.data.data_source.load_tabular_data(filepath)
             rows, cols = df.shape
             if cols <= 3:
@@ -259,27 +257,38 @@ class PyDatagraphApp(App):
 
             for column in df.columns:
                 self.data.widget.column(column, width=40)
+            self.column_headings_changed(list(df.columns))
 
-            # self.column_headings_changed()
-
-            # except Exception as err:
-            #     print(f"load_data : {err}")
-
-    def table_data_changed(self, table):
+    def table_data_changed(self):
         self.refresh_plot()
 
-    def refresh_plot(self):
-        self.plot.clear_plot()
-        records = self.data.copy_table_data_to_records()
-        columns = list(records[0].keys())
+    def dependent_variable(self):
+        records = self.data.data_source.records
+        columns = self.column_properties.keys()
 
-        dependent_variable = [ key for key in columns if self.column_properties[key]['is_independent']]
+        dependent_variable = [ key for key in columns if self.column_properties.get(key,{}).get('is_independent',{})]
         if len(dependent_variable) == 1:
             dependent_variable = dependent_variable[0]
         else:
             dependent_variable = None
+        return dependent_variable
 
-        independent_variables = [ key for key in columns if not self.column_properties[key]['is_independent']]
+    def independent_variables(self):
+        records = self.data.data_source.records
+        columns = self.column_properties.keys()
+
+        independent_variables = [ key for key in columns if not self.column_properties[key].get('is_independent',{})]
+        
+        return independent_variables
+
+    def refresh_plot(self):
+        self.plot.clear_plot()
+        records = self.data.data_source.records
+        columns = self.data.data_source.record_fields()
+
+        dependent_variable = self.dependent_variable()
+
+        independent_variables = self.independent_variables()
 
         styles = self.plot.styles_pointmarker(linestyle='-')
 

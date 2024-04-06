@@ -71,26 +71,26 @@ class TestTabularDataSource(unittest.TestCase):
         t.insert_record(0, {"a":1, "b":2})
         t.insert_record(1, {"a":2, "b":4})
         fields = t.record_fields()
-        self.assertEqual(fields, ["a","b","uuid"])
+        self.assertEqual(fields, ["a","b"])
 
     def test_uuid(self):
         t = TabularData()
         t.insert_record(0, {"a":1, "b":2})
         t.insert_record(1, {"a":2, "b":4})
-        self.assertEqual(len(t.field('uuid')), 2)
+        self.assertEqual(len(t.field('__uuid')), 2)
 
     def test_delete_record_by_uuid(self):
         t = TabularData()
         _ = t.insert_record(0, {"a":1})
         record = t.insert_record(1, {"a":2})
-        t.remove_record(record['uuid'])
+        t.remove_record(record['__uuid'])
         self.assertEqual(t.record_count, 1)
 
     def test_update_record_by_uuid(self):
         t = TabularData()
         t.insert_record(0, {"a":1})
         record = t.insert_record(1, {"a":2})
-        uuid = record['uuid']
+        uuid = record['__uuid']
         t.update_record(uuid, {"a":3})
         self.assertEqual(t.element(uuid,"a"), 3)
 
