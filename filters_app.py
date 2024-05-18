@@ -14,10 +14,10 @@ from pathlib import Path
 class FilterDBApp(App):
     def __init__(self):
         App.__init__(self, geometry="1100x650", name="Filter Database")
-        self.filepath_root = 'filters_data'
+        self.filepath_root = 'tpop_filters_data'
         self.web_root = 'http://www.dccmlab.ca'
         self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
-        self.download_files = True
+        self.download_files = False
         self.webbrowser_download_path = None
 
         self.window.widget.title("Filters")
@@ -43,7 +43,7 @@ class FilterDBApp(App):
         self.controls.widget.grid_columnconfigure(0, weight=1)
         self.controls.widget.grid_columnconfigure(1, weight=1)
         self.controls.widget.grid_columnconfigure(2, weight=1)
-        self.associate_file_button = Button("Associate spectral file…", user_event_callback=self.associate_file)
+        self.associate_file_button = Button("Lookup spectral file…", user_event_callback=self.associate_file)
         self.associate_file_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
         self.open_filter_data_button = Button("Show files", user_event_callback=self.show_files)
         self.open_filter_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
@@ -64,6 +64,11 @@ class FilterDBApp(App):
             self.filepath_root, filepath = self.get_files_from_web()
         else:
             filepath = os.path.join(self.filepath_root, "filters.json")
+
+            if not os.path.exists(self.filepath_root):
+                os.mkdir(self.filepath_root)
+                self.filters.save(filepath)
+
 
         self.filters.load(filepath)
 
@@ -126,9 +131,9 @@ class FilterDBApp(App):
             item = self.filters.widget.item(selected_item)
             record = item['values']
 
-            part_number_idx = list(self.filters.columns.keys()).index('part_number')
-            description_idx = list(self.filters.columns.keys()).index('description')
-            supplier_idx = list(self.filters.columns.keys()).index('supplier')
+            part_number_idx = list(self.filters.column_names()).index('part_number')
+            description_idx = list(self.filters.column_names()).index('description')
+            supplier_idx = list(self.filters.column_names()).index('supplier')
 
             query = str(record[part_number_idx])+"+"+str(record[description_idx])
             query = query+f"+{record[supplier_idx]}+filter"
@@ -158,7 +163,7 @@ class FilterDBApp(App):
 
             if filepath != '':
                 shutil.copy2(filepath, self.filepath_root)
-                filename_idx = list(self.filters.columns.keys()).index('filename')
+                filename_idx = list(self.filters.column_names()).index('filename')
 
                 record[filename_idx] = os.path.basename(filepath)
                 self.webbrowser_download_path = os.path.dirname(filepath)
@@ -189,7 +194,7 @@ class FilterDBApp(App):
                 item = self.filters.widget.item(selected_item)
                 record = item['values']
 
-                filename_idx = list(self.filters.columns.keys()).index('filename')
+                filename_idx = list(self.filters.column_names()).index('filename')
                 filename = record[filename_idx] 
 
                 filepath = os.path.join(self.filepath_root, filename)
@@ -214,7 +219,7 @@ class FilterDBApp(App):
             item = table.widget.item(selected_item)
             record = item['values']
 
-            filename_idx = list(self.filters.columns.keys()).index('filename')
+            filename_idx = list(self.filters.column_names()).index('filename')
             filename = record[filename_idx] 
             filepath = os.path.join(self.filepath_root, filename)
             
@@ -236,6 +241,39 @@ class FilterDBApp(App):
                 self.filter_plot.clear_plot()
                 self.filter_plot.update_plot()
                 self.copy_data_button.disable()
+
+    def preferences(self):
+        dlg = Dialog(title="Preferences")
+
+        radio_directory = RadioButton(label="Database directory", value="local")
+        radio_directory.grid_into(widget=dlg.widget, row=0, column=0, padx=10, pady=10, sticky='nw')
+        entry_directory = Entry()
+        entry_directory.grid_into(widget=dlg.widget, row=0, column=1, padx=10, pady=10, sticky='nw')
+
+        radio_url = RadioButton(label="Website URL", value="url")
+        radio_url.grid_into(widget=dlg.widget, row=1, column=0, padx=10, pady=10, sticky='nw')
+        entry_url = Entry()
+        entry_url.grid_into(widget=dlg.widget, row=1, column=1, padx=10, pady=10, sticky='nw')
+        entry_directory.is_enabled = True
+
+        source = StringVar(value="local")
+        radio_directory.bind_variable(source)
+        radio_url.bind_variable(source)
+
+        button_cancel = Button("Cancel")
+        button_cancel.grid_into(widget=dlg.widget, row=2, column=0, padx=10, pady=10, sticky='e')
+        button_ok = Button("Ok")
+        button_ok.grid_into(widget=dlg.widget, row=2, column=1, padx=10, pady=10, sticky='e')
+        
+        entry_directory.bind_properties("is_enabled", radio_directory, "is_selected")
+        entry_url.bind_properties("is_enabled", radio_url, "is_selected")
+
+        entry_url.disable()
+        print(entry_url.is_enabled)
+        entry_url.enable()
+        print(entry_url.is_enabled)
+        dlg.run()
+
 
 
 if __name__ == "__main__":

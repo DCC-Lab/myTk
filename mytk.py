@@ -89,7 +89,10 @@ class Bindable:
     def traced_tk_variable_changed(self, var, index, mode):
         for observer, property_name, context in self.observing_me:
             observed_var = getattr(self, property_name)
-            if observed_var._name == var:
+
+            if not isinstance(observed_var, Variable):
+                continue
+            elif observed_var._name == var:
                 try:
                     new_value = observed_var.get()
                     observer.observed_property_changed(
@@ -117,16 +120,16 @@ class Bindable:
 
     def property_value_did_change(self, property_name):
         new_value = getattr(self, property_name)
-        try:
-            for observer, observed_property_name, context in self.observing_me:
+        for observer, observed_property_name, context in self.observing_me:
+            try:
                 if observed_property_name == property_name:
                     observer.observed_property_changed(
                         self, observed_property_name, new_value, context
                     )
-        except AttributeError as err:
-            pass
-        except Exception as err:
-            print(f"did change: {property_name} {err}")
+            except AttributeError as err:
+                pass
+            except Exception as err:
+                print(f"did change: {property_name} {err}")
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -187,6 +190,7 @@ class App(Bindable):
         appmenu = Menu(menubar, name="apple")
         menubar.add_cascade(menu=appmenu)
         appmenu.add_command(label=f"About {self.name}", command=self.about)
+        appmenu.add_command(label=f"Preferences", command=self.preferences)
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
@@ -232,6 +236,9 @@ class App(Bindable):
     def save(self):
         pass
 
+    def preferences(self):
+        pass
+
     def about(self):
         showinfo(title=f"About {self.name}", message="Created with myTk")
 
@@ -258,20 +265,42 @@ class Base(Bindable):
         self.widget = None
         self.parent = None
         self.value_variable = None
-        self.controller = self.Controller(view=self)
+        # self.controller = self.Controller(view=self)
         self._grid_kwargs = None
 
-    class Controller(Bindable):
-        def __init__(self, view):
-            self.view = weakref.ref(view)
+    # class Controller(Bindable):
+    #     def __init__(self, view):
+    #         self.view = weakref.ref(view)
 
+    @property
+    def is_enabled(self):
+        return self.widget.instate(["!disabled"])
+
+    @is_enabled.setter
+    def is_enabled(self, value):
+        if value:
+            self.enable()
+        else:
+            self.disable()
+    
     def enable(self):
         if self.widget is not None:
-            self.widget["state"] = "normal"
+            print(self.widget.state(["!disabled"]))
 
     def disable(self):
         if self.widget is not None:
-            self.widget["state"] = "disabled"
+            print(self.widget.state(["disabled"]))
+
+    @property
+    def is_selected(self):
+        return self.widget.instate(['selected'])
+
+    @is_selected.setter
+    def is_selected(self, value):
+        if value:
+            return self.widget.state(['selected'])
+        else:
+            return self.widget.state(['!selected'])
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -381,9 +410,34 @@ class Window(Base):
         self.widget.grid_columnconfigure(0, weight=1)
         self.widget.grid_rowconfigure(0, weight=1)
 
-    class Controller:
-        def __init__(self, view):
-            self.view = weakref.ref(view)
+    # class Controller:
+    #     def __init__(self, view):
+    #         self.view = weakref.ref(view)
+
+    @property
+    def resizable(self):
+        return True
+
+    @resizable.setter
+    def is_resizable(self, value):
+        self.widget.resizable(value, value)
+
+
+class Dialog(Base):
+    def __init__(self, geometry=None, title="Dialog"):
+        super().__init__()
+
+        self.title = title
+
+        self.widget = Toplevel()
+        self.widget.title(self.title)
+
+    def run(self):
+        # self.widget.transient(App.app.root)   # dialog window is related to main
+        # self.widget.wait_visibility() # can't grab until window appears, so we wait
+        # self.widget.grab_set()        # ensure all input goes to our window
+        self.widget.wait_window()
+
 
     @property
     def resizable(self):
@@ -437,6 +491,51 @@ class Checkbox(Base):
             except Exception as err:
                 print(err)
 
+class RadioButton(Base):
+    def __init__(self, label, value, user_callback=None):
+        super().__init__()
+        self.label = label
+        self.value = value
+        self.user_callback = user_callback
+
+    def create_widget(self, master):
+        self.widget = ttk.Radiobutton(
+            master,
+            text=self.label,
+            value=self.value,
+            command=self.selection_changed,
+        )
+    
+    def selection_changed(self):
+        if self.user_callback is not None:
+            try:
+                self.user_callback(self)
+            except Exception as err:
+                print(err)
+
+    # def bind_variable(self, variable):
+    #     """
+    #     I was unable to find a function to determine if a button is selected or not.
+    #     I used this binding and the observed_property_changed hook to make one
+    #     """
+    #     super().bind_variable(variable)
+    #     self.add_observer(self, "value_variable", context="radiobutton-changed")
+
+    # def observed_property_changed(
+    #     self, observed_object, observed_property_name, new_value, context
+    # ):
+    #     super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+    #     if context == "radiobutton-changed":
+    #         print(self, observed_object, observed_property_name, new_value, context)
+    #         if new_value == self.value:
+    #             print(f"Button {self.value} will be selected")
+    #             self.is_selected = True
+    #             print(f"Button {self.value} was selected")
+    #         else:
+    #             print(f"Button {self.value} will be deselected")
+    #             self.is_selected = False
+    #             print(f"Button {self.value} is not selected")
+
 
 class Button(Base):
     def __init__(self, label="Button", width=None, user_event_callback=None):
@@ -444,7 +543,7 @@ class Button(Base):
         self.label = label
         self.width = width
         self.user_event_callback = user_event_callback
-
+    
     def create_widget(self, master):
         self.widget = ttk.Button(master, text=self.label, width=self.width)
         self.widget.bind("<ButtonRelease>", self.event_callback)
@@ -776,7 +875,7 @@ class TableView(Base):
 
     def copy_records_to_table_data(self, records):
         for record in records:
-            ordered_values = [record.get(key, "") for key in self.columns]
+            ordered_values = [record.get(key, "") for key in self.column_names()]
             self.append(ordered_values)
         self.table_data_changed()
 
@@ -855,9 +954,10 @@ class TableView(Base):
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.table_data_changed(self)
-            except Exception as err:
-                print(err)
+            except AttributeError:
                 pass
+            except Exception as err:
+                print(type(err))
 
     def click(self, event) -> bool:
         keep_running = True
