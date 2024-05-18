@@ -258,21 +258,16 @@ class FilterDBApp(App):
         entry_directory.bind_properties("is_enabled", radio_directory, "is_selected")
         entry_url.bind_properties("is_enabled", radio_url, "is_selected")
 
-        source = StringVar(value="local")
+        source = StringVar()
         radio_directory.bind_variable(source)
         radio_url.bind_variable(source)
-        # radio_url.widget.select()
-
+        source.set(value='local')
 
         button_cancel = Button("Cancel")
         button_cancel.grid_into(widget=dlg.widget, row=2, column=0, padx=10, pady=10, sticky='e')
         button_ok = Button("Ok")
         button_ok.grid_into(widget=dlg.widget, row=2, column=1, padx=10, pady=10, sticky='e')
         
-
-        print(radio_url.widget.state())
-        print(radio_directory.widget.state())
-
         dlg.run()
 
 

@@ -511,10 +511,10 @@ class RadioButton(Base):
             master,
             text=self.label,
             value=self.value,
-            command=self.selection_changed,
+            command=self.value_changed,
         )
     
-    def selection_changed(self):
+    def value_changed(self):
         if self.value_variable.get() == self.value:
             self.is_selected = True
         else:
@@ -539,7 +539,7 @@ class RadioButton(Base):
     ):
         super().observed_property_changed(observed_object, observed_property_name, new_value, context)
         if context == "radiobutton-changed":
-            self.selection_changed()
+            self.value_changed()
 
 
 class Button(Base):
