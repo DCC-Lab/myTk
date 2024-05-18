@@ -298,8 +298,16 @@ class Base(Bindable):
     @is_selected.setter
     def is_selected(self, value):
         if value:
-            return self.widget.state(['selected'])
+            self.select()
         else:
+            self.deselect()
+
+    def select(self):
+        if self.widget is not None:
+            return self.widget.state(['selected'])
+
+    def deselect(self):
+        if self.widget is not None:
             return self.widget.state(['!selected'])
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
@@ -507,34 +515,31 @@ class RadioButton(Base):
         )
     
     def selection_changed(self):
+        if self.value_variable.get() == self.value:
+            self.is_selected = True
+        else:
+            self.is_selected = False
+
         if self.user_callback is not None:
             try:
                 self.user_callback(self)
             except Exception as err:
                 print(err)
 
-    # def bind_variable(self, variable):
-    #     """
-    #     I was unable to find a function to determine if a button is selected or not.
-    #     I used this binding and the observed_property_changed hook to make one
-    #     """
-    #     super().bind_variable(variable)
-    #     self.add_observer(self, "value_variable", context="radiobutton-changed")
+    def bind_variable(self, variable):
+        """
+        The command callback is not called if the value changes through the variable, only
+        on click.  We need to observe the change to adapt when necessary.
+        """
+        super().bind_variable(variable)
+        self.add_observer(self, "value_variable", context="radiobutton-changed")
 
-    # def observed_property_changed(
-    #     self, observed_object, observed_property_name, new_value, context
-    # ):
-    #     super().observed_property_changed(observed_object, observed_property_name, new_value, context)
-    #     if context == "radiobutton-changed":
-    #         print(self, observed_object, observed_property_name, new_value, context)
-    #         if new_value == self.value:
-    #             print(f"Button {self.value} will be selected")
-    #             self.is_selected = True
-    #             print(f"Button {self.value} was selected")
-    #         else:
-    #             print(f"Button {self.value} will be deselected")
-    #             self.is_selected = False
-    #             print(f"Button {self.value} is not selected")
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
+        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+        if context == "radiobutton-changed":
+            self.selection_changed()
 
 
 class Button(Base):
