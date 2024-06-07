@@ -94,7 +94,7 @@ class TestTabularDataSource(unittest.TestCase):
         t.update_record(uuid, {"a":3})
         self.assertEqual(t.element(uuid,"a"), 3)
 
-    def test_save_json(self):
+    def test01_save_json(self):
         filepath = '/tmp/test.json'
         t = TabularData()
         _ = t.insert_record(0, {"a":1})
@@ -102,7 +102,7 @@ class TestTabularDataSource(unittest.TestCase):
         t.save(filepath)
         self.assertTrue(os.path.exists(filepath))
 
-    def test_load_json(self):
+    def test02_load_json(self):
         filepath = '/tmp/test.json'
         t = TabularData()
         t.load(filepath)
