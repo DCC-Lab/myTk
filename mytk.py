@@ -285,11 +285,11 @@ class Base(Bindable):
     
     def enable(self):
         if self.widget is not None:
-            print(self.widget.state(["!disabled"]))
+            self.widget.state(["!disabled"])
 
     def disable(self):
         if self.widget is not None:
-            print(self.widget.state(["disabled"]))
+            self.widget.state(["disabled"])
 
     @property
     def is_selected(self):
