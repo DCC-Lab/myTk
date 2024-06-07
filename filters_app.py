@@ -24,7 +24,7 @@ class FilterDBApp(App):
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","url":"URL", "spectral_x":"Wavelength", "spectral_y":"Transmission"})
+        self.filters = TableView(columns_labels={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","url":"URL"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.filters.widget['displaycolumn']=["part_number","description","dimensions", "supplier","filename","url"]
 
@@ -34,7 +34,7 @@ class FilterDBApp(App):
         self.filters.widget.column(column=3, width=70)
         self.filters.delegate = self
 
-        self.filter_data = TableView(columns={"wavelength":"Wavelength", "transmission":"Transmission"})
+        self.filter_data = TableView(columns_labels={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nsew')
         self.filter_data.widget.column(column=0, width=70)
         
@@ -70,7 +70,7 @@ class FilterDBApp(App):
                 self.filters.save(filepath)
 
 
-        self.filters.load(filepath)
+        self.filters.data_source.load(filepath)
 
     def get_files_from_web(self):
         install_modules_if_absent(modules={"requests":"requests"})
@@ -112,31 +112,26 @@ class FilterDBApp(App):
 
         return data
 
-    def load_filters_table(self, filepath):
-        data = []
-        with open(filepath,'r') as file:
-            try:
-                lines = file.readlines()
-                for line in lines:
-                    records = line.split('\t')
-                    data.append(records)
-            except Exception as err:
-                if len(data) == 0:
-                    return None
+    # def load_filters_table(self, filepath):
+    #     data = []
+    #     with open(filepath,'r') as file:
+    #         try:
+    #             lines = file.readlines()
+    #             for line in lines:
+    #                 records = line.split('\t')
+    #                 data.append(records)
+    #         except Exception as err:
+    #             if len(data) == 0:
+    #                 return None
 
-        return data
+    #     return data
 
     def associate_file(self, event, button):
-        for selected_item in self.filters.widget.selection():
-            item = self.filters.widget.item(selected_item)
-            record = item['values']
+        for selected_iid in self.filters.widget.selection():
+            record = self.filters.data_source.record(uuid.UUID(selected_iid))
 
-            part_number_idx = list(self.filters.column_names()).index('part_number')
-            description_idx = list(self.filters.column_names()).index('description')
-            supplier_idx = list(self.filters.column_names()).index('supplier')
-
-            query = str(record[part_number_idx])+"+"+str(record[description_idx])
-            query = query+f"+{record[supplier_idx]}+filter"
+            query = str(record['part_number'])+"+"+str(record['description'])
+            query = query+f"+{record['supplier']}+filter"
 
             webbrowser.open(f"https://www.google.com/search?q={query}")
             time.sleep(0.3)
@@ -163,7 +158,7 @@ class FilterDBApp(App):
 
             if filepath != '':
                 shutil.copy2(filepath, self.filepath_root)
-                filename_idx = list(self.filters.column_names()).index('filename')
+                filename_idx = list(self.filters.data_source.record_fields()).index('filename')
 
                 record[filename_idx] = os.path.basename(filepath)
                 self.webbrowser_download_path = os.path.dirname(filepath)
@@ -194,7 +189,7 @@ class FilterDBApp(App):
                 item = self.filters.widget.item(selected_item)
                 record = item['values']
 
-                filename_idx = list(self.filters.column_names()).index('filename')
+                filename_idx = list(self.filters.data_source.record_fields()).index('filename')
                 filename = record[filename_idx] 
 
                 filepath = os.path.join(self.filepath_root, filename)
@@ -215,27 +210,28 @@ class FilterDBApp(App):
 
 
     def selection_changed(self, event, table):
-        for selected_item in table.widget.selection():
-            item = table.widget.item(selected_item)
-            record = item['values']
+        for selected_iid in table.widget.selection():
+            record = self.filters.data_source.record(uuid.UUID(selected_iid))
 
-            filename_idx = list(self.filters.column_names()).index('filename')
-            filename = record[filename_idx] 
+            filename = record['filename'] 
             filepath = os.path.join(self.filepath_root, filename)
             
             if os.path.exists(filepath) and not os.path.isdir(filepath):
-
                 data = self.load_filter_data(filepath)
-                
+
+                self.filter_data.data_source.disable_change_calls()
+
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()
                 for x,y in data:
-                    self.filter_data.append((x,y))
+                    self.filter_data.data_source.append_record(values={"wavelength":x,"transmission":y})
                     self.filter_plot.append(x,y)
                 self.filter_plot.first_axis.set_ylabel("Transmission")
                 self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
                 self.filter_plot.update_plot()
                 self.copy_data_button.enable()
+
+                self.filter_data.data_source.enable_change_calls()
             else:
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()

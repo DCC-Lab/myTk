@@ -823,7 +823,14 @@ class TabularData(Bindable):
         self._tableview = None
         if tableview is not None:
             self._tableview = weakref.ref(tableview)
-        self.disable_change_calls = False
+        self._disable_change_calls = False
+
+    def disable_change_calls(self):
+        self._disable_change_calls = True
+
+    def enable_change_calls(self):
+        self._disable_change_calls = False
+        self.source_records_changed()
 
     @property
     def record_count(self):
@@ -833,7 +840,7 @@ class TabularData(Bindable):
         fields = set()
         for record in self.records:
             if internal:
-                visible_names = name
+                visible_names = [name for name in list(record.keys()) ]
             else:
                 visible_names = [name for name in list(record.keys()) if not name.startswith('__') ]
             fields.update(visible_names)
@@ -911,15 +918,15 @@ class TabularData(Bindable):
         self.source_records_changed()
 
     def source_records_changed(self):
-        if not self.disable_change_calls:
+        if not self._disable_change_calls:
             if self._tableview is not None:
                 self._tableview().source_data_changed(self.records)
 
     def load(self, filepath):
-        self.records = self.load_records_from_json(filepath)
-        for record in self.records:
-            record['__uuid'] = uuid.UUID(record['__uuid'])
-        self.source_records_changed()
+        records_from_file = self.load_records_from_json(filepath)
+
+        for record in records_from_file:
+            self.insert_record(None, record)
 
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
@@ -957,20 +964,21 @@ class TabularData(Bindable):
     def set_records_from_dataframe(self, df):
         fields = df.columns.to_list()
 
-        self.disable_change_calls = True
+        self.disable_change_calls()
+
         for row in df.to_dict(orient='records'):
             self.append_record(row)
-        self.disable_change_calls = False
-        self.source_records_changed()
 
+        self.enable_change_calls()
 
 class TableView(Base):
-    def __init__(self, columns):
+    def __init__(self, columns_labels):
         Base.__init__(self)
-        self.displaycolumns = columns
+        self.columns_labels = columns_labels
+        self.data_source = TabularData(tableview=self)
         self.delegate = None
-        self.data_source = TabularData(self)
         self.default_format_string = "{0:.4f}"
+
 
     def create_widget(self, master):
         self.parent = master
@@ -980,10 +988,10 @@ class TableView(Base):
             selectmode="browse",
             takefocus=True,
         )
-        self.widget.configure(columns=list(self.displaycolumns.keys()))
-        self.widget.configure(displaycolumns=list(self.displaycolumns.keys()))
+        self.widget.configure(columns=sorted(list(self.columns_labels.keys())))
+        self.widget.configure(displaycolumns=sorted(list(self.columns_labels.keys())))
 
-        for key, value in self.displaycolumns.items():
+        for key, value in self.columns_labels.items():
             self.widget.heading(key, text=value)
 
         self.widget.bind("<Button>", self.click)
@@ -994,7 +1002,7 @@ class TableView(Base):
         self.clear_content()
 
         for record in records:
-            values = [value for key,value in record.items() if key in self.displaycolumns ]
+            values = [value for key,value in record.items() if key in sorted(self.columns_labels.keys()) ]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -1006,7 +1014,10 @@ class TableView(Base):
             self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
 
         if self.delegate is not None:
-            self.delegate.table_data_changed()
+            try:
+                self.delegate.table_data_changed()
+            except:
+                pass
 
     def clear(self):
         try:
