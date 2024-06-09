@@ -69,7 +69,6 @@ class FilterDBApp(App):
                 os.mkdir(self.filepath_root)
                 self.filters.save(filepath)
 
-
         self.filters.data_source.load(filepath)
 
     def get_files_from_web(self):

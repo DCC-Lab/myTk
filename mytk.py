@@ -1002,7 +1002,8 @@ class TableView(Base):
         self.clear_content()
 
         for record in records:
-            values = [value for key,value in record.items() if key in sorted(self.columns_labels.keys()) ]
+            # breakpoint()
+            values = [record.get(column, '') for column in self.widget['displaycolumns'] ]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -1011,6 +1012,7 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
+            breakpoint()
             self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
 
         if self.delegate is not None:
