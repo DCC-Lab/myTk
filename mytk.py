@@ -15,21 +15,11 @@ import json
 
 import importlib
 
-# debug_kwargs = {"borderwidth": 2, "relief": "groove"}
-debug_kwargs = {}
-required = {'NumPy':'numpy',
-                'Pillow':'PIL',
-                'ImageTk':'PIL.ImageTk',
-                'opencv-python':'cv2', 
-                'webbrowser':'webbrowser',
-                'matplotlib':'matplotlib',
-                'pandas':'pandas'}
-
 class ModulesManager:
     imported = {}
 
     @classmethod
-    def validate_environment(cls, required={}, ask_for_confirmation=True):
+    def validate_environment(cls, required, ask_for_confirmation=True):
         cls.install_and_import_modules_if_absent(modules = required, ask_for_confirmation=ask_for_confirmation)
 
     @classmethod
@@ -287,10 +277,18 @@ class Base(Bindable):
         self.value_variable = None
 
         self._grid_kwargs = None
-        self.validate_environment()
+        self.is_environment_valid()
+        self.debug = False
 
-    def validate_environment(self):
-        pass
+    @property
+    def debug_kwargs(self):
+        if self.debug:
+            return {"borderwidth": 2, "relief": "groove"}
+        else:
+            return {}
+    
+    def is_environment_valid(self):
+        return True
 
     @property
     def is_enabled(self):
@@ -484,7 +482,7 @@ class View(Base):
             master,
             width=self.original_width,
             height=self.original_height,
-            **debug_kwargs,
+            **self.debug_kwargs
         )
 
 
@@ -623,7 +621,7 @@ class Label(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **debug_kwargs)
+        self.widget = ttk.Label(master, **self.debug_kwargs)
         self.bind_textvariable(StringVar(value=self.text))
 
 
@@ -639,7 +637,7 @@ class NumericIndicator(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **debug_kwargs)
+        self.widget = ttk.Label(master, **self.debug_kwargs)
         self.update_text()
 
     def value_updated(self, var, index, mode):
@@ -692,7 +690,7 @@ class Box(Base):
             width=self.width,
             height=self.height,
             text=self.label,
-            **debug_kwargs,
+            **self.debug_kwargs,
         )
 
 
@@ -1122,15 +1120,15 @@ class Image(Base):
         self._grid_count.trace_add("write", self.property_changed)
         self._last_resize_event = time.time()
 
-    def validate_environment(self):
+    def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
 
-        self.ImageTk = ModulesManager.imported['ImageTk']
         self.PIL = ModulesManager.imported['Pillow']
         self.PILImage = ModulesManager.imported['PILImage']
         self.ImageDraw = ModulesManager.imported['ImageDraw']
+        self.ImageTk = ModulesManager.imported['ImageTk']
 
-
+        return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
 
     def property_changed(self, var, index, mode):
         if var == "is_rescalable":
@@ -1275,7 +1273,7 @@ class VideoView(Base):
         self.next_scheduled_update = None
         self.next_scheduled_update_histogram = None
 
-    def validate_environment(self):
+    def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
 
         self.cv2 = ModulesManager.imported.get('opencv-python', None)
@@ -1283,6 +1281,8 @@ class VideoView(Base):
         if self.PIL is not None:
             self.PILImage = importlib.import_module('PIL.Image')
             self.PILImageTk = importlib.import_module('PIL.ImageTk')
+
+        return all(v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk])
 
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
@@ -1294,9 +1294,9 @@ class VideoView(Base):
 
     @classmethod
     def available_devices(cls):
+        available_devices = []
         try:
             index = 0
-            available_devices = []
             while True:
                 cap = self.cv2.VideoCapture(index)
                 if not cap.read()[0]:
@@ -1333,6 +1333,7 @@ class VideoView(Base):
                     self.update_display()
             except Exception as err:
                 print(err)
+                self.capture = None
 
     def stop_capturing(self):
         if self.is_running:
@@ -1537,7 +1538,7 @@ class Figure(Base):
         self.canvas = None
         self.toolbar = None
 
-    def validate_environment(self):
+    def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({'matplotlib':'matplotlib'})
         self.matplotlib = ModulesManager.imported.get('matplotlib', None)
         if self.matplotlib is not None:
@@ -1546,6 +1547,8 @@ class Figure(Base):
             self.FigureCanvasTkAgg = importlib.import_module('matplotlib.backends.backend_tkagg').FigureCanvasTkAgg
             self.NavigationToolbar2Tk = importlib.import_module('matplotlib.backends.backend_tkagg').NavigationToolbar2Tk
     
+        return all(v is not None for v in [self.matplotlib, self.plt, self.MPLFigure, self.FigureCanvasTkAgg, self.NavigationToolbar2Tk])
+
     def create_widget(self, master):
         self.parent = master
         if self.figure is None:
@@ -1814,11 +1817,7 @@ def package_app_script(filepath=None):
         pass
 
 if __name__ == "__main__":
-
-    ModulesManager.validate_environment(required=required, ask_for_confirmation=True)
     package_app_script()
-
-    from matplotlib.figure import Figure as MPLFigure
 
     app = App(geometry="1450x900")
     # You would typically put this into the__init__ of your subclass of App:
@@ -1893,19 +1892,26 @@ if __name__ == "__main__":
     for i in range(20):
         table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
 
+
     figure1 = Figure(figsize=(4, 3))
     figure1.grid_into(app.window, column=3, row=1, pady=5, padx=5)
     axis = figure1.figure.add_subplot()
     axis.plot([1, 2, 3], [4, 5, 6])
     axis.set_title("A matplotlib figure in grid position (3,1)")
 
-    some_fig = MPLFigure(figsize=(4, 3))
-    axis = some_fig.add_subplot()
-    axis.plot([1, 2, 3], [-4, -5, -6])
-    axis.set_title("You can provide your plt.figure")
+    try:
+        from matplotlib.figure import Figure as MPLFigure
 
-    figure2 = Figure(figure=some_fig)
-    figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
+        some_fig = MPLFigure(figsize=(4, 3))
+        axis = some_fig.add_subplot()
+        axis.plot([1, 2, 3], [-4, -5, -6])
+        axis.set_title("You can provide your plt.figure")
+
+        figure2 = Figure(figure=some_fig)
+        figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
+    except :
+        pass
+
 
     try:
         video = VideoView(device=0)
