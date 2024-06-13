@@ -21,7 +21,7 @@ class PyDatagraphApp(App):
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.data = TableView(columns={})
+        self.data = TableView(columns_labels={})
         self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.data.delegate = self
 
@@ -245,7 +245,7 @@ class PyDatagraphApp(App):
             # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
             # I destroy the table and recreate it.        
             self.data.widget.destroy()
-            self.data = TableView(columns=dict.fromkeys(df.columns,df.columns))
+            self.data = TableView(columns_labels=dict.fromkeys(df.columns,df.columns))
             self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
             self.data.delegate = self
 
@@ -326,10 +326,9 @@ class PyDatagraphApp(App):
 
 
     def copy_data(self, event, button):
-        install_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        ModulesManager.install_and_import_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        pyperclip = ModulesManager.imported['pyperclip']
         try:
-            import pyperclip
-
             for selected_item in self.data.widget.selection():
                 item = self.data.widget.item(selected_item)
                 record = item['values']
@@ -357,7 +356,7 @@ class PyDatagraphApp(App):
         pass
 
 if __name__ == "__main__":
-    package_app_script(__file__)    
-    install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
+    package_app_script(__file__)
+    ModulesManager.install_and_import_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = PyDatagraphApp()    
     app.mainloop()

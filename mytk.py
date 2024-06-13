@@ -1026,7 +1026,7 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            breakpoint()
+            # breakpoint()
             self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
 
         if self.delegate is not None:
