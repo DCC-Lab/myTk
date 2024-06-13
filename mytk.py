@@ -19,8 +19,8 @@ class ModulesManager:
     imported = {}
 
     @classmethod
-    def validate_environment(cls, required, ask_for_confirmation=True):
-        cls.install_and_import_modules_if_absent(modules = required, ask_for_confirmation=ask_for_confirmation)
+    def validate_environment(cls, modules, ask_for_confirmation=True):
+        cls.install_and_import_modules_if_absent(modules, ask_for_confirmation=ask_for_confirmation)
 
     @classmethod
     def is_installed(cls, module_name):
