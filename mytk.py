@@ -8,51 +8,61 @@ from functools import partial
 import platform
 import time
 import signal
+import subprocess
 import sys
 import weakref
 import json
 import uuid
 
-# debug_kwargs = {"borderwidth": 2, "relief": "groove"}
-debug_kwargs = {}
-requirements = {'NumPy':'numpy',
-                'Pillow':'PIL',
-                'opencv-python':'cv2', 
-                'webbrowser':'webbrowser',
-                'matplotlib':'matplotlib',
-                'pandas':'pandas'}
-                
-def install_modules_if_absent(modules=requirements, ask_for_confirmation=True):
-    missing_modules = {}
+import importlib
 
-    for pip_name, import_name in modules.items():
+class ModulesManager:
+    imported = {}
+
+    @classmethod
+    def validate_environment(cls, modules, ask_for_confirmation=True):
+        cls.install_and_import_modules_if_absent(modules, ask_for_confirmation=ask_for_confirmation)
+
+    @classmethod
+    def is_installed(cls, module_name):
         try:
-            new_module = __import__(import_name)
+            importlib.import_module(module_name)
+            return True
         except ModuleNotFoundError:
-            missing_modules[pip_name] = import_name
+            return False
         except Exception as err:
             print(err)
+            return False
 
-    if len(missing_modules) > 0:
-        if ask_for_confirmation:
-            result = askquestion(f"""Module(s) '{",".join(missing_modules.values())}' missing""", 
-                f"""Do you want to install missing module(s) '{",".join(missing_modules.values())}'?
-    If you do not wish to do so, the application may not work.""", icon='warning')
+    @classmethod
+    def is_not_installed(cls, module_name):
+        return not cls.is_installed(module_name)
 
-            if result != "yes":
-                return
+    @classmethod
+    def is_imported(cls, module_name):
+        return module_name in sys.modules
 
-        for pip_name, import_name in modules.items():        
-            install_module(pip_name)
+    @classmethod
+    def install_and_import_modules_if_absent(cls, modules, ask_for_confirmation=True):
+        for pip_name, import_name in modules.items():
+            if cls.is_not_installed(import_name):
+                if ask_for_confirmation:
+                    result = askquestion(f"""Module {pip_name} missing""", 
+                        f"""Do you want to install the missing module '{pip_name}'? If you do not wish to do so, the application may not work.""", icon='warning')
 
-def install_module(pip_name):
-    import subprocess
-    import sys
+                    if result != "yes":
+                        continue
+                
+                cls.install_module(pip_name)
 
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
-    except Exception as err:
-        print(err)
+            cls.imported[pip_name] = importlib.import_module(import_name)
+
+    @classmethod
+    def install_module(cls, pip_name):
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
+        except Exception as err:
+            print(err)
 
 
 class Bindable:
@@ -246,8 +256,8 @@ class App(Bindable):
     def help(self):
         try:
             if self.help_url is not None:
-                install_modules_if_absent({'webbrowser':'webbrowser'})
-                import webbrowser
+                ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
+                webbrowser = ModulesManager.imported['webbrowser']
                 webbrowser.open(self.help_url)
         except:
             showinfo(
@@ -266,12 +276,20 @@ class Base(Bindable):
         self.widget = None
         self.parent = None
         self.value_variable = None
-        # self.controller = self.Controller(view=self)
-        self._grid_kwargs = None
 
-    # class Controller(Bindable):
-    #     def __init__(self, view):
-    #         self.view = weakref.ref(view)
+        self._grid_kwargs = None
+        self.is_environment_valid()
+        self.debug = False
+
+    @property
+    def debug_kwargs(self):
+        if self.debug:
+            return {"borderwidth": 2, "relief": "groove"}
+        else:
+            return {}
+    
+    def is_environment_valid(self):
+        return True
 
     @property
     def is_enabled(self):
@@ -419,10 +437,6 @@ class Window(Base):
         self.widget.grid_columnconfigure(0, weight=1)
         self.widget.grid_rowconfigure(0, weight=1)
 
-    # class Controller:
-    #     def __init__(self, view):
-    #         self.view = weakref.ref(view)
-
     @property
     def resizable(self):
         return True
@@ -469,7 +483,7 @@ class View(Base):
             master,
             width=self.original_width,
             height=self.original_height,
-            **debug_kwargs,
+            **self.debug_kwargs
         )
 
 
@@ -608,7 +622,7 @@ class Label(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **debug_kwargs)
+        self.widget = ttk.Label(master, **self.debug_kwargs)
         self.bind_textvariable(StringVar(value=self.text))
 
 
@@ -624,7 +638,7 @@ class NumericIndicator(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **debug_kwargs)
+        self.widget = ttk.Label(master, **self.debug_kwargs)
         self.update_text()
 
     def value_updated(self, var, index, mode):
@@ -677,7 +691,7 @@ class Box(Base):
             width=self.width,
             height=self.height,
             text=self.label,
-            **debug_kwargs,
+            **self.debug_kwargs,
         )
 
 
@@ -1176,15 +1190,16 @@ class TableView(Base):
 
 
 class Image(Base):
-    install_modules_if_absent({'Pillow':"PIL"})
-    import PIL
-    from PIL import ImageDraw 
 
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
+
         self.pil_image = pil_image
         if self.pil_image is None:
-            self.pil_image = self.read_pil_image(filepath=filepath, url=url)
+            try:
+                self.pil_image = self.read_pil_image(filepath=filepath, url=url)
+            except:
+                self.pil_image = self.PILImage.new('RGB', size=(100,100))
         self._displayed_tkimage = None
 
         self._is_rescalable = BooleanVar(name="is_rescalable", value=True)
@@ -1194,6 +1209,16 @@ class Image(Base):
         self._grid_count = IntVar(name="grid_count", value=5)
         self._grid_count.trace_add("write", self.property_changed)
         self._last_resize_event = time.time()
+
+    def is_environment_valid(self):
+        ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
+
+        self.PIL = ModulesManager.imported['Pillow']
+        self.PILImage = ModulesManager.imported['PILImage']
+        self.ImageDraw = ModulesManager.imported['ImageDraw']
+        self.ImageTk = ModulesManager.imported['ImageTk']
+
+        return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
 
     def property_changed(self, var, index, mode):
         if var == "is_rescalable":
@@ -1230,13 +1255,13 @@ class Image(Base):
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
-            return self.PIL.Image.open(filepath)
+            return self.PILImage.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
 
             response = requests.get(url)
-            return self.PIL.Image.open(BytesIO(response.content))
+            return self.PILImage.open(BytesIO(response.content))
 
         return None
 
@@ -1263,7 +1288,7 @@ class Image(Base):
 
                 if self.pil_image.width != width or self.pil_image.height != height:
                     resized_image = self.pil_image.resize(
-                        (width, height), self.PIL.Image.NEAREST
+                        (width, height), self.PILImage.NEAREST
                     )
 
                     self.update_display(resized_image)
@@ -1280,8 +1305,8 @@ class Image(Base):
         if self.is_grid_showing:
             image_to_display = self.image_with_grid_overlay(image_to_display)
 
-        if image_to_display is not None:
-            self._displayed_tkimage = self.PIL.ImageTk.PhotoImage(image=image_to_display)
+        if image_to_display is not None and self.ImageTk is not None:
+            self._displayed_tkimage = self.ImageTk.PhotoImage(image=image_to_display)
         else:
             self._displayed_tkimage = None
 
@@ -1292,7 +1317,7 @@ class Image(Base):
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
             image = pil_image.copy()
-            draw = self.PIL.ImageDraw.Draw(image)
+            draw = self.PILImageDraw.Draw(image)
 
             y_start = 0
             y_end = image.height
@@ -1315,9 +1340,6 @@ class Image(Base):
 
 
 class VideoView(Base):
-    install_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
-    import cv2
-    import PIL
 
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
@@ -1341,6 +1363,17 @@ class VideoView(Base):
         self.next_scheduled_update = None
         self.next_scheduled_update_histogram = None
 
+    def is_environment_valid(self):
+        ModulesManager.install_and_import_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
+
+        self.cv2 = ModulesManager.imported.get('opencv-python', None)
+        self.PIL = ModulesManager.imported.get('Pillow', None)
+        if self.PIL is not None:
+            self.PILImage = importlib.import_module('PIL.Image')
+            self.PILImageTk = importlib.import_module('PIL.ImageTk')
+
+        return all(v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk])
+
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
         if sig == signal.SIGINT:
@@ -1351,9 +1384,9 @@ class VideoView(Base):
 
     @classmethod
     def available_devices(cls):
+        available_devices = []
         try:
             index = 0
-            available_devices = []
             while True:
                 cap = self.cv2.VideoCapture(index)
                 if not cap.read()[0]:
@@ -1390,6 +1423,7 @@ class VideoView(Base):
                     self.update_display()
             except Exception as err:
                 print(err)
+                self.capture = None
 
     def stop_capturing(self):
         if self.is_running:
@@ -1428,15 +1462,15 @@ class VideoView(Base):
             # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
-            img = self.PIL.Image.fromarray(frame)
+            img = self.PILImage.fromarray(frame)
             resized_image = img.resize(
                 (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
-                self.PIL.Image.NEAREST,
+                self.PILImage.NEAREST,
             )
             self.image = resized_image
 
             # convert to Tkinter image
-            photo = self.PIL.ImageTk.PhotoImage(image=self.image)
+            photo = self.PILImageTk.PhotoImage(image=self.image)
 
             # solution for bug in `PhotoImage`
             self._displayed_tkimage = photo
@@ -1511,9 +1545,9 @@ class VideoView(Base):
         button.widget.configure(text=self.startstop_button_label)
 
     def click_save_button(self, event, button):
-        exts = self.PIL.Image.registered_extensions()
+        exts = self.PILImage.registered_extensions()
         supported_extensions = [
-            (f, ex) for ex, f in exts.items() if f in PIL.Image.SAVE
+            (f, ex) for ex, f in exts.items() if f in PILImage.SAVE
         ]
 
         filepath = filedialog.asksaveasfilename(
@@ -1583,11 +1617,6 @@ class VideoView(Base):
 
 
 class Figure(Base):
-    install_modules_if_absent({'matplotlib':'matplotlib'})
-
-    import matplotlib.pyplot as plt
-    from matplotlib.figure import Figure as MPLFigure
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
     def __init__(self, figure=None, figsize=None):
         Base.__init__(self)
@@ -1598,6 +1627,17 @@ class Figure(Base):
             self.figsize = (6, 4)
         self.canvas = None
         self.toolbar = None
+
+    def is_environment_valid(self):
+        ModulesManager.install_and_import_modules_if_absent({'matplotlib':'matplotlib'})
+        self.matplotlib = ModulesManager.imported.get('matplotlib', None)
+        if self.matplotlib is not None:
+            self.plt = importlib.import_module('matplotlib.pyplot')
+            self.MPLFigure = importlib.import_module('matplotlib.figure').Figure
+            self.FigureCanvasTkAgg = importlib.import_module('matplotlib.backends.backend_tkagg').FigureCanvasTkAgg
+            self.NavigationToolbar2Tk = importlib.import_module('matplotlib.backends.backend_tkagg').NavigationToolbar2Tk
+    
+        return all(v is not None for v in [self.matplotlib, self.plt, self.MPLFigure, self.FigureCanvasTkAgg, self.NavigationToolbar2Tk])
 
     def create_widget(self, master):
         self.parent = master
@@ -1813,8 +1853,6 @@ class XYPlot(Figure):
 
 
 class Histogram(Figure):
-    import numpy
-
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
         self.x = []
@@ -1870,9 +1908,6 @@ def package_app_script(filepath=None):
 
 if __name__ == "__main__":
     package_app_script()
-    install_modules_if_absent(requirements)
-
-    from matplotlib.figure import Figure as MPLFigure
 
     app = App(geometry="1450x900")
     # You would typically put this into the__init__ of your subclass of App:
@@ -1947,27 +1982,34 @@ if __name__ == "__main__":
     for i in range(20):
         table.data_source.append_record({"column1":"Item {0}".format(i), "name":"Something", "url":"http://www.python.org"})
 
+
     figure1 = Figure(figsize=(4, 3))
     figure1.grid_into(app.window, column=3, row=1, pady=5, padx=5)
     axis = figure1.figure.add_subplot()
     axis.plot([1, 2, 3], [4, 5, 6])
     axis.set_title("A matplotlib figure in grid position (3,1)")
 
-    some_fig = MPLFigure(figsize=(4, 3))
-    axis = some_fig.add_subplot()
-    axis.plot([1, 2, 3], [-4, -5, -6])
-    axis.set_title("You can provide your plt.figure")
+    try:
+        from matplotlib.figure import Figure as MPLFigure
 
-    figure2 = Figure(figure=some_fig)
-    figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
+        some_fig = MPLFigure(figsize=(4, 3))
+        axis = some_fig.add_subplot()
+        axis.plot([1, 2, 3], [-4, -5, -6])
+        axis.set_title("You can provide your plt.figure")
+
+        figure2 = Figure(figure=some_fig)
+        figure2.grid_into(app.window, column=3, row=2, pady=5, padx=5)
+    except :
+        pass
+
 
     try:
         video = VideoView(device=0)
         video.zoom_level = 5
-        video.grid_into(app.window, column=1, row=1, pady=5, padx=5, sticky="")
+        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
     except Exception as err:
         video = Label("Unable to load VideoView")
-        video.grid_into(app.window, column=1, row=2, pady=5, padx=5, sticky="")
+        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
 
     def i_was_changed(checkbox):
         showwarning(message="The checkbox was modified")
