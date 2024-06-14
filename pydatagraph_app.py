@@ -345,7 +345,7 @@ class PyDatagraphApp(App):
                         text = text + "{0}\t{1}\n".format(x,y)
 
                     pyperclip.copy(text)
-        except Exception as err:
+        except ModuleNotFoundError as err:
             print(err)
             showerror(
                 title="Unable to copy to clipboard",
