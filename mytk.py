@@ -270,6 +270,7 @@ class App(Bindable):
 
 
 class Base(Bindable):
+    debug = False
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -278,11 +279,10 @@ class Base(Bindable):
 
         self._grid_kwargs = None
         self.is_environment_valid()
-        self.debug = False
 
     @property
     def debug_kwargs(self):
-        if self.debug:
+        if Base.debug:
             return {"borderwidth": 2, "relief": "groove"}
         else:
             return {}
@@ -1726,6 +1726,32 @@ class Level(CanvasView):
         if level_width > 0:
             self.widget.create_rectangle(4, 4, level_width, height - border, fill="red")
 
+class BooleanIndicator(CanvasView):
+    def __init__(self, diameter=15):
+        super().__init__(width=diameter+4, height=diameter+4)
+        self.diameter = diameter
+
+    def create_widget(self, master, **kwargs):
+        super().create_widget(master, *kwargs)
+        self.value_variable = BooleanVar(value=False)
+        self.value_variable.trace_add("write", self.value_updated)
+        self.draw_canvas()
+
+    def value_updated(self, var, index, mode):
+        self.draw_canvas()
+
+    def draw_canvas(self):
+        border = 1
+
+        value = self.value_variable.get()
+        if value is True:
+            color = "green2"
+        else:
+            color = "red"
+
+        self.widget.create_oval(
+            (4, 4, 4+self.diameter, 4+self.diameter), outline="black", fill=color, width=border
+        )
 
 class XYPlot(Figure):
     def __init__(self, figsize):
