@@ -270,6 +270,7 @@ class App(Bindable):
 
 
 class Base(Bindable):
+    debug = False
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -278,11 +279,10 @@ class Base(Bindable):
 
         self._grid_kwargs = None
         self.is_environment_valid()
-        self.debug = False
 
     @property
     def debug_kwargs(self):
-        if self.debug:
+        if Base.debug:
             return {"borderwidth": 2, "relief": "groove"}
         else:
             return {}
@@ -1253,6 +1253,7 @@ class VideoView(Base):
 
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
+
         self.device = device
         self.zoom_level = zoom_level
         self.image = None
@@ -1273,11 +1274,13 @@ class VideoView(Base):
         self.next_scheduled_update = None
         self.next_scheduled_update_histogram = None
 
+
     def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
 
         self.cv2 = ModulesManager.imported.get('opencv-python', None)
         self.PIL = ModulesManager.imported.get('Pillow', None)
+        breakpoint()
         if self.PIL is not None:
             self.PILImage = importlib.import_module('PIL.Image')
             self.PILImageTk = importlib.import_module('PIL.ImageTk')
@@ -1457,7 +1460,7 @@ class VideoView(Base):
     def click_save_button(self, event, button):
         exts = self.PILImage.registered_extensions()
         supported_extensions = [
-            (f, ex) for ex, f in exts.items() if f in PILImage.SAVE
+            (f, ex) for ex, f in exts.items() if f in self.PILImage.SAVE
         ]
 
         filepath = filedialog.asksaveasfilename(
@@ -1726,6 +1729,40 @@ class Level(CanvasView):
         if level_width > 0:
             self.widget.create_rectangle(4, 4, level_width, height - border, fill="red")
 
+class BooleanIndicator(CanvasView):
+    def __init__(self, diameter=15):
+        super().__init__(width=diameter+4, height=diameter+4)
+        self.diameter = diameter
+
+    def create_widget(self, master, **kwargs):
+        super().create_widget(master, *kwargs)
+        self.value_variable = BooleanVar(value=False)
+        self.value_variable.trace_add("write", self.value_updated)
+        self.draw_canvas()
+
+    def value_updated(self, var, index, mode):
+        self.draw_canvas()
+
+    def draw_canvas(self):
+        border = 1
+
+        value = self.value_variable.get()
+        if value is True:
+            color = "green2"
+        else:
+            color = "red"
+
+        self.widget.create_oval(
+            (4, 4, 4+self.diameter, 4+self.diameter), outline="black", fill=color, width=border
+        )
+
+class DynamicImage(CanvasView):
+    def __init__(self, width=200, height=200):
+        super().__init__(width=width, height=height)
+
+    def draw_canvas(self):
+        pass
+
 
 class XYPlot(Figure):
     def __init__(self, figsize):
@@ -1768,6 +1805,13 @@ class Histogram(Figure):
         self.x = []
         self.y = []
 
+    def is_environment_valid(self):
+        if super().is_environment_valid():
+            ModulesManager.install_and_import_modules_if_absent({'numpy':'numpy'})
+            return ModulesManager.imported['numpy']
+        else:
+            return False
+
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
 
@@ -1786,7 +1830,8 @@ class Histogram(Figure):
             for i, y in enumerate(self.y):
                 self.first_axis.stairs(y[:-1], self.x, color=colors[i])
 
-            self.first_axis.set_ylim( (0, self.numpy.mean(self.y)+self.numpy.std(self.y)*2) )
+            numpy = ModulesManager.imported['numpy']
+            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
