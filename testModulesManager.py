@@ -24,9 +24,20 @@ class TestModulesManager(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ModulesManager.install_module("alouette")
 
-    def test_install_noerror_module(self):
+    def test_install_import(self):
         ModulesManager.install_and_import_modules_if_absent({"raytracing":"raytracing"})
+
+    def test_install_import_error(self):
+        with self.assertRaises(RuntimeError):
+            ModulesManager.install_and_import_modules_if_absent({"alouette":"alouette"}, ask_for_confirmation=False)
         
+    def test_validate_environment_error(self):
+        with self.assertRaises(RuntimeError):
+            ModulesManager.validate_environment({"alouette":"alouette"}, ask_for_confirmation=False)
+
+    def test_validate_environment_no_error(self):
+        ModulesManager.validate_environment({"os":"os","path":"path"}, ask_for_confirmation=False)
+
 
 if __name__ == "__main__":
     unittest.main()
