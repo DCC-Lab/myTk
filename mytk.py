@@ -19,8 +19,8 @@ class ModulesManager:
     imported = {}
 
     @classmethod
-    def validate_environment(cls, modules, ask_for_confirmation=True):
-        cls.install_and_import_modules_if_absent(modules, ask_for_confirmation=ask_for_confirmation)
+    def validate_environment(cls, pip_modules, ask_for_confirmation=True):
+        cls.install_and_import_modules_if_absent(pip_modules, ask_for_confirmation=ask_for_confirmation)
 
     @classmethod
     def is_installed(cls, module_name):
@@ -29,7 +29,7 @@ class ModulesManager:
             return True
         except ModuleNotFoundError:
             return False
-        except Exception as err:
+        except Exception as err: # Maybe wrong architecture?
             print(err)
             return False
 
@@ -42,8 +42,8 @@ class ModulesManager:
         return module_name in sys.modules
 
     @classmethod
-    def install_and_import_modules_if_absent(cls, modules, ask_for_confirmation=True):
-        for pip_name, import_name in modules.items():
+    def install_and_import_modules_if_absent(cls, pip_modules, ask_for_confirmation=True):
+        for pip_name, import_name in pip_modules.items():
             if cls.is_not_installed(import_name):
                 if ask_for_confirmation:
                     result = askquestion(f"""Module {pip_name} missing""", 
@@ -59,9 +59,9 @@ class ModulesManager:
     @classmethod
     def install_module(cls, pip_name):
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
+            completed_process = subprocess.run([sys.executable, "-m", "pip", "install", pip_name], capture_output=True, check=True)
         except Exception as err:
-            print(err)
+            raise RuntimeError(f"Unable to install module with PyPi name: {pip_name}")
 
 
 class Bindable:
