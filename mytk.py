@@ -65,9 +65,8 @@ class ModulesManager:
 
 
 class Bindable:
-    def __init__(self, value=None):
+    def __init__(self):
         self.observing_me = []
-        self.value = value
 
     def bind_property_to_widget_value(self, property_name: str, control_widget: "Base"):
         self.bind_properties(
@@ -91,7 +90,7 @@ class Bindable:
 
         except AttributeError as err:
             raise AttributeError(
-                "The property '{1}'' must exist on object {0} to be observed ".format(
+                "Attempting to observe inexistent property '{1}' in Bindable object {0}".format(
                     self, my_property_name
                 )
             )
@@ -100,16 +99,9 @@ class Bindable:
         for observer, property_name, context in self.observing_me:
             observed_var = getattr(self, property_name)
 
-            if not isinstance(observed_var, Variable):
-                continue
-            elif observed_var._name == var:
-                try:
-                    new_value = observed_var.get()
-                    observer.observed_property_changed(
-                        self, property_name, new_value, context
-                    )
-                except Exception as err:
-                    print(f"Tracing: {err}")
+            if isinstance(observed_var, Variable):
+                if observed_var._name == var:
+                    self.property_value_did_change(property_name)
 
     def bind_properties(self, this_property_name, other_object, other_property_name):
         """
@@ -123,21 +115,32 @@ class Bindable:
     def __setattr__(self, property_name, new_value):
         """
         We always set the property regardless of the value but we notify only if a change occured
+        However, we warn if user is overwriting a Tk Variable with something other than a Variable,
+        but it is also possible that the property does not exist yet (which is not an error, it 
+        happens in __init__)
         """
+
+        try:
+            if isinstance(getattr(self, property_name), Variable):
+                if not isinstance(new_value, Variable):
+                    raise TypeError(f"You are overwriting the Tk Variable '{property_name}' with a non-tk Variable value '{new_value}'")
+        except AttributeError as err:
+            pass
+
         super().__setattr__(property_name, new_value)
 
         self.property_value_did_change(property_name)
 
     def property_value_did_change(self, property_name):
-        new_value = getattr(self, property_name)
+        new_value = getattr(self, property_name) # Assume python property
+        if isinstance(new_value, Variable): # If tk Variable, get its value
+            new_value = new_value.get()
+
         for observer, observed_property_name, context in self.observing_me:
-            try:
-                if observed_property_name == property_name:
-                    observer.observed_property_changed(
-                        self, observed_property_name, new_value, context
-                    )
-            except AttributeError as err:
-                pass
+            if observed_property_name == property_name:
+                observer.observed_property_changed(
+                    self, observed_property_name, new_value, context
+                )
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -1278,7 +1281,7 @@ class VideoView(Base):
 
         self.cv2 = ModulesManager.imported.get('opencv-python', None)
         self.PIL = ModulesManager.imported.get('Pillow', None)
-        breakpoint()
+
         if self.PIL is not None:
             self.PILImage = importlib.import_module('PIL.Image')
             self.PILImageTk = importlib.import_module('PIL.ImageTk')
