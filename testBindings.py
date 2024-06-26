@@ -85,13 +85,25 @@ class TestBindings(unittest.TestCase):
 
     def test_observable_overwriting_tk_var(self):
         a = A(1)
-        obs = Observer()
-        a.add_observer(obs, 'var_a', 'SomeContext')
 
         self.assertTrue(isinstance(a.var_a, Variable))
 
         with self.assertRaises(TypeError):
             a.var_a = 2
+
+    def test_observable_overwriting_tk_var_with_none(self):
+        a = A(1)
+        self.assertTrue(isinstance(a.var_a, Variable))
+
+        a.var_a = None
+        self.assertEqual(a.var_a, None)
+
+    def test_observable_overwriting_tk_var_with_other_tk_var(self):
+        a = A(1)
+        self.assertTrue(isinstance(a.var_a, Variable))
+
+        a.var_a = StringVar(value="Test")
+        self.assertTrue(isinstance(a.var_a, Variable))
 
     def test_observable_missing_property(self):
         a = A(1)

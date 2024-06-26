@@ -122,7 +122,7 @@ class Bindable:
 
         try:
             if isinstance(getattr(self, property_name), Variable):
-                if not isinstance(new_value, Variable):
+                if new_value is not None and not isinstance(new_value, Variable):
                     raise TypeError(f"You are overwriting the Tk Variable '{property_name}' with a non-tk Variable value '{new_value}'")
         except AttributeError as err:
             pass
