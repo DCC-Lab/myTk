@@ -138,8 +138,6 @@ class Bindable:
                     )
             except AttributeError as err:
                 pass
-            except Exception as err:
-                print(f"did change: {property_name} {err}")
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
