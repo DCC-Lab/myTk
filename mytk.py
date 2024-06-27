@@ -187,7 +187,7 @@ class App(Bindable):
         python_version = platform.python_version()
 
         if mac_version >= "14" and python_version < "3.12":
-            showwarning(
+            Dialog.showwarning(
                 message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
             )
 
@@ -239,7 +239,7 @@ class App(Bindable):
             else:
                 subprocess.call(['xdg-open', path])
         except:
-            showerror(
+            Dialog.showerror(
                 title=f"Unable to show {path}",
                 message=f"An error occured when trying to reveal {path}",
             )
@@ -299,6 +299,16 @@ class App(Bindable):
 
 class Base(Bindable):
     debug = False
+    states = {"active":["is_active","is_inactive","activate","deactivate"], 
+              "disabled":["is_disabled","is_enabled","disable","enable"],
+              "selected":["is_selected","is_not_selected","select","deselect"]
+             }
+
+
+    # states = ["active":[], 
+    #         "disabled", "focus", "pressed", "selected", 
+    #           "background", "readonly", "alternate", "invalid"]
+
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -307,6 +317,26 @@ class Base(Bindable):
 
         self._grid_kwargs = None
         self.is_environment_valid()
+
+    # def __setattr__(self, property_name, new_value):
+    #     """
+    #     If it is a state property from the list in Base, then we manage it.
+    #     """
+
+    #     super().__setattr__(property_name, new_value)
+
+    #     if property_name in Base.states:
+    #         if new_value:
+    #             self.widget.state([property_name])
+    #         else:
+    #             self.widget.state(["!"+property_name])
+        
+
+    # def getattr(self, property_name):
+    #     if property_name in Base.states:
+    #         return self.widget.instate([property_name])
+    #     else:
+    #         return super().getattr(property_name)
 
     @property
     def debug_kwargs(self):
@@ -325,17 +355,23 @@ class Base(Bindable):
     @is_enabled.setter
     def is_enabled(self, value):
         if value:
-            self.enable()
+            self.widget.state(["!disabled"])
         else:
-            self.disable()
+            self.widget.state(["disabled"])
+
+    @property
+    def is_disabled(self):
+        return not self.is_enabled
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        self.is_enabled = not value
     
     def enable(self):
-        if self.widget is not None:
-            self.widget.state(["!disabled"])
+        self.is_disabled = False
 
     def disable(self):
-        if self.widget is not None:
-            self.widget.state(["disabled"])
+        self.is_disabled = True
 
     @property
     def is_selected(self):
@@ -355,6 +391,18 @@ class Base(Bindable):
     def deselect(self):
         if self.widget is not None:
             return self.widget.state(['!selected'])
+
+    @property
+    def is_active(self):
+        return self.widget.instate(['active'])
+
+    def activate(self):
+        if self.widget is not None:
+            return self.widget.state(['active'])
+
+    def deactivate(self):
+        if self.widget is not None:
+            return self.widget.state(['!active'])
 
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
@@ -514,10 +562,9 @@ class Dialog(Base):
         self.widget.wait_visibility() # can't grab until window appears, so we wait
 
         if self.dialog_type == 'error':
-            icon = Image(filepath="/Users/dccote/GitHub/myTk/warning.png")
-        else:
             icon = Image(filepath="/Users/dccote/GitHub/myTk/error.png")
-
+        else:
+            icon = Image(filepath="/Users/dccote/GitHub/myTk/warning.png")
 
         icon.is_rescalable = False
         icon.grid_into(self, column=0, row=0, pady=20, padx=20, sticky="")
@@ -574,7 +621,7 @@ class Dialog(Base):
 
     @property
     def resizable(self):
-        return False
+        return self.widget.resizable()
 
     @resizable.setter
     def is_resizable(self, value):
@@ -2110,7 +2157,7 @@ if __name__ == "__main__":
         video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
 
     def i_was_changed(checkbox):
-        showwarning(message="The checkbox was modified")
+        Dialog.showwarning(message="The checkbox was modified")
 
     view3 = View(width=100, height=100)
     view3.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="nsew")
