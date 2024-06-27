@@ -25,7 +25,7 @@ class TestModulesManager(unittest.TestCase):
             ModulesManager.install_module("alouette")
 
     def test_install_import(self):
-        ModulesManager.install_and_import_modules_if_absent({"raytracing":"raytracing"})
+        ModulesManager.install_and_import_modules_if_absent({"matplotlib":"matplotlib"})
 
     def test_install_import_error(self):
         with self.assertRaises(RuntimeError):
