@@ -33,7 +33,6 @@ class TestMyApp(unittest.TestCase):
         self.app.help_url = None
         self.app.help()
 
-
     def test_help_url_help(self):
         self.app.help_url = "http://www.google.com"
         self.app.help()

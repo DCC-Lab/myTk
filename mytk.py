@@ -1,6 +1,5 @@
 from tkinter import *
 from tkinter import filedialog
-from tkinter.messagebox import showerror, showwarning, showinfo, askquestion, ERROR
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 
@@ -261,11 +260,15 @@ class App(Bindable):
                 ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
                 webbrowser = ModulesManager.imported['webbrowser']
                 webbrowser.open(self.help_url)
+            else:
+                Dialog.showinfo( title="Help",
+                                 message="There is no help available for this Application.",
+                                 timeout=3000)
+
         except:
-            Dialog.showinfo(
-                title="Help",
-                message="No help available.",
-            )
+            Dialog.showinfo( title="Help",
+                             message="There is no help available for this Application.",
+                             timeout=3000)
 
     def quit(self):
         self.root.quit()
