@@ -1,7 +1,7 @@
 import unittest
 from mytk import *
 
-@unittest.skip("Requires interactions")
+# @unittest.skip("Requires interactions")
 class TestMyApp(unittest.TestCase):
     def setUp(self):
         self.app = App(geometry="100x100")
@@ -18,7 +18,7 @@ class TestMyApp(unittest.TestCase):
         self.app.save()
 
     def test_about(self):
-        self.app.about()
+        self.app.about(timeout=500)
 
     def test_preferences(self):
         self.app.preferences()
