@@ -14,14 +14,17 @@ class TestMyApp(unittest.TestCase):
         self.assertIsNotNone(self.app.window)
         self.assertIsNotNone(self.app.root)
 
-    def test_save(self):
-        self.app.save()
 
     def test_about(self):
-        self.app.about(timeout=500)
+        self.app.about(timeout=100)
 
     def test_preferences(self):
-        self.app.preferences()
+        with self.assertRaises(Exception):
+            self.app.preferences()
+
+    def test_save(self):
+        with self.assertRaises(Exception):
+            self.app.save()
 
     def test_quit(self):
         self.app.quit()

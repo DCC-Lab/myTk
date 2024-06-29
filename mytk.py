@@ -245,13 +245,14 @@ class App(Bindable):
             )
 
     def save(self):
-        pass
+        raise NotImplementedError("Implement save: in derived class")
 
     def preferences(self):
-        pass
+        raise NotImplementedError("Implement preferences: in derived class")
 
     def about(self, timeout=3000):
-        Dialog.showinfo(message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
+        Dialog.showinfo(title="About this App", 
+                        message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
                         timeout=timeout)
 
     def help(self):
@@ -261,7 +262,7 @@ class App(Bindable):
                 webbrowser = ModulesManager.imported['webbrowser']
                 webbrowser.open(self.help_url)
         except:
-            showinfo(
+            Dialog.showinfo(
                 title="Help",
                 message="No help available.",
             )
@@ -269,38 +270,8 @@ class App(Bindable):
     def quit(self):
         self.root.quit()
 
-
-    def showinfo(self, title, message, delay=2000):
-
-        dialog_window = Window()
-
-        # root = Tk()
-        # root.withdraw()  # Hide the root window
-
-        # # Create a Toplevel window
-        # msg_box = Toplevel(root)
-        # msg_box.title(title)
-
-        # # Add a message label
-        # msg_label = Label(msg_box, text=message)
-        # msg_label.pack(padx=20, pady=20)
-
-        # # Add an OK button to close the window
-        # ok_button = Button(msg_box, text="OK", command=msg_box.destroy)
-        # ok_button.pack(pady=(0, 20))
-
-        # Schedule the window to close after the delay
-        dialog_window.widget.after(delay, dialog_window.widget.destroy)
-
-        dialog_window.widget.mainloop()
-
 class Base(Bindable):
     debug = False
-
-
-    # states = ["active":[], 
-    #         "disabled", "focus", "pressed", "selected", 
-    #           "background", "readonly", "alternate", "invalid"]
 
     def __init__(self):
         super().__init__()
@@ -530,18 +501,18 @@ class Dialog(Base):
         Timedout = 'Timedout'
 
     @classmethod
-    def showinfo(cls, message, timeout=None):
-        diag = Dialog(dialog_type = 'info', title="Info", message=message, timeout=timeout)
+    def showinfo(cls, message, title="Info", timeout=None):
+        diag = Dialog(dialog_type = 'info', title=title, message=message, timeout=timeout)
         return diag.run()
 
     @classmethod
-    def showwarning(cls, message, timeout=None):
-        diag = Dialog(dialog_type = 'warning', title="Warning", message=message, timeout=timeout)
+    def showwarning(cls, message, title="Warning", timeout=None):
+        diag = Dialog(dialog_type = 'warning', title=title, message=message, timeout=timeout)
         return diag.run()
 
     @classmethod
-    def showerror(cls, message, timeout=None):
-        diag = Dialog(dialog_type = 'error', title="Error", message=message, timeout=timeout)
+    def showerror(cls, message, title="Error", timeout=None):
+        diag = Dialog(dialog_type = 'error', title=title, message=message, timeout=timeout)
         return diag.run()
 
     def __init__(self, dialog_type, title, message, buttons_labels=None, timeout=None):
