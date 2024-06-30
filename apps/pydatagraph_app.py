@@ -12,8 +12,6 @@ import zipfile
 import subprocess
 import pandas
 
-from pathlib import Path
-
 class PyDatagraphApp(App):
     def __init__(self):
         App.__init__(self, geometry="800x800", name="PyDatagraph")
@@ -22,7 +20,7 @@ class PyDatagraphApp(App):
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.data = TableView(columns={})
+        self.data = TableView(columns_labels={})
         self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.data.delegate = self
 
@@ -205,9 +203,8 @@ class PyDatagraphApp(App):
     def column_inspector_data_changed(self, menu):
         pass
 
-    def column_headings_changed(self):
+    def column_headings_changed(self, new_names):
         self.name_menu.clear_menu_items()
-        new_names = self.data.column_names()
         self.name_menu.add_menu_items(new_names)
 
         if len(new_names) >= 2:
@@ -224,58 +221,73 @@ class PyDatagraphApp(App):
 
     def load_data(self, filepath):
         if filepath != '':
-            try:
-                df = self.data.load_tabular_numeric_data(filepath)
-                rows, cols = df.shape
-                if cols <= 3:
-                    first_heading = ord('x')
+            df = self.data.data_source.load_tabular_data(filepath)
+            rows, cols = df.shape
+            if cols <= 3:
+                first_heading = ord('x')
+            else:
+                first_heading = ord('a')
+            df.columns = [ chr(first_heading + c) for c in range(cols)]
+            
+            styles = self.plot.styles_pointmarker(linestyle='')
+            for i, name in enumerate(df.columns):
+                properties = styles[(i-1)%len(styles)]
+                if i == 0:
+                    properties['is_independent'] = True
                 else:
-                    first_heading = ord('a')
-                df.columns = [ chr(first_heading + c) for c in range(cols)]
-                
-                styles = self.plot.styles_pointmarker(linestyle='')
-                for i, name in enumerate(df.columns):
-                    properties = styles[(i-1)%len(styles)]
-                    if i == 0:
-                        properties['is_independent'] = True
-                    else:
-                        properties['is_independent'] = False
+                    properties['is_independent'] = False
 
-                    properties['visible'] = True
+                properties['visible'] = True
 
-                    self.column_properties[name] = dict(properties)
+                self.column_properties[name] = dict(properties)
 
-                # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
-                # I destroy the table and recreate it.        
-                self.data.widget.destroy()
-                self.data = TableView(columns={})
-                self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-                self.data.delegate = self
+            # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
+            # I destroy the table and recreate it.        
+            self.data.widget.destroy()
+            self.data = TableView(columns_labels=dict.fromkeys(df.columns,df.columns))
+            self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
+            self.data.delegate = self
 
-                self.data.copy_dataframe_to_table_data(df)
-                for column in df.columns:
-                    self.data.widget.column(column, width=40)
+            for name in df.columns:
+                self.data.widget.heading(name, text=name)
 
-                self.column_headings_changed()
 
-            except Exception as err:
-                print(f"load_data : {err}")
+            self.data.data_source.set_records_from_dataframe(df)
 
-    def table_data_changed(self, table):
+            for column in df.columns:
+                self.data.widget.column(column, width=40)
+            self.column_headings_changed(list(df.columns))
+
+    def table_data_changed(self):
         self.refresh_plot()
 
-    def refresh_plot(self):
-        self.plot.clear_plot()
-        records = self.data.copy_table_data_to_records()
-        columns = list(records[0].keys())
+    def dependent_variable(self):
+        records = self.data.data_source.records
+        columns = self.column_properties.keys()
 
-        dependent_variable = [ key for key in columns if self.column_properties[key]['is_independent']]
+        dependent_variable = [ key for key in columns if self.column_properties.get(key,{}).get('is_independent',{})]
         if len(dependent_variable) == 1:
             dependent_variable = dependent_variable[0]
         else:
             dependent_variable = None
+        return dependent_variable
 
-        independent_variables = [ key for key in columns if not self.column_properties[key]['is_independent']]
+    def independent_variables(self):
+        records = self.data.data_source.records
+        columns = self.column_properties.keys()
+
+        independent_variables = [ key for key in columns if not self.column_properties[key].get('is_independent',{})]
+        
+        return independent_variables
+
+    def refresh_plot(self):
+        self.plot.clear_plot()
+        records = self.data.data_source.records
+        columns = self.data.data_source.record_fields()
+
+        dependent_variable = self.dependent_variable()
+
+        independent_variables = self.independent_variables()
 
         styles = self.plot.styles_pointmarker(linestyle='-')
 
@@ -313,10 +325,9 @@ class PyDatagraphApp(App):
 
 
     def copy_data(self, event, button):
-        ModulesManager.install_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        ModulesManager.install_and_import_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        pyperclip = ModulesManager.imported['pyperclip']
         try:
-            import pyperclip
-
             for selected_item in self.data.widget.selection():
                 item = self.data.widget.item(selected_item)
                 record = item['values']
@@ -333,7 +344,7 @@ class PyDatagraphApp(App):
                         text = text + "{0}\t{1}\n".format(x,y)
 
                     pyperclip.copy(text)
-        except Exception as err:
+        except ModuleNotFoundError as err:
             print(err)
             showerror(
                 title="Unable to copy to clipboard",
@@ -344,6 +355,6 @@ class PyDatagraphApp(App):
         pass
 
 if __name__ == "__main__":
-    ModulesManager.validate_environment(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
+    ModulesManager.install_and_import_modules_if_absent(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = PyDatagraphApp()    
     app.mainloop()
