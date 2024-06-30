@@ -46,36 +46,45 @@ class TestCheckbox(unittest.TestCase):
 
         ui_object = Checkbox(label="Test")
         ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-        ui_object.bind_properties('value_variable', controller, 'to_TkVariable')
         ui_object.bind_properties('label', controller, 'to_property')
 
         self.assertEqual(controller.to_property, "Test")
-        self.assertEqual(controller.to_TkVariable, "Test")
 
         controller.to_property = "Something"
         self.assertEqual(ui_object.label, "Something")
-        controller.to_TkVariable = "Something2"
-        self.assertEqual(ui_object.label, "Something2")
         ui_object.label = "Reverse"
         self.assertEqual(controller.to_property, "Reverse")
-        self.assertEqual(controller.to_TkVariable, "Reverse")
 
-    def callback(self, event, checkbox):
+    def callback(self, checkbox):
         self.callback_called = True
 
     def test_bare_callback(self):
         self.assertFalse(self.callback_called)
-        self.callback(None, None)
+        self.callback(None)
         self.assertTrue(self.callback_called)
 
     def test_callback(self):
-        ui_object = Checkbox(label="Test", user_event_callback=self.callback)
+        ui_object = Checkbox(label="Test", user_callback=self.callback)
         ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
 
         self.assertFalse(self.callback_called)
         ui_object.widget.invoke()
         self.assertTrue(self.callback_called)
 
+    def test_binding_value(self):
+        controller = TestController()
+
+        ui_object = Checkbox(label="Test")
+        ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
+        ui_object.bind_properties('value', controller, 'to_property')
+
+        self.assertEqual(controller.to_property, True)
+        ui_object.value = False
+        self.assertEqual(controller.to_property, False)
+        controller.to_property = True
+        self.assertEqual(ui_object.value, True)
+        controller.to_property = False
+        self.assertEqual(ui_object.value, False)
 
 if __name__ == "__main__":
     unittest.main()

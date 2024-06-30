@@ -648,13 +648,21 @@ class Checkbox(Base):
         self.label = label
         self.user_callback = user_callback
 
+    @property
+    def value(self):
+        return self.value_variable.get()
+
+    @value.setter
+    def value(self, value):
+        return self.value_variable.set(value=value)
+
     def create_widget(self, master):
         self.widget = ttk.Checkbutton(
             master,
             text=self.label,
-            onvalue=1,
-            offvalue=0,
-            command=self.selection_changed,
+            onvalue=True,
+            offvalue=False,
+            command=self.value_changed,
         )
 
         if self.value_variable is None:
@@ -662,12 +670,12 @@ class Checkbox(Base):
         else:
             self.bind_variable(self.value_variable)
 
-    def selection_changed(self):
+    def value_changed(self):
         if self.user_callback is not None:
             try:
                 self.user_callback(self)
             except Exception as err:
-                print(err)
+                raise RuntimeError(f'Error when calling user_callback in {self}: {err}')
 
 class RadioButton(Base):
     def __init__(self, label, value, user_callback=None):
