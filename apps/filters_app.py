@@ -1,3 +1,4 @@
+import envapp
 from mytk import *
 
 import os
@@ -273,7 +274,6 @@ class FilterDBApp(App):
 
 
 if __name__ == "__main__":
-    package_app_script(__file__)    
     ModulesManager.validate_environment(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = FilterDBApp()    
     app.mainloop()

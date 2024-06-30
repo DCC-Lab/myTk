@@ -1,7 +1,6 @@
+import envapp
 from mytk import *
 import random
-
-
 
 class ControlPanelApp(App):
     def __init__(self):

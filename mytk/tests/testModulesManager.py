@@ -1,6 +1,7 @@
+import envtest
 import unittest
-import os
 from mytk import *
+import os
 import re
 import io
 import contextlib

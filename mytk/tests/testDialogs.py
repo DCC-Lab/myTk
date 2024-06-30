@@ -1,3 +1,4 @@
+import envtest
 import unittest
 from mytk import *
 
@@ -50,6 +51,7 @@ class TestDialog(unittest.TestCase):
         self.diag.auto_click = Dialog.Replies.Cancel
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Cancel)
+
 
 if __name__ == "__main__":
     unittest.main()
