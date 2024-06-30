@@ -1,6 +1,5 @@
 from tkinter import *
 from tkinter import filedialog
-from tkinter.messagebox import showerror, showwarning, showinfo, askquestion
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
 
@@ -12,6 +11,7 @@ import subprocess
 import sys
 import weakref
 import json
+from enum import StrEnum
 
 import importlib
 
@@ -175,7 +175,6 @@ class App(Bindable):
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
-        self.observed_variables = {}
         App.app = self
 
     @property
@@ -187,7 +186,7 @@ class App(Bindable):
         python_version = platform.python_version()
 
         if mac_version >= "14" and python_version < "3.12":
-            showwarning(
+            Dialog.showwarning(
                 message="It is recommended to use Python 3.12 on macOS 14 (Sonoma) with Tk.  If not, you will need to move the mouse while holding the button to register the click."
             )
 
@@ -239,39 +238,38 @@ class App(Bindable):
             else:
                 subprocess.call(['xdg-open', path])
         except:
-            showerror(
+            Dialog.showerror(
                 title=f"Unable to show {path}",
                 message=f"An error occured when trying to reveal {path}",
             )
 
     def save(self):
-        pass
+        raise NotImplementedError("Implement save: in derived class")
 
     def preferences(self):
-        pass
+        raise NotImplementedError("Implement preferences: in derived class")
 
-    def about(self):
-        showinfo(title=f"About {self.name}", message="Created with myTk")
+    def about(self, timeout=3000):
+        Dialog.showinfo(title="About this App", 
+                        message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
+                        timeout=timeout)
 
     def help(self):
-        try:
-            if self.help_url is not None:
-                ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
-                webbrowser = ModulesManager.imported['webbrowser']
-                webbrowser.open(self.help_url)
-        except:
-            showinfo(
-                title="Help",
-                message="No help available.",
-            )
+        ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
+        webbrowser = ModulesManager.imported.get('webbrowser')
+        if self.help_url is not None and webbrowser is not None:
+            webbrowser.open(self.help_url)
+        else:
+            Dialog.showinfo( title="Help",
+                             message="There is no help available for this Application.",
+                             timeout=3000)
 
     def quit(self):
-        root = self.window.widget
-        root.quit()
-
+        self.root.quit()
 
 class Base(Bindable):
     debug = False
+
     def __init__(self):
         super().__init__()
         self.widget = None
@@ -291,44 +289,65 @@ class Base(Bindable):
     def is_environment_valid(self):
         return True
 
+    """
+    Core state setters/getters
+    """
     @property
-    def is_enabled(self):
-        return self.widget.instate(["!disabled"])
+    def is_disabled(self):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
+        return self.widget.instate(["disabled"])
 
-    @is_enabled.setter
-    def is_enabled(self, value):
+    @is_disabled.setter
+    def is_disabled(self, value):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
         if value:
-            self.enable()
-        else:
-            self.disable()
-    
-    def enable(self):
-        if self.widget is not None:
-            self.widget.state(["!disabled"])
-
-    def disable(self):
-        if self.widget is not None:
             self.widget.state(["disabled"])
+        else:
+            self.widget.state(["!disabled"])
 
     @property
     def is_selected(self):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
         return self.widget.instate(['selected'])
 
     @is_selected.setter
     def is_selected(self, value):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
         if value:
-            self.select()
+            self.widget.state(["selected"])
         else:
-            self.deselect()
+            self.widget.state(["!selected"])
+
+    """
+    Convenience setters/getters
+    """
+    @property
+    def is_enabled(self):
+        return not self.is_disabled
+
+    @is_enabled.setter
+    def is_enabled(self, value):
+        self.is_disabled = not value
+    
+    def enable(self):
+        self.is_disabled = False
+
+    def disable(self):
+        self.is_disabled = True
 
     def select(self):
-        if self.widget is not None:
-            return self.widget.state(['selected'])
+        self.is_selected = True
 
     def deselect(self):
-        if self.widget is not None:
-            return self.widget.state(['!selected'])
+        self.is_selected = False
 
+    """
+    Placing widgets in other widgets
+    """
     def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
         raise NotImplementedError("grid_fill_into_expanding_cell")
 
@@ -365,6 +384,27 @@ class Base(Bindable):
         if self.widget is not None:
             self.widget.grid(kwargs)
 
+    @property
+    def grid_size(self):
+        return self.widget.grid_size()
+
+    def all_resize_weight(self, weight):
+        cols, rows = self.grid_size
+        for i in range(cols):
+            self.column_resize_weight(i, weight)
+
+        for j in range(rows):
+            self.row_resize_weight(j, weight)
+
+    def column_resize_weight(self, index, weight):
+        self.widget.columnconfigure(index, weight=weight)
+
+    def row_resize_weight(self, index, weight):
+        self.widget.rowconfigure(index, weight=weight)
+
+    def grid_propagate(self, value):
+        self.widget.grid_propagate(value)
+
     def pack_into(self, parent, **kwargs):
         self.create_widget(master=parent.widget)
         self.parent = parent
@@ -397,27 +437,6 @@ class Base(Bindable):
             self.widget.configure(variable=variable)
             self.widget.update()
 
-    @property
-    def grid_size(self):
-        return self.widget.grid_size()
-
-    def all_resize_weight(self, weight):
-        cols, rows = self.grid_size
-        for i in range(cols):
-            self.column_resize_weight(i, weight)
-
-        for j in range(rows):
-            self.row_resize_weight(j, weight)
-
-    def column_resize_weight(self, index, weight):
-        self.widget.columnconfigure(index, weight=weight)
-
-    def row_resize_weight(self, index, weight):
-        self.widget.rowconfigure(index, weight=weight)
-
-    def grid_propagate(self, value):
-        self.widget.grid_propagate(value)
-
     def keys(self):
         print(self.widget.configure().keys())
 
@@ -447,28 +466,116 @@ class Window(Base):
 
 
 class Dialog(Base):
-    def __init__(self, geometry=None, title="Dialog"):
+    class Replies(StrEnum):
+        Ok = 'Ok'
+        Cancel = 'Cancel'
+        Abort = 'Abort'
+        Timedout = 'Timedout'
+
+    @classmethod
+    def showinfo(cls, message, title="Info", timeout=None):
+        diag = Dialog(dialog_type = 'info', title=title, message=message, timeout=timeout)
+        return diag.run()
+
+    @classmethod
+    def showwarning(cls, message, title="Warning", timeout=None):
+        diag = Dialog(dialog_type = 'warning', title=title, message=message, timeout=timeout)
+        return diag.run()
+
+    @classmethod
+    def showerror(cls, message, title="Error", timeout=None):
+        diag = Dialog(dialog_type = 'error', title=title, message=message, timeout=timeout)
+        return diag.run()
+
+    def __init__(self, dialog_type, title, message, buttons_labels=None, timeout=None):
         super().__init__()
-
+        self.dialog_type = dialog_type
+        self.timeout = timeout
         self.title = title
+        self.message = message
+        self.reply = None
+        self.auto_click = None
+        if buttons_labels is None:
+            self.buttons_labels = [Dialog.Replies.Ok]
+        else:
+            self.buttons_labels = buttons_labels
+        self.buttons = {}
 
+        self.create_widget(master=None)
+
+    def create_widget(self, master):
         self.widget = Toplevel()
         self.widget.title(self.title)
+        self.parent = None
+
+        self.widget.wait_visibility() # can't grab until window appears, so we wait
+
+        if self.dialog_type == 'error':
+            icon = Image(filepath="/Users/dccote/GitHub/myTk/error.png")
+        elif self.dialog_type == 'warning':
+            icon = Image(filepath="/Users/dccote/GitHub/myTk/warning.png")
+        else:
+            icon = Image(filepath="/Users/dccote/GitHub/myTk/info.png")
+
+        icon.is_rescalable = False
+        icon.grid_into(self, column=0, row=0, pady=20, padx=20, sticky="")
+
+        control_buttons = View(width=100, height=30)
+        control_buttons.grid_into(widget=self.widget, column=1, row=1, columnspan=2, pady=5, padx=5, sticky="nsew")
+
+        self.buttons = self.create_behavior_buttons()
+        for i, button_label in enumerate(self.buttons_labels):
+            button = self.buttons[button_label]
+            button.grid_into(control_buttons, column=2-i, row=1, pady=5, padx=5, sticky="se")
+
+        self.assign_default_key_shortcuts()
+
+    def assign_default_key_shortcuts(self):
+        if Dialog.Replies.Ok in  self.buttons.keys() :
+            self.widget.bind('<Return>', self.user_clicked_ok )
+            self.buttons[Dialog.Replies.Ok].set_as_default()
+
+        self.widget.bind('<Escape>', self.user_clicked_cancel )
+
+    def create_behavior_buttons(self):
+        if not self.buttons:
+            if Dialog.Replies.Ok in self.buttons_labels:
+                button = Button(Dialog.Replies.Ok, user_event_callback=self.user_clicked_ok)
+                self.buttons[Dialog.Replies.Ok] = button
+            if Dialog.Replies.Cancel in self.buttons_labels:
+                self.buttons[Dialog.Replies.Cancel] = Button(Dialog.Replies.Cancel, user_event_callback=self.user_clicked_cancel)
+
+        return self.buttons
+
+    def user_clicked_ok(self, event, button = None):
+        self.reply = Dialog.Replies.Ok
+        self.widget.destroy()
+
+    def user_clicked_cancel(self, event, button = None):
+        self.reply = Dialog.Replies.Cancel
+        self.widget.destroy()
+
+    def user_timeout(self):
+        self.reply = Dialog.Replies.Timedout
+        self.widget.destroy()
 
     def run(self):
-        # self.widget.transient(App.app.root)   # dialog window is related to main
-        # self.widget.wait_visibility() # can't grab until window appears, so we wait
-        # self.widget.grab_set()        # ensure all input goes to our window
+        label1 = Label(self.message, wrapping=True, width=30, wraplength=300, justify="center")
+        label1.grid_into(self, column=1, columnspan=2, row=0, pady=5, padx=5, sticky="nsew")
+        self.all_resize_weight(1)
+
+        if self.auto_click is not None:
+            button = self.buttons[self.auto_click]
+            if self.auto_click == Dialog.Replies.Ok: # I am unable to get button.widget.invoke to work
+                self.widget.after(500, lambda : self.user_clicked_ok(None, None))
+            elif self.auto_click == Dialog.Replies.Cancel:
+                self.widget.after(500, lambda : self.user_clicked_cancel(None, None))
+        elif self.timeout is not None:
+            self.widget.after(self.timeout, self.user_timeout)
+
+        self.widget.grab_set()        # ensure all input goes to our window, including shortcut enter
         self.widget.wait_window()
-
-
-    @property
-    def resizable(self):
-        return True
-
-    @resizable.setter
-    def is_resizable(self, value):
-        self.widget.resizable(value, value)
+        return self.reply
 
 
 class View(Base):
@@ -486,6 +593,54 @@ class View(Base):
             **self.debug_kwargs
         )
 
+class Button(Base):
+    def __init__(self, label="Button", default=False, width=None, user_event_callback=None):
+        Base.__init__(self)
+        self.initial_label = label
+        self.width = width
+        self.user_action_callback = user_event_callback
+        self.default = default
+    
+    @property
+    def label(self):
+        return self.value_variable.get()
+
+    @label.setter
+    def label(self, value):
+        return self.value_variable.set(value=value)
+    
+    def create_widget(self, master):
+        self.widget = ttk.Button(master, width=self.width, command=self.action_callback )
+        self.bind_textvariable(StringVar(value=self.initial_label))
+        # self.widget.bind("<ButtonRelease>", self.event_callback)
+        self.is_default = self.default
+
+    def action_callback(self):
+        if self.user_action_callback is not None:
+            try:
+                event = None
+                self.user_action_callback(event, self)
+            except Exception as err:
+                print(err)
+                pass
+
+    @property
+    def is_default(self):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
+        return self.widget.instate(["active"])
+
+    @is_default.setter
+    def is_default(self, value):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
+        if value:
+            self.widget.state(["active"])
+        else:
+            self.widget.state(["!active"])
+    
+    def set_as_default(self):
+        self.is_default = True
 
 class Checkbox(Base):
     def __init__(self, label="", user_callback=None):
@@ -493,13 +648,21 @@ class Checkbox(Base):
         self.label = label
         self.user_callback = user_callback
 
+    @property
+    def value(self):
+        return self.value_variable.get()
+
+    @value.setter
+    def value(self, value):
+        return self.value_variable.set(value=value)
+
     def create_widget(self, master):
         self.widget = ttk.Checkbutton(
             master,
             text=self.label,
-            onvalue=1,
-            offvalue=0,
-            command=self.selection_changed,
+            onvalue=True,
+            offvalue=False,
+            command=self.value_changed,
         )
 
         if self.value_variable is None:
@@ -507,12 +670,12 @@ class Checkbox(Base):
         else:
             self.bind_variable(self.value_variable)
 
-    def selection_changed(self):
+    def value_changed(self):
         if self.user_callback is not None:
             try:
                 self.user_callback(self)
             except Exception as err:
-                print(err)
+                raise RuntimeError(f'Error when calling user_callback in {self}: {err}')
 
 class RadioButton(Base):
     def __init__(self, label, value, user_callback=None):
@@ -556,27 +719,6 @@ class RadioButton(Base):
         if context == "radiobutton-changed":
             self.value_changed()
 
-
-class Button(Base):
-    def __init__(self, label="Button", width=None, user_event_callback=None):
-        Base.__init__(self)
-        self.label = label
-        self.width = width
-        self.user_event_callback = user_event_callback
-    
-    def create_widget(self, master):
-        self.widget = ttk.Button(master, text=self.label, width=self.width)
-        self.widget.bind("<ButtonRelease>", self.event_callback)
-
-    def event_callback(self, event):
-        if self.user_event_callback is not None:
-            try:
-                self.user_event_callback(event, self)
-            except Exception as err:
-                print(err)
-                pass
-
-
 class PopupMenu(Base):
     def __init__(self, menu_items=None, user_callback=None):
         Base.__init__(self)
@@ -616,14 +758,23 @@ class PopupMenu(Base):
 
 
 class Label(Base):
-    def __init__(self, text=None):
+    def __init__(self, text=None, wrapping=False, **kwargs):
         Base.__init__(self)
         self.text = text
+        self.wrapping = wrapping
+        self.kwargs = kwargs
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **self.debug_kwargs)
+        self.widget = ttk.Label(master, **self.kwargs, **self.debug_kwargs)
         self.bind_textvariable(StringVar(value=self.text))
+        
+        if self.wrapping:
+            self.widget.bind("<Configure>", self.set_label_wrap)
+
+    def set_label_wrap(self, event):
+        wraplength = event.width-12 # 12, to account for padding and borderwidth
+        event.widget.config(wraplength=wraplength)
 
 
 class NumericIndicator(Base):
@@ -1099,9 +1250,7 @@ class TableView(Base):
             except:
                 pass
 
-
 class Image(Base):
-
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
 
@@ -1113,12 +1262,8 @@ class Image(Base):
                 self.pil_image = self.PILImage.new('RGB', size=(100,100))
         self._displayed_tkimage = None
 
-        self._is_rescalable = BooleanVar(name="is_rescalable", value=True)
+        self._is_rescalable = BooleanVar(name="is_rescalable", value=False)
         self._is_rescalable.trace_add("write", self.property_changed)
-        self._is_grid_showing = BooleanVar(name="is_grid_showing", value=False)
-        self._is_grid_showing.trace_add("write", self.property_changed)
-        self._grid_count = IntVar(name="grid_count", value=5)
-        self._grid_count.trace_add("write", self.property_changed)
         self._last_resize_event = time.time()
 
     def is_environment_valid(self):
@@ -1132,21 +1277,9 @@ class Image(Base):
         return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
 
     def property_changed(self, var, index, mode):
-        if var == "is_rescalable":
-            self.update_display()
-        elif var == "is_grid_showing":
-            self.update_display()
-        elif var == "grid_count":
-            self.update_display()
-
-    @property
-    def grid_count(self):
-        return self._grid_count.get()
-
-    @grid_count.setter
-    def grid_count(self, value):
-        if self._grid_count.get() != value:
-            self._grid_count.set(value)
+        if var == "is_rescalable" and self.is_rescalable:
+            # self.update_display()
+            pass
 
     @property
     def is_rescalable(self):
@@ -1155,14 +1288,6 @@ class Image(Base):
     @is_rescalable.setter
     def is_rescalable(self, value):
         return self._is_rescalable.set(value)
-
-    @property
-    def is_grid_showing(self):
-        return self._is_grid_showing.get()
-
-    @is_grid_showing.setter
-    def is_grid_showing(self, value):
-        return self._is_grid_showing.set(value)
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
@@ -1177,7 +1302,7 @@ class Image(Base):
         return None
 
     def create_widget(self, master):
-        self.widget = ttk.Label(master, borderwidth=2, relief="groove")
+        self.widget = ttk.Label(master, compound='image')
         self.update_display()
         self.widget.bind("<Configure>", self.event_resized)
 
@@ -1205,6 +1330,55 @@ class Image(Base):
                     self.update_display(resized_image)
 
         self._last_resize_event = time.time()
+
+    def update_display(self, image_to_display=None):
+        if self.widget is None:
+            return
+
+        if image_to_display is None:
+            image_to_display = self.pil_image
+
+        if image_to_display is not None and self.ImageTk is not None:
+            self._displayed_tkimage = self.ImageTk.PhotoImage(image=image_to_display)
+        else:
+            self._displayed_tkimage = None
+
+        self.widget.configure(image=self._displayed_tkimage)
+
+class ImageWithGrid(Image):
+
+    def __init__(self, filepath=None, url=None, pil_image=None):
+        super().__init__(filepath=filepath, url=url, pil_image=pil_image)
+
+        self._is_grid_showing = BooleanVar(name="is_grid_showing", value=False)
+        self._is_grid_showing.trace_add("write", self.property_changed)
+        self._grid_count = IntVar(name="grid_count", value=5)
+        self._grid_count.trace_add("write", self.property_changed)
+
+    def property_changed(self, var, index, mode):
+        if var == "is_rescalable" and self.is_rescalable:
+            self.update_display()
+        elif var == "is_grid_showing":
+            self.update_display()
+        elif var == "grid_count":
+            self.update_display()
+
+    @property
+    def grid_count(self):
+        return self._grid_count.get()
+
+    @grid_count.setter
+    def grid_count(self, value):
+        if self._grid_count.get() != value:
+            self._grid_count.set(value)
+
+    @property
+    def is_grid_showing(self):
+        return self._is_grid_showing.get()
+
+    @is_grid_showing.setter
+    def is_grid_showing(self, value):
+        return self._is_grid_showing.set(value)
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -1959,16 +2133,16 @@ if __name__ == "__main__":
         pass
 
 
-    try:
-        video = VideoView(device=0)
-        video.zoom_level = 5
-        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
-    except Exception as err:
-        video = Label("Unable to load VideoView")
-        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
+    # try:
+    #     video = VideoView(device=0)
+    #     video.zoom_level = 5
+    #     video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
+    # except Exception as err:
+    #     video = Label("Unable to load VideoView")
+    #     video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
 
     def i_was_changed(checkbox):
-        showwarning(message="The checkbox was modified")
+        Dialog.showwarning(message="The checkbox was modified")
 
     view3 = View(width=100, height=100)
     view3.grid_into(app.window, column=0, row=2, pady=5, padx=5, sticky="nsew")
