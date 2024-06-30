@@ -3,6 +3,7 @@ import tkinter.ttk as ttk
 from .base import Base
 import json
 import uuid
+import weakref 
 
 from .bindable import Bindable
 
