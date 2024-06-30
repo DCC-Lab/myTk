@@ -1,4 +1,5 @@
 import platform
+import subprocess
 from .modulesmanager import ModulesManager
 from .bindable import *
 from .window import *
@@ -67,9 +68,6 @@ class App(Bindable):
         root.config(menu=menubar)
 
     def reveal_path(self, path):
-        import platform
-        import subprocess
-
         try:
             if platform.system() == 'Windows':
                 os.startfile(path)
