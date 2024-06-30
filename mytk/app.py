@@ -1,3 +1,4 @@
+import platform
 from .modulesmanager import ModulesManager
 from .bindable import *
 from .window import *
