@@ -1,4 +1,4 @@
-from tkinter import StringVar, IntVar
+from tkinter import StringVar, IntVar, DoubleVar
 import tkinter.ttk as ttk
 from .base import Base
 from .views import View
