@@ -51,7 +51,7 @@ class Dialog(Base):
 
         self.widget.wait_visibility() # can't grab until window appears, so we wait
 
-        resource_directory = pathlib.Path(__file__).parent
+        resource_directory = pathlib.Path(__file__).parent / "resources"
 
         if self.dialog_type == 'error':
             icon = Image(filepath=resource_directory / "error.png")
