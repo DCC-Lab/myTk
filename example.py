@@ -72,11 +72,11 @@ if __name__ == "__main__":
     box.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
 
     columns = {"column1": "Column #1", "name": "The name", "url": "Clickable URL"}
-    table = TableView(columns=columns)
+    table = TableView(columns_labels=columns)
     table.grid_into(app.window, column=3, row=0, pady=5, padx=5, sticky="ew")
 
     for i in range(20):
-        table.append(["Item {0}".format(i), "Something", "http://www.python.org"])
+        table.data_source.append_record({"column1":"Item {0}".format(i), "name":"Something", "url":"http://www.python.org"})
 
 
     figure1 = Figure(figsize=(4, 3))
