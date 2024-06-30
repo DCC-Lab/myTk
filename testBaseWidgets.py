@@ -1,8 +1,11 @@
 import unittest
 from mytk import *
 
-class Controller(Bindable):
-    pass
+class TestController(Bindable):
+    def __init__(self):
+        super().__init__()
+        self.test_property1 = None
+        self.test_property2 = None
 
 class TestWidget(Base):
     def create_widget(self, master):
@@ -55,6 +58,28 @@ class TestBaseView(unittest.TestCase):
         self.assertTrue(widget.is_disabled)
         self.assertFalse(widget.is_enabled)
 
+    def test_error_nowidget_enable_disable(self):
+        widget = TestWidget()
+
+        with self.assertRaises(Exception):
+            widget.is_disabled = False
+
+        with self.assertRaises(Exception):
+            widget.is_disabled = True
+
+        with self.assertRaises(Exception):
+            widget.enable()
+
+        with self.assertRaises(Exception):
+            widget.disable()
+
+        with self.assertRaises(Exception):
+            widget.is_enabled = True
+
+        with self.assertRaises(Exception):
+            widget.is_enabled = False
+
+
     def test_select_is_selected(self):
         widget = TestWidget()
         widget.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
@@ -68,31 +93,39 @@ class TestBaseView(unittest.TestCase):
         widget.is_selected = False
         self.assertFalse(widget.is_selected)
 
-    def test_active_deactivate(self):
+    def test_error_nowidget_select_is_selected(self):
         widget = TestWidget()
-        widget.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-        widget.activate()
-        self.assertTrue(widget.is_active)
-        widget.deactivate()
-        self.assertFalse(widget.is_active)
+
+        with self.assertRaises(Exception):
+            widget.select()
+
+        with self.assertRaises(Exception):
+            widget.deselect()
+
+        with self.assertRaises(Exception):
+            widget.is_selected = True
+
+        with self.assertRaises(Exception):
+            widget.is_selected = False
 
 class TestBaseWidgetBindings(unittest.TestCase):
     def setUp(self):
         self.app = App()
+        self.test_property = None
 
     def tearDown(self):
         self.app.quit()
-
+    
     def test_init_view(self):
-        control_widget1 = TestWidget()
-        self.assertIsNotNone(control_widget1)
-        indocator_widget2 = TestWidget()
-        self.assertIsNotNone(indocator_widget2)
+        button = Button()
+        self.assertIsNotNone(button)
+        button.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
 
-        control_widget1.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-        indocator_widget2.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-
-        # control_widget1.bind_property_to_widget_value()
+        controller = TestController()
+        button.bind_properties('is_enabled', controller, 'test_property1')
+        self.assertEqual(controller.test_property1, button.is_enabled)
+        button.bind_properties('is_selected', controller, 'test_property2')
+        self.assertEqual(controller.test_property2, button.is_selected)
 
 if __name__ == "__main__":
     unittest.main()

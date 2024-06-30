@@ -255,17 +255,11 @@ class App(Bindable):
                         timeout=timeout)
 
     def help(self):
-        try:
-            if self.help_url is not None:
-                ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
-                webbrowser = ModulesManager.imported['webbrowser']
-                webbrowser.open(self.help_url)
-            else:
-                Dialog.showinfo( title="Help",
-                                 message="There is no help available for this Application.",
-                                 timeout=3000)
-
-        except:
+        ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
+        webbrowser = ModulesManager.imported.get('webbrowser')
+        if self.help_url is not None and webbrowser is not None:
+            webbrowser.open(self.help_url)
+        else:
             Dialog.showinfo( title="Help",
                              message="There is no help available for this Application.",
                              timeout=3000)
@@ -328,21 +322,6 @@ class Base(Bindable):
         else:
             self.widget.state(["!selected"])
 
-    @property
-    def is_active(self):
-        if self.widget is None:
-            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
-        return self.widget.instate(['active'])
-
-    @is_active.setter
-    def is_active(self, value):
-        if self.widget is None:
-            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
-        if value:
-            self.widget.state(['active'])
-        else:
-            self.widget.state(['!active'])
-
     """
     Convenience setters/getters
     """
@@ -361,20 +340,10 @@ class Base(Bindable):
         self.is_disabled = True
 
     def select(self):
-        if self.widget is not None:
-            return self.widget.state(['selected'])
+        self.is_selected = True
 
     def deselect(self):
-        if self.widget is not None:
-            return self.widget.state(['!selected'])
-
-    def activate(self):
-        if self.widget is not None:
-            return self.widget.state(['active'])
-
-    def deactivate(self):
-        if self.widget is not None:
-            return self.widget.state(['!active'])
+        self.is_selected = False
 
     """
     Placing widgets in other widgets
@@ -564,7 +533,7 @@ class Dialog(Base):
     def assign_default_key_shortcuts(self):
         if Dialog.Replies.Ok in  self.buttons.keys() :
             self.widget.bind('<Return>', self.user_clicked_ok )
-            self.buttons[Dialog.Replies.Ok].widget.configure(default='active')
+            self.buttons[Dialog.Replies.Ok].set_as_default()
 
         self.widget.bind('<Escape>', self.user_clicked_cancel )
 
@@ -624,6 +593,54 @@ class View(Base):
             **self.debug_kwargs
         )
 
+class Button(Base):
+    def __init__(self, label="Button", default=False, width=None, user_event_callback=None):
+        Base.__init__(self)
+        self.initial_label = label
+        self.width = width
+        self.user_action_callback = user_event_callback
+        self.default = default
+    
+    @property
+    def label(self):
+        return self.value_variable.get()
+
+    @label.setter
+    def label(self, value):
+        return self.value_variable.set(value=value)
+    
+    def create_widget(self, master):
+        self.widget = ttk.Button(master, width=self.width, command=self.action_callback )
+        self.bind_textvariable(StringVar(value=self.initial_label))
+        # self.widget.bind("<ButtonRelease>", self.event_callback)
+        self.is_default = self.default
+
+    def action_callback(self):
+        if self.user_action_callback is not None:
+            try:
+                event = None
+                self.user_action_callback(event, self)
+            except Exception as err:
+                print(err)
+                pass
+
+    @property
+    def is_default(self):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
+        return self.widget.instate(["active"])
+
+    @is_default.setter
+    def is_default(self, value):
+        if self.widget is None:
+            raise Exception("You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement.")
+        if value:
+            self.widget.state(["active"])
+        else:
+            self.widget.state(["!active"])
+    
+    def set_as_default(self):
+        self.is_default = True
 
 class Checkbox(Base):
     def __init__(self, label="", user_callback=None):
@@ -693,27 +710,6 @@ class RadioButton(Base):
         super().observed_property_changed(observed_object, observed_property_name, new_value, context)
         if context == "radiobutton-changed":
             self.value_changed()
-
-
-class Button(Base):
-    def __init__(self, label="Button", width=None, user_event_callback=None):
-        Base.__init__(self)
-        self.label = label
-        self.width = width
-        self.user_event_callback = user_event_callback
-    
-    def create_widget(self, master):
-        self.widget = ttk.Button(master, text=self.label, width=self.width)
-        self.widget.bind("<ButtonRelease>", self.event_callback)
-
-    def event_callback(self, event):
-        if self.user_event_callback is not None:
-            try:
-                self.user_event_callback(event, self)
-            except Exception as err:
-                print(err)
-                pass
-
 
 class PopupMenu(Base):
     def __init__(self, menu_items=None, user_callback=None):
