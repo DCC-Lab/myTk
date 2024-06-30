@@ -186,9 +186,9 @@ class FilterDBApp(App):
         self.reveal_path(self.filepath_root)
 
     def copy_data(self, event, button):
-        install_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        ModulesManager.install_and_import_modules_if_absent(pip_modules={"pyperclip":"pyperclip"})
         try:
-            import pyperclip
+            pyperclip = ModulesManager.imported['pyperclip']
 
             for selected_item in self.filters.widget.selection():
                 item = self.filters.widget.item(selected_item)
@@ -274,6 +274,6 @@ class FilterDBApp(App):
 
 if __name__ == "__main__":
     package_app_script(__file__)    
-    install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
+    ModulesManager.validate_environment(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = FilterDBApp()    
     app.mainloop()
