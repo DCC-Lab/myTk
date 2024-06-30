@@ -8,11 +8,11 @@ class TestController(Bindable):
         self.to_property = None
         self.to_TkVariable = None
 
-class TestCheckbox(unittest.TestCase):
+class TestURLLabel(unittest.TestCase):
     def setUp(self):
         self.app = App()
         self.callback_called = False
-        self.ui_object = Checkbox(label="Test", user_callback=self.callback)
+        self.ui_object = URLLabel(text="Test", url="https://www.google.com")
 
     def tearDown(self):
         self.app.quit()
@@ -42,48 +42,34 @@ class TestCheckbox(unittest.TestCase):
         controller.to_property = False
         self.assertFalse(self.ui_object.is_selected)
 
-    def test_binding_label(self):
+    def test_binding_text(self):
         controller = TestController()
 
         self.ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-        self.ui_object.bind_properties('label', controller, 'to_property')
+        self.ui_object.bind_properties('text', controller, 'to_property')
 
         self.assertEqual(controller.to_property, "Test")
 
         controller.to_property = "Something"
-        self.assertEqual(self.ui_object.label, "Something")
-        self.ui_object.label = "Reverse"
+        self.assertEqual(self.ui_object.text, "Something")
+        self.ui_object.text = "Reverse"
         self.assertEqual(controller.to_property, "Reverse")
 
-    def callback(self, checkbox):
-        self.callback_called = True
-
-    def test_bare_callback(self):
-        self.assertFalse(self.callback_called)
-        self.callback(None)
-        self.assertTrue(self.callback_called)
-
-    def test_callback(self):
-        self.ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-
-        self.assertFalse(self.callback_called)
-        self.ui_object.widget.invoke()
-        self.assertTrue(self.callback_called)
-
-    def test_binding_value(self):
+    def test_binding_url(self):
         controller = TestController()
 
-        self.ui_object = Checkbox(label="Test")
         self.ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
-        self.ui_object.bind_properties('value', controller, 'to_property')
+        self.ui_object.bind_properties('url', controller, 'to_property')
 
-        self.assertEqual(controller.to_property, True)
-        self.ui_object.value = False
-        self.assertEqual(controller.to_property, False)
-        controller.to_property = True
-        self.assertEqual(self.ui_object.value, True)
-        controller.to_property = False
-        self.assertEqual(self.ui_object.value, False)
+        self.assertEqual(controller.to_property, "https://www.google.com")
+
+        controller.to_property = "Something"
+        self.assertEqual(self.ui_object.url, "Something")
+        self.ui_object.url = "Reverse"
+        self.assertEqual(controller.to_property, "Reverse")
+
+    def test_open_url(self):
+        self.ui_object.open_url()
 
 if __name__ == "__main__":
     unittest.main()
