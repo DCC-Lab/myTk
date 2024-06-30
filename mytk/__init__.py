@@ -30,7 +30,7 @@ from .controls import Slider
 from .canvasview import CanvasView
 from .indicators import NumericIndicator, BooleanIndicator, Level
 from .images import Image, DynamicImage, ImageWithGrid
-from .tableview import TableView
+from .tableview import TableView, TabularData
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
 

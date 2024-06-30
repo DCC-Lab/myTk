@@ -2,6 +2,9 @@ from tkinter import END
 import tkinter.ttk as ttk
 from .base import Base
 import json
+import uuid
+
+from .bindable import Bindable
 
 class TabularData(Bindable):
     def __init__(self, tableview=None):
