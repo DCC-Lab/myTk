@@ -312,7 +312,7 @@ class PyDatagraphApp(App):
 
 
     def copy_data(self, event, button):
-        install_modules_if_absent(modules={"pyperclip":"pyperclip"})
+        ModulesManager.install_modules_if_absent(modules={"pyperclip":"pyperclip"})
         try:
             import pyperclip
 
@@ -344,6 +344,6 @@ class PyDatagraphApp(App):
 
 if __name__ == "__main__":
     package_app_script(__file__)    
-    install_modules_if_absent(modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
+    ModulesManager.validate_environment(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
     app = PyDatagraphApp()    
     app.mainloop()
