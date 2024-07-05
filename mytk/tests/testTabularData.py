@@ -3,7 +3,7 @@ import unittest
 import os
 from mytk import *
 import tempfile
-
+import uuid
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
@@ -29,7 +29,7 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_insert_record(self):
         t = TabularData(delegate = self)
-        t.insert_record(0, {"a":1})
+        record = t.insert_record(0, {"a":1})
         self.assertEqual(t.record_count, 1)
         self.assertTrue(self.delegate_function_called)
     
@@ -103,15 +103,6 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertEqual(t.element(1,"a"), 4)
         self.assertTrue(self.delegate_function_called)
 
-    def test_update_field(self):
-        t = TabularData(delegate = self)
-        t.insert_record(0, {"a":1})
-        t.insert_record(1, {"a":2})
-        t.update_field("a", [3,4])
-        self.assertEqual(t.element(0,"a"), 3)
-        self.assertEqual(t.element(1,"a"), 4)
-        self.assertTrue(self.delegate_function_called)
-
     def test_fields(self):
         t = TabularData(delegate = self)
         t.insert_record(0, {"a":1, "b":2})
@@ -122,9 +113,11 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_uuid(self):
         t = TabularData(delegate = self)
-        t.insert_record(0, {"a":1, "b":2})
+        record = t.insert_record(0, {"a":1, "b":2})
         t.insert_record(1, {"a":2, "b":4})
-        self.assertEqual(len(t.field('__uuid')), 2)
+        self.assertIsNotNone(record.get('__uuid'))
+        self.assertTrue(isinstance(record['__uuid'], uuid.UUID))
+
         self.assertTrue(self.delegate_function_called)
 
     def test_delete_record_by_uuid(self):
@@ -201,9 +194,10 @@ class TestTabularDataSource(unittest.TestCase):
     def test_load_saved_data_json(self):
         t = TabularData(delegate = self)
         t.insert_record(0, {"a":1,"b":2})
-        t.insert_record(1, {"a":2,"c":3})
+        t.insert_record(1, {"a":2,"b":3})
         
         pre_records = t.records
+
         temp_filepath = "/tmp/test.json"
         t.save(temp_filepath)
 
@@ -211,7 +205,11 @@ class TestTabularDataSource(unittest.TestCase):
 
         t2.load(temp_filepath)
         post_records = t2.records
-        self.assertEqual(pre_records, post_records)
+
+        for field_name in ["a","b"]:
+            for i in range(len(t.records)):
+                self.assertEqual(pre_records[i][field_name], post_records[i][field_name])
+        
 
         os.unlink(temp_filepath)
         self.assertFalse(os.path.exists(temp_filepath))
@@ -235,6 +233,29 @@ class TestTabularDataSource(unittest.TestCase):
         fields = t.record_fields(internal=False)
         records = [  { key:record[key] for key in fields} for record in t.records ]
         self.assertEqual(records, expected_records)
+
+    def test_required_fields_ok(self):
+        t = TabularData(required_fields=['a','b'])
+        record = t.append_record({"a":1,"b":2})
+
+    def test_missing_fields(self):
+        t = TabularData(required_fields=['a','b'])
+        with self.assertRaises(TabularData.MissingField):
+            record = t.append_record({"a":1})
+
+    def test_too_many_fields(self):
+        t = TabularData(required_fields=['a','b'])
+        with self.assertRaises(TabularData.ExtraField):
+            record = t.append_record({"a":1,"b":1,"c":1})
+
+    def test_include_uuid_field(self):
+        t = TabularData(required_fields=['a','b'])
+        record = t.append_record({"__uuid":uuid.uuid4(), "a":1,"b":1})
+
+    def test_uuid_field_proper_type(self):
+        t = TabularData(required_fields=['a','b'])
+        record = t.append_record({"__uuid":uuid.uuid4(), "a":1,"b":1})
+        self.assertTrue(isinstance(record["__uuid"], uuid.UUID))
 
 if __name__ == "__main__":
     unittest.main()

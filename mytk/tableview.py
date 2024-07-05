@@ -4,20 +4,29 @@ from .base import Base
 import json
 import uuid
 import weakref 
+import collections
 
 from .bindable import Bindable
 
 class TabularData(Bindable):
-    def __init__(self, tableview=None, delegate=None):
+    class MissingField(Exception):
+        pass
+    class ExtraField(Exception):
+        pass
+
+    def __init__(self, tableview=None, delegate=None, required_fields=None):
         super().__init__()
         self.records = []
         self.field_properties = {}
+        self.delegate = None
+
         if tableview is not None:
             self.delegate = weakref.ref(tableview)
-        self._disable_change_calls = False
         if delegate is not None:
             self.delegate = weakref.ref(delegate)
-        self.field_order = None
+
+        self.required_fields = required_fields
+        self._disable_change_calls = False
 
     def disable_change_calls(self):
         self._disable_change_calls = True
@@ -56,13 +65,32 @@ class TabularData(Bindable):
         self.source_records_changed()
         return record
 
+    def _normalize_record(self, record):
+        if record.get('__uuid') is None:
+            record['__uuid'] = uuid.uuid4()
+        
+        if not isinstance(record['__uuid'], uuid.UUID):
+            record['__uuid'] = uuid.UUID(record['__uuid'])
+
+        if self.required_fields is not None:
+            all_required_fields = self.required_fields
+            all_required_fields.append("__uuid")
+
+            for field_name in all_required_fields:
+                if field_name not in record.keys():
+                    raise TabularData.MissingField(f'record is missing field: {field_name}')
+            for field_name in record.keys():
+                if field_name not in all_required_fields:
+                    raise TabularData.ExtraField(f'record has extra field: {field_name}')
+
+        return record
+
     def insert_record(self, index, values):
         if not isinstance(values, dict):
             raise RuntimeError('Pass dictionaries, not arrays')
 
-        if values.get('__uuid') is None:
-            values['__uuid'] = uuid.uuid4()
-        
+        values =  self._normalize_record(values)
+
         if index is None:
             index = len(self.records)
 
@@ -143,7 +171,7 @@ class TabularData(Bindable):
         serialized_records = []
         for record in self.records:
             serialized_record = record
-            serialized_record['__uuid'] = "{0}".format(record['__uuid'])
+            del serialized_record['__uuid'] # we don't save this internal field
             serialized_records.append(serialized_record)
         self.save_records_to_json(serialized_records, filepath)
 
@@ -178,8 +206,10 @@ class TabularData(Bindable):
 class TableView(Base):
     def __init__(self, columns_labels):
         Base.__init__(self)
+        if not isinstance(columns_labels, dict):
+            raise TypeError("column_labels must be a dictionary with {'column_name':'column_label'}")
         self.columns_labels = columns_labels
-        self.data_source = TabularData(tableview=self)
+        self.data_source = TabularData(tableview=self, required_fields=list(columns_labels.keys()))
         self.delegate = None
         self.default_format_string = "{0:.4f}"
 
