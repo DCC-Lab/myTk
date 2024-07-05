@@ -208,12 +208,37 @@ class TableView(Base):
         Base.__init__(self)
         if not isinstance(columns_labels, dict):
             raise TypeError("column_labels must be a dictionary with {'column_name':'column_label'}")
-        self.columns_labels = columns_labels
+        self._columns_labels = columns_labels # keep until widget created
         self.data_source = TabularData(tableview=self, required_fields=list(columns_labels.keys()))
         self.delegate = None
         self.default_format_string = "{0:.4f}"
 
+    @property
+    def columns(self):
+        if self.widget is not None:
+            return list(self.widget['columns'])
+        else:
+            return list(self._columns_labels.keys())
 
+    @property
+    def displaycolumns(self):
+        if self.widget is not None:
+            return list(self.widget['displaycolumns'])
+        else:
+            return list(self._columns_labels.keys())
+
+    @property
+    def headings(self):
+        headings = []
+        if self.widget is not None:
+            for column in self.columns:
+                treeview_heading = self.widget.heading(column)
+                headings.append(treeview_heading['text'])
+        else:
+            headings = list(self._columns_labels.values())
+
+        return headings
+    
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Treeview(
@@ -222,10 +247,10 @@ class TableView(Base):
             selectmode="browse",
             takefocus=True,
         )
-        self.widget.configure(columns=sorted(list(self.columns_labels.keys())))
-        self.widget.configure(displaycolumns=sorted(list(self.columns_labels.keys())))
 
-        for key, value in self.columns_labels.items():
+        self.widget.configure(columns=sorted(list(self._columns_labels.keys())))
+        self.widget.configure(displaycolumns=sorted(list(self._columns_labels.keys())))
+        for key, value in self._columns_labels.items():
             self.widget.heading(key, text=value)
 
         self.widget.bind("<Button>", self.click)
@@ -233,11 +258,10 @@ class TableView(Base):
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
     def source_data_changed(self, records):
-        self.clear_content()
+        self.clear_widget_content()
 
         for record in records:
-            # breakpoint()
-            values = [record.get(column, '') for column in self.widget['columns'] ]
+            values = [ record[column] for column in self.columns ]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -246,7 +270,6 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            # breakpoint()
             self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
 
         if self.delegate is not None:
@@ -256,18 +279,22 @@ class TableView(Base):
                 raise NotImplementedError("Delegate must implement table_data_changed()")
 
     def column_names(self):
-        return self.data_source.column_names()
+        return self.columns
 
     def clear(self):
         try:
             self.widget.configure(columns=(''))
             self.widget.configure(displaycolumn=(''))
+            for column in self.columns:
+                self.widget.heading(column, text="")
 
         except Exception as err:
             print(f"Configure {err}")
 
-    def clear_content(self):
-        self.widget.delete(*self.widget.get_children())
+    def clear_widget_content(self):
+        items_ids = self.widget.get_children()
+        self.widget.delete(*items_ids)
+        return items_ids
 
     def empty(self):
         self.clear_content()
@@ -358,7 +385,7 @@ class TableView(Base):
             items_sorted = sorted(items, key=lambda d: cast(d["values"][column_id - 1]))
 
             for item in items_sorted:
-                self.append(values=item["values"])
+                self.append_record(values=item["values"])
 
         return True
 

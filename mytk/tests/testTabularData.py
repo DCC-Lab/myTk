@@ -209,7 +209,6 @@ class TestTabularDataSource(unittest.TestCase):
         for field_name in ["a","b"]:
             for i in range(len(t.records)):
                 self.assertEqual(pre_records[i][field_name], post_records[i][field_name])
-        
 
         os.unlink(temp_filepath)
         self.assertFalse(os.path.exists(temp_filepath))

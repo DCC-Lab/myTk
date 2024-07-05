@@ -22,6 +22,10 @@ class App(Bindable):
     def root(self):
         return self.window.widget
 
+    @property
+    def is_running(self):
+        return self.root is not None
+        
     def check_requirements(self):
         mac_version = platform.mac_ver()[0]
         python_version = platform.python_version()
@@ -103,4 +107,6 @@ class App(Bindable):
                              timeout=3000)
 
     def quit(self):
-        self.root.quit()
+        if self.is_running:
+            self.window.widget.destroy()
+            self.window.widget = None

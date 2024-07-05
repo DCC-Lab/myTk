@@ -8,14 +8,17 @@ class TestController(Bindable):
         self.to_property = None
         self.to_TkVariable = None
 
-class TestCheckbox(unittest.TestCase):
+class TestView(unittest.TestCase):
     def setUp(self):
         self.app = App()
-        self.callback_called = False
         self.ui_object = View(width=100, height=100)
 
     def tearDown(self):
         self.app.quit()
+
+    def start_timed_mainloop(self, function, timeout=500):
+        self.app.root.after(int(timeout/4), function)
+        self.app.root.after(timeout, self.app.quit) # max 5 seconds
     
     def test_binding_is_enabled(self):
         controller = TestController()

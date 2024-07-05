@@ -5,10 +5,14 @@ from mytk import *
 # @unittest.skip("Requires interactions")
 class TestMyApp(unittest.TestCase):
     def setUp(self):
-        self.app = App(geometry="100x100")
+        self.app = App()
 
     def tearDown(self):
         self.app.quit()
+
+    def start_timed_mainloop(self, function, timeout=500):
+        self.app.root.after(int(timeout/4), function)
+        self.app.root.after(timeout, self.app.quit) # max 5 seconds
 
     def test_exists(self):  
         self.assertIsNotNone(self.app)
@@ -28,15 +32,15 @@ class TestMyApp(unittest.TestCase):
             self.app.save()
 
     def test_quit(self):
-        self.app.quit()
+        self.start_timed_mainloop(function=self.app.quit, timeout=100)
 
     def test_help_no_help(self):
         self.app.help_url = None
-        self.app.help()
+        self.start_timed_mainloop(function=self.app.help, timeout=100)
 
     def test_help_url_help(self):
         self.app.help_url = "http://www.google.com"
-        self.app.help()
+        self.start_timed_mainloop(function=self.app.help, timeout=100)
 
     def test_reveal(self):
         self.app.reveal_path("./")
