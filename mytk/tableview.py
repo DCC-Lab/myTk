@@ -8,14 +8,16 @@ import weakref
 from .bindable import Bindable
 
 class TabularData(Bindable):
-    def __init__(self, tableview=None):
+    def __init__(self, tableview=None, delegate=None):
         super().__init__()
         self.records = []
         self.field_properties = {}
-        self._tableview = None
         if tableview is not None:
-            self._tableview = weakref.ref(tableview)
+            self.delegate = weakref.ref(tableview)
         self._disable_change_calls = False
+        if delegate is not None:
+            self.delegate = weakref.ref(delegate)
+        self.field_order = None
 
     def disable_change_calls(self):
         self._disable_change_calls = True
@@ -36,6 +38,7 @@ class TabularData(Bindable):
             else:
                 visible_names = [name for name in list(record.keys()) if not name.startswith('__') ]
             fields.update(visible_names)
+
         return sorted(fields)
 
     def append_record(self, values):
@@ -94,11 +97,17 @@ class TabularData(Bindable):
         return [ record[name] for record in self.records]
 
     def element(self, index_or_uuid, name):
-        index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('__uuid').index(index_or_uuid) 
+        record = self.record(index_or_uuid)
 
-        return self.records[index][name]
+        return record[name]
+
+    def remove_field(self, name):
+        if name not in self.record_fields():
+            raise RuntimeError('field does not exist')
+
+        for record in self.records:
+            record.pop(name, None)
+        self.source_records_changed()
 
     def rename_field(self, old_name, new_name):
         if new_name in self.record_fields():
@@ -106,29 +115,29 @@ class TabularData(Bindable):
 
         for record in self.records:
             record[new_name] = record[old_name]
-            del record[old_name]        
+            record.pop(old_name, None)
         self.source_records_changed()
 
     def source_records_changed(self):
         if not self._disable_change_calls:
-            if self._tableview is not None:
-                self._tableview().source_data_changed(self.records)
+            if self.delegate is not None:
+                self.delegate().source_data_changed(self.records)
 
-    def load(self, filepath):
+    def load(self, filepath, disable_change_calls=False):
         records_from_file = self.load_records_from_json(filepath)
+
+        if disable_change_calls:
+            self.disable_change_calls()
 
         for record in records_from_file:
             self.insert_record(None, record)
 
+        if disable_change_calls:
+            self.enable_change_calls()
+
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
             return json.load(fp)
-
-    def copy_records_to_table_data(self, records):
-        for record in records:
-            ordered_values = [record.get(key, "") for key in self.column_names()]
-            self.append(ordered_values)
-        self.table_data_changed()
 
     def save(self, filepath):
         serialized_records = []
@@ -143,13 +152,16 @@ class TabularData(Bindable):
             json.dump(records, fp, indent=4, ensure_ascii=False)
 
     def load_tabular_data(self, filepath):
+        self.load_dataframe_from_tabular_data(filepath)
+
+    def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         import pandas
         if filepath.endswith('.csv'):
-            df = pandas.read_csv(filepath, sep=r"[\s+,]", engine='python')
+            df = pandas.read_csv(filepath, sep=r"[\s+,]", header=header_row, engine='python')
         elif filepath.endswith('.xls') or filepath.endswith('.xlsx'):
-            df = pandas.read_excel(filepath, header=None)
+            df = pandas.read_excel(filepath, header=header_row)
         else:
-            raise LogicError(f'Format not recognized: {filepath}')
+            raise Exception(f'Format not recognized: {filepath}')
 
         return df
 
@@ -195,7 +207,7 @@ class TableView(Base):
 
         for record in records:
             # breakpoint()
-            values = [record.get(column, '') for column in self.widget['displaycolumns'] ]
+            values = [record.get(column, '') for column in self.widget['columns'] ]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -211,7 +223,10 @@ class TableView(Base):
             try:
                 self.delegate.table_data_changed()
             except:
-                pass
+                raise NotImplementedError("Delegate must implement table_data_changed()")
+
+    def column_names(self):
+        return self.data_source.column_names()
 
     def clear(self):
         try:
