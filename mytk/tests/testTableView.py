@@ -72,10 +72,12 @@ class TestTableview(unittest.TestCase):
         self.tableview.data_source.append_record({"a":"value a","c":"value b"})
 
     def add_many_records(self):
+        self.tableview.data_source.disable_change_calls()
         for i in range(3):
             a = random.random()
             b = random.random()
             self.tableview.data_source.append_record({"a":f"value a{a}","b":b})
+        self.tableview.data_source.enable_change_calls()
 
     def test_show_tableview(self):
         self.tableview = TableView({"a":"Column A","b":"Column B"})
@@ -101,7 +103,6 @@ class TestTableview(unittest.TestCase):
 
         self.app.root.after(100, self.add_many_records)
         self.app.root.after(150, self.tableview.clear_widget_content)
-        # self.tableview.widget.after(200, self.subtest_validate_clear_tableview)
         self.app.root.after(500, self.app.quit)
         self.app.mainloop()
 
@@ -218,7 +219,7 @@ class TestTableview(unittest.TestCase):
         self.tableview.grid_into(self.app.window)
 
         self.tableview.widget.after(100, self.add_change)
-        self.tableview.widget.after(4000, self.app.quit)
+        self.tableview.widget.after(500, self.app.quit)
 
         self.app.mainloop()
 

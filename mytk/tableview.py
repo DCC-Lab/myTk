@@ -204,6 +204,9 @@ class TabularData(Bindable):
         self.enable_change_calls()
 
 class TableView(Base):
+    class DelegateError(Exception):
+        pass
+
     def __init__(self, columns_labels):
         Base.__init__(self)
         if not isinstance(columns_labels, dict):
@@ -315,16 +318,15 @@ class TableView(Base):
             try:
                 keep_running = self.delegate.selection_changed(event, self)
             except Exception as err:
-                print(err)
-                pass
+                raise TableView.DelegateError(err)
 
     def click(self, event) -> bool:
         keep_running = True
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.click(event, self)
-            except:
-                pass
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -345,8 +347,8 @@ class TableView(Base):
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.click_cell(item_id, column_id, item_dict, self)
-            except:
-                pass
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             value = item_dict["values"][column_id - 1]
@@ -398,8 +400,8 @@ class TableView(Base):
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.click_header(column_id, self)
-            except:
-                pass
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             if self.is_column_sorted(column_id) == "<":
@@ -417,8 +419,8 @@ class TableView(Base):
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.doubleclick(event, self)
-            except:
-                pass
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -450,13 +452,13 @@ class TableView(Base):
                     keep_running = self.delegate.doubleclick_cell(
                         item_id, column_id, item_dict, self
                     )
-                except:
-                    pass
+                except Exception as err:
+                    raise TableView.DelegateError(err)
 
     def doubleclick_header(self, column_id):
         keep_running = True
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
-            except:
-                pass
+            except Exception as err:
+                raise TableView.DelegateError(err)
