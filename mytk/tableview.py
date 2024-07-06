@@ -220,6 +220,12 @@ class TableView(Base):
         else:
             return list(self._columns_labels.keys())
 
+    def column_info(self, cid):
+        if self.widget is not None:
+            return self.widget.column(cid)
+        else:
+            return None
+
     @property
     def displaycolumns(self):
         if self.widget is not None:
@@ -227,6 +233,10 @@ class TableView(Base):
         else:
             return list(self._columns_labels.keys())
 
+    @displaycolumns.setter
+    def displaycolumns(self, values):
+        self.widget['displaycolumns'] = values
+    
     @property
     def headings(self):
         headings = []
@@ -238,6 +248,18 @@ class TableView(Base):
             headings = list(self._columns_labels.values())
 
         return headings
+
+    def heading_info(self, cid):
+        if self.widget is not None:
+            return self.widget.heading(cid)
+        else:
+            return None
+
+    def item_info(self, iid):
+        if self.widget is not None:
+            return self.widget.item(iid)
+        else:
+            return None
     
     def create_widget(self, master):
         self.parent = master
@@ -258,10 +280,11 @@ class TableView(Base):
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
     def source_data_changed(self, records):
-        self.clear_widget_content()
+        items_ids = self.clear_widget_content()
 
         for record in records:
             values = [ record[column] for column in self.columns ]
+            iid = record["__uuid"]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -274,22 +297,9 @@ class TableView(Base):
 
         if self.delegate is not None:
             try:
-                self.delegate.table_data_changed()
+                self.delegate.source_data_changed()
             except:
-                raise NotImplementedError("Delegate must implement table_data_changed()")
-
-    def column_names(self):
-        return self.columns
-
-    def clear(self):
-        try:
-            self.widget.configure(columns=(''))
-            self.widget.configure(displaycolumn=(''))
-            for column in self.columns:
-                self.widget.heading(column, text="")
-
-        except Exception as err:
-            print(f"Configure {err}")
+                raise NotImplementedError("Delegate must implement source_data_changed()")
 
     def clear_widget_content(self):
         items_ids = self.widget.get_children()
@@ -297,7 +307,7 @@ class TableView(Base):
         return items_ids
 
     def empty(self):
-        self.clear_content()
+        self.clear_widget_content()
 
     def selection_changed(self, event):
         keep_running = True
@@ -308,21 +318,11 @@ class TableView(Base):
                 print(err)
                 pass
 
-    def table_data_changed(self):
-        keep_running = True
-        if self.delegate is not None:
-            try:
-                keep_running = self.delegate.table_data_changed(self)
-            except AttributeError:
-                pass
-            except Exception as err:
-                print(type(err))
-
     def click(self, event) -> bool:
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click(event)
+                keep_running = self.delegate.click(event, self)
             except:
                 pass
 
@@ -344,7 +344,7 @@ class TableView(Base):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click_cell(item_id, column_id, item_dict)
+                keep_running = self.delegate.click_cell(item_id, column_id, item_dict, self)
             except:
                 pass
 
@@ -357,35 +357,58 @@ class TableView(Base):
 
         return True
 
+    def is_column_sorted(self, column_id):
+        original_items_ids = list(self.widget.get_children())
+        sorted_items_ids = list(self.sort_column(column_id, reverse = False))
+        sorted_items_ids_reverse = list(self.sort_column(column_id, reverse = True))
+
+        if sorted_items_ids == original_items_ids:
+            return "<"
+        elif sorted_items_ids_reverse == original_items_ids:
+            return ">"
+        else:
+            return None
+
+    def sort_column(self, column_id, reverse = False):
+        items_ids = self.widget.get_children()
+
+        items = []
+        cast = float
+        for item_id in items_ids:
+            item_dict = self.widget.item(item_id)
+
+            values = [item_id]
+            values.extend(item_dict["values"])
+
+            try:
+                cast(values[column_id])
+            except Exception as err:
+                cast = str
+            items.append(values)
+
+        items_sorted = list(sorted(items, key=lambda e: cast(e[column_id]) ))
+        if reverse:
+            items_sorted = reversed(items_sorted)
+
+        columns_sorted = list(zip(*items_sorted))
+        return list(columns_sorted[0])
+
     def click_header(self, column_id):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click_header(column_id)
+                keep_running = self.delegate.click_header(column_id, self)
             except:
                 pass
 
         if keep_running:
-            items_ids = self.widget.get_children()
-            self.widget.detach(*items_ids)
+            if self.is_column_sorted(column_id) == "<":
+                items_ids_sorted = self.sort_column(column_id, reverse = True)
+            else:
+                items_ids_sorted = self.sort_column(column_id, reverse = False)
 
-            items = []
-
-            cast = float
-            for item_id in items_ids:
-                item_dict = self.widget.item(item_id)
-                value = None
-                try:
-                    value = item_dict["values"][column_id - 1]
-                    cast(value)
-                except Exception as err:
-                    cast = str
-                items.append(item_dict)
-
-            items_sorted = sorted(items, key=lambda d: cast(d["values"][column_id - 1]))
-
-            for item in items_sorted:
-                self.append_record(values=item["values"])
+            for i, item_id in enumerate(items_ids_sorted):
+                self.widget.move(item_id, "", i)
 
         return True
 
@@ -393,7 +416,7 @@ class TableView(Base):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.doubleclick(event)
+                keep_running = self.delegate.doubleclick(event, self)
             except:
                 pass
 
@@ -425,7 +448,7 @@ class TableView(Base):
             if self.delegate is not None:
                 try:
                     keep_running = self.delegate.doubleclick_cell(
-                        item_id, column_id, item_dict
+                        item_id, column_id, item_dict, self
                     )
                 except:
                     pass
@@ -434,6 +457,6 @@ class TableView(Base):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.doubleclick_cell(item_id, column_id)
+                keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
             except:
                 pass
