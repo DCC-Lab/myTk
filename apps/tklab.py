@@ -1,5 +1,6 @@
+import envapp
 from mytk import *
-from tkinter import filedialog
+from tkinter import filedialog, DoubleVar
 import os
 import csv
 
@@ -21,15 +22,15 @@ class StageControllerView(View):
         )
         self.label1 = Label("Position")
         self.label1.grid_into(self.info, row=0, column=0, padx=10, pady=5, sticky="nw")
-        self.position_x = DoubleIndicator()
+        self.position_x = NumericIndicator()
         self.position_x.grid_into(
             self.info, row=0, column=1, padx=10, pady=5, sticky="nw"
         )
-        self.position_y = DoubleIndicator()
+        self.position_y = NumericIndicator()
         self.position_y.grid_into(
             self.info, row=0, column=2, padx=10, pady=5, sticky="nw"
         )
-        self.position_z = DoubleIndicator()
+        self.position_z = NumericIndicator()
         self.position_z.grid_into(
             self.info, row=0, column=3, padx=10, pady=5, sticky="nw"
         )

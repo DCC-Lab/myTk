@@ -4,17 +4,39 @@ from .base import Base
 import json
 import uuid
 import weakref 
+import collections
+from contextlib import contextmanager
 
 from .bindable import Bindable
 
+class PostponeChangeCalls:
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def __enter__(self):
+        self.data_source.disable_change_calls()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.data_source.enable_change_calls()
+
 class TabularData(Bindable):
-    def __init__(self, tableview=None):
+    class MissingField(Exception):
+        pass
+    class ExtraField(Exception):
+        pass
+
+    def __init__(self, tableview=None, delegate=None, required_fields=None):
         super().__init__()
         self.records = []
         self.field_properties = {}
-        self._tableview = None
+        self.delegate = None
+
         if tableview is not None:
-            self._tableview = weakref.ref(tableview)
+            self.delegate = weakref.ref(tableview)
+        if delegate is not None:
+            self.delegate = weakref.ref(delegate)
+
+        self.required_fields = required_fields
         self._disable_change_calls = False
 
     def disable_change_calls(self):
@@ -36,6 +58,7 @@ class TabularData(Bindable):
             else:
                 visible_names = [name for name in list(record.keys()) if not name.startswith('__') ]
             fields.update(visible_names)
+
         return sorted(fields)
 
     def append_record(self, values):
@@ -53,13 +76,32 @@ class TabularData(Bindable):
         self.source_records_changed()
         return record
 
+    def _normalize_record(self, record):
+        if record.get('__uuid') is None:
+            record['__uuid'] = uuid.uuid4()
+        
+        if not isinstance(record['__uuid'], uuid.UUID):
+            record['__uuid'] = uuid.UUID(record['__uuid'])
+
+        if self.required_fields is not None:
+            all_required_fields = self.required_fields
+            all_required_fields.append("__uuid")
+
+            for field_name in all_required_fields:
+                if field_name not in record.keys():
+                    raise TabularData.MissingField(f'record is missing field: {field_name}')
+            for field_name in record.keys():
+                if field_name not in all_required_fields:
+                    raise TabularData.ExtraField(f'record has extra field: {field_name}')
+
+        return record
+
     def insert_record(self, index, values):
         if not isinstance(values, dict):
             raise RuntimeError('Pass dictionaries, not arrays')
 
-        if values.get('__uuid') is None:
-            values['__uuid'] = uuid.uuid4()
-        
+        values =  self._normalize_record(values)
+
         if index is None:
             index = len(self.records)
 
@@ -94,11 +136,17 @@ class TabularData(Bindable):
         return [ record[name] for record in self.records]
 
     def element(self, index_or_uuid, name):
-        index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('__uuid').index(index_or_uuid) 
+        record = self.record(index_or_uuid)
 
-        return self.records[index][name]
+        return record[name]
+
+    def remove_field(self, name):
+        if name not in self.record_fields():
+            raise RuntimeError('field does not exist')
+
+        for record in self.records:
+            record.pop(name, None)
+        self.source_records_changed()
 
     def rename_field(self, old_name, new_name):
         if new_name in self.record_fields():
@@ -106,35 +154,29 @@ class TabularData(Bindable):
 
         for record in self.records:
             record[new_name] = record[old_name]
-            del record[old_name]        
+            record.pop(old_name, None)
         self.source_records_changed()
 
     def source_records_changed(self):
         if not self._disable_change_calls:
-            if self._tableview is not None:
-                self._tableview().source_data_changed(self.records)
+            if self.delegate is not None:
+                self.delegate().source_data_changed(self.records)
 
-    def load(self, filepath):
+    def load(self, filepath, disable_change_calls=False):
         records_from_file = self.load_records_from_json(filepath)
-
-        for record in records_from_file:
-            self.insert_record(None, record)
+        with PostponeChangeCalls(self):
+            for record in records_from_file:
+                self.insert_record(None, record)
 
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
             return json.load(fp)
 
-    def copy_records_to_table_data(self, records):
-        for record in records:
-            ordered_values = [record.get(key, "") for key in self.column_names()]
-            self.append(ordered_values)
-        self.table_data_changed()
-
     def save(self, filepath):
         serialized_records = []
         for record in self.records:
             serialized_record = record
-            serialized_record['__uuid'] = "{0}".format(record['__uuid'])
+            del serialized_record['__uuid'] # we don't save this internal field
             serialized_records.append(serialized_record)
         self.save_records_to_json(serialized_records, filepath)
 
@@ -143,35 +185,90 @@ class TabularData(Bindable):
             json.dump(records, fp, indent=4, ensure_ascii=False)
 
     def load_tabular_data(self, filepath):
+        self.load_dataframe_from_tabular_data(filepath)
+
+    def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         import pandas
         if filepath.endswith('.csv'):
-            df = pandas.read_csv(filepath, sep=r"[\s+,]", engine='python')
+            df = pandas.read_csv(filepath, sep=r"[\s+,]", header=header_row, engine='python')
         elif filepath.endswith('.xls') or filepath.endswith('.xlsx'):
-            df = pandas.read_excel(filepath, header=None)
+            df = pandas.read_excel(filepath, header=header_row)
         else:
-            raise LogicError(f'Format not recognized: {filepath}')
+            raise Exception(f'Format not recognized: {filepath}')
 
         return df
 
     def set_records_from_dataframe(self, df):
         fields = df.columns.to_list()
 
-        self.disable_change_calls()
-
-        for row in df.to_dict(orient='records'):
-            self.append_record(row)
-
-        self.enable_change_calls()
+        with PostponeChangeCalls(self):
+            for row in df.to_dict(orient='records'):
+                self.append_record(row)
 
 class TableView(Base):
+    class DelegateError(Exception):
+        pass
+
+    class WidgetNotYetCreated(Exception):
+        pass
+
     def __init__(self, columns_labels):
         Base.__init__(self)
-        self.columns_labels = columns_labels
-        self.data_source = TabularData(tableview=self)
+        if not isinstance(columns_labels, dict):
+            raise TypeError("column_labels must be a dictionary with {'column_name':'column_label'}")
+        self._columns_labels = columns_labels # keep until widget created
+        self.data_source = TabularData(tableview=self, required_fields=list(columns_labels.keys()))
         self.delegate = None
         self.default_format_string = "{0:.4f}"
 
+    @property
+    def columns(self):
+        if self.widget is not None:
+            return list(self.widget['columns'])
+        else:
+            return list(self._columns_labels.keys())
 
+    def column_info(self, cid):
+        if self.widget is not None:
+            return self.widget.column(cid)
+        else:
+            raise TableView.WidgetNotYetCreated()
+
+    @property
+    def displaycolumns(self):
+        if self.widget is not None:
+            return list(self.widget['displaycolumns'])
+        else:
+            return list(self._columns_labels.keys())
+
+    @displaycolumns.setter
+    def displaycolumns(self, values):
+        self.widget['displaycolumns'] = values
+    
+    @property
+    def headings(self):
+        headings = []
+        if self.widget is not None:
+            for column in self.columns:
+                treeview_heading = self.widget.heading(column)
+                headings.append(treeview_heading['text'])
+        else:
+            headings = list(self._columns_labels.values())
+
+        return headings
+
+    def heading_info(self, cid):
+        if self.widget is not None:
+            return self.widget.heading(cid)
+        else:
+            raise TableView.WidgetNotYetCreated()
+
+    def item_info(self, iid):
+        if self.widget is not None:
+            return self.widget.item(iid)
+        else:
+            raise TableView.WidgetNotYetCreated()
+    
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Treeview(
@@ -180,10 +277,10 @@ class TableView(Base):
             selectmode="browse",
             takefocus=True,
         )
-        self.widget.configure(columns=sorted(list(self.columns_labels.keys())))
-        self.widget.configure(displaycolumns=sorted(list(self.columns_labels.keys())))
 
-        for key, value in self.columns_labels.items():
+        self.widget.configure(columns=sorted(list(self._columns_labels.keys())))
+        self.widget.configure(displaycolumns=sorted(list(self._columns_labels.keys())))
+        for key, value in self._columns_labels.items():
             self.widget.heading(key, text=value)
 
         self.widget.bind("<Button>", self.click)
@@ -191,11 +288,11 @@ class TableView(Base):
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
     def source_data_changed(self, records):
-        self.clear_content()
+        items_ids = self.clear_widget_content()
 
         for record in records:
-            # breakpoint()
-            values = [record.get(column, '') for column in self.widget['displaycolumns'] ]
+            values = [ record[column] for column in self.columns ]
+            iid = record["__uuid"]
             
             formatted_values = []
             for i, value in enumerate(values):
@@ -204,28 +301,21 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            # breakpoint()
             self.widget.insert("", END, iid=record['__uuid'], values=formatted_values)
 
         if self.delegate is not None:
             try:
-                self.delegate.table_data_changed()
+                self.delegate.source_data_changed()
             except:
-                pass
+                raise NotImplementedError("Delegate must implement source_data_changed()")
 
-    def clear(self):
-        try:
-            self.widget.configure(columns=(''))
-            self.widget.configure(displaycolumn=(''))
-
-        except Exception as err:
-            print(f"Configure {err}")
-
-    def clear_content(self):
-        self.widget.delete(*self.widget.get_children())
+    def clear_widget_content(self):
+        items_ids = self.widget.get_children()
+        self.widget.delete(*items_ids)
+        return items_ids
 
     def empty(self):
-        self.clear_content()
+        self.clear_widget_content()
 
     def selection_changed(self, event):
         keep_running = True
@@ -233,26 +323,15 @@ class TableView(Base):
             try:
                 keep_running = self.delegate.selection_changed(event, self)
             except Exception as err:
-                print(err)
-                pass
+                raise TableView.DelegateError(err)
 
-    def table_data_changed(self):
+    def click(self, event) -> bool: # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.table_data_changed(self)
-            except AttributeError:
-                pass
+                keep_running = self.delegate.click(event, self)
             except Exception as err:
-                print(type(err))
-
-    def click(self, event) -> bool:
-        keep_running = True
-        if self.delegate is not None:
-            try:
-                keep_running = self.delegate.click(event)
-            except:
-                pass
+                raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -266,15 +345,15 @@ class TableView(Base):
 
         return True
 
-    def click_cell(self, item_id, column_id):
+    def click_cell(self, item_id, column_id): # pragma: no cover
         item_dict = self.widget.item(item_id)
 
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click_cell(item_id, column_id, item_dict)
-            except:
-                pass
+                keep_running = self.delegate.click_cell(item_id, column_id, item_dict, self)
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             value = item_dict["values"][column_id - 1]
@@ -285,45 +364,68 @@ class TableView(Base):
 
         return True
 
+    def is_column_sorted(self, column_id):
+        original_items_ids = list(self.widget.get_children())
+        sorted_items_ids = list(self.sort_column(column_id, reverse = False))
+        sorted_items_ids_reverse = list(self.sort_column(column_id, reverse = True))
+
+        if sorted_items_ids == original_items_ids:
+            return "<"
+        elif sorted_items_ids_reverse == original_items_ids:
+            return ">"
+        else:
+            return None
+
+    def sort_column(self, column_id, reverse = False):
+        items_ids = self.widget.get_children()
+
+        items = []
+        cast = float
+        for item_id in items_ids:
+            item_dict = self.widget.item(item_id)
+
+            values = [item_id]
+            values.extend(item_dict["values"])
+
+            try:
+                cast(values[column_id])
+            except Exception as err:
+                cast = str
+            items.append(values)
+
+        items_sorted = list(sorted(items, key=lambda e: cast(e[column_id]) ))
+        if reverse:
+            items_sorted = reversed(items_sorted)
+
+        columns_sorted = list(zip(*items_sorted))
+        return list(columns_sorted[0])
+
     def click_header(self, column_id):
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.click_header(column_id)
-            except:
-                pass
+                keep_running = self.delegate.click_header(column_id, self)
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
-            items_ids = self.widget.get_children()
-            self.widget.detach(*items_ids)
+            if self.is_column_sorted(column_id) == "<":
+                items_ids_sorted = self.sort_column(column_id, reverse = True)
+            else:
+                items_ids_sorted = self.sort_column(column_id, reverse = False)
 
-            items = []
-
-            cast = float
-            for item_id in items_ids:
-                item_dict = self.widget.item(item_id)
-                value = None
-                try:
-                    value = item_dict["values"][column_id - 1]
-                    cast(value)
-                except Exception as err:
-                    cast = str
-                items.append(item_dict)
-
-            items_sorted = sorted(items, key=lambda d: cast(d["values"][column_id - 1]))
-
-            for item in items_sorted:
-                self.append(values=item["values"])
+            for i, item_id in enumerate(items_ids_sorted):
+                self.widget.move(item_id, "", i)
 
         return True
 
-    def doubleclick(self, event) -> bool:
+    def doubleclick(self, event) -> bool: # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.doubleclick(event)
-            except:
-                pass
+                keep_running = self.delegate.doubleclick(event, self)
+            except Exception as err:
+                raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -353,15 +455,27 @@ class TableView(Base):
             if self.delegate is not None:
                 try:
                     keep_running = self.delegate.doubleclick_cell(
-                        item_id, column_id, item_dict
+                        item_id, column_id, item_dict, self
                     )
-                except:
-                    pass
+                except Exception as err:
+                    raise TableView.DelegateError(err)
 
-    def doubleclick_header(self, column_id):
+    def doubleclick_header(self, column_id): # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
-                keep_running = self.delegate.doubleclick_cell(item_id, column_id)
-            except:
-                pass
+                keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
+            except Exception as err:
+                raise TableView.DelegateError(err)
+
+
+
+# class postponed_change_calls(ContextDecorator):
+#     def __enter__(self, data_source):
+#         print("Entering")
+#         return self
+
+#     def __exit__(self, *exc):
+#         data_source.change_calls_enabled()
+#         print("exiting")
+#         return False

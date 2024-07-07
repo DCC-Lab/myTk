@@ -72,13 +72,13 @@ The real difficulty is to understand the Layout managers of Tkinter.
 
 ### Example 1: Demo of capabilities
 The myTk code includes an example:
-![image-20240315114040659](./README.assets/image-20240315114040659.png)
+![image-20240315114040659](./README.assets/example-ui.png)
 
 ### A filter database
 
 The following filter database was created with **myTk**.  As it is, it gets the data from our web server, but the code can be changed to use a local file. If you run it, it will work with our database.
 
-![image-20240315114209432](./README.assets/image-20240315114209432.png)
+![image-20240315114209432](./README.assets/filter_database.png)
 
 ```python
 from mytk import *
@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
 The following interface to the module ["Raytracing"](https://github.com/DCC-Lab/RayTracing) was created with **myTk**.  It shows a list of lenses with their properties in a Tableview, clicking on the headers will sort the rows, clicking on a link will open the URL
 in a browser.  The figures underneath will reflect the properties of the selected item.
-<img width="1451" alt="image" src="https://github.com/DCC-Lab/myTk/assets/14200944/c5c127cd-5894-49c2-a3f1-76ee4d2c015a">
+<img width="1451" alt="image" src="./README.assets/filter_database.png">
 
 The code that generates this application is the following:
 ```python

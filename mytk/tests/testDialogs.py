@@ -5,8 +5,15 @@ from mytk import *
 
 class TestDialog(unittest.TestCase):
     def setUp(self):
+        self.app = App()
         self.timeout = 300
-        # Base.debug = True
+
+    def tearDown(self):
+        self.app.quit()
+
+    def start_timed_mainloop(self, function, timeout=500):
+        self.app.root.after(int(timeout/4), function)
+        self.app.root.after(timeout, self.app.quit) # max 5 seconds
 
     def test_run_ok_cancel(self):
         self.diag = Dialog(dialog_type = 'warning',
@@ -14,6 +21,7 @@ class TestDialog(unittest.TestCase):
                            message="Do you want to quit? Like, for real, just Click Ok. Or Cancel.", 
                            buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
                            timeout=self.timeout)
+
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Timedout)
 

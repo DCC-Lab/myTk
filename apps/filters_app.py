@@ -25,7 +25,7 @@ class FilterDBApp(App):
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.filters = TableView(columns={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","url":"URL", "spectral_x":"Wavelength", "spectral_y":"Transmission"})
+        self.filters = TableView(columns_labels={"part_number":"Part number", "description":"Description","dimensions":"Dimensions","supplier":"Supplier","filename":"Filename","url":"URL", "spectral_x":"Wavelength", "spectral_y":"Transmission"})
         self.filters.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.filters.widget['displaycolumn']=["part_number","description","dimensions", "supplier","filename","url"]
 
@@ -35,7 +35,7 @@ class FilterDBApp(App):
         self.filters.widget.column(column=3, width=70)
         self.filters.delegate = self
 
-        self.filter_data = TableView(columns={"wavelength":"Wavelength", "transmission":"Transmission"})
+        self.filter_data = TableView(columns_labels={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nsew')
         self.filter_data.widget.column(column=0, width=70)
         
@@ -71,7 +71,7 @@ class FilterDBApp(App):
                 self.filters.save(filepath)
 
 
-        self.filters.load(filepath)
+        self.filters.data_source.load(filepath)
 
     def get_files_from_web(self):
         install_modules_if_absent(modules={"requests":"requests"})
