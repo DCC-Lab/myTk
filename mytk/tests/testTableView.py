@@ -202,6 +202,11 @@ class TestTableview(unittest.TestCase):
         self.assertIsNotNone(hinfo["command"])
         self.assertIsNotNone(hinfo["state"])
 
+    def test_heading_info_no_widget(self):
+        self.tableview = TableView({"a":"Column A","b":"Column B"})
+        with self.assertRaises(TableView.WidgetNotYetCreated):
+            hinfo = self.tableview.heading_info("a")
+
     def test_item_info(self):
         self.tableview = TableView({"a":"Column A","b":"Column B"})
         self.tableview.grid_into(self.app.window)
@@ -214,6 +219,12 @@ class TestTableview(unittest.TestCase):
         self.assertIsNotNone(iinfo["open"])
         self.assertIsNotNone(iinfo["tags"])
 
+    def test_item_info_no_widget(self):
+        self.tableview = TableView({"a":"Column A","b":"Column B"})
+
+        with self.assertRaises(TableView.WidgetNotYetCreated):
+            iinfo = self.tableview.item_info("abc")
+
     def test_item_modification(self):
         self.tableview = TableView({"a":"Column A","b":"Column B"})
         self.tableview.grid_into(self.app.window)
@@ -222,6 +233,13 @@ class TestTableview(unittest.TestCase):
         self.tableview.widget.after(500, self.app.quit)
 
         self.app.mainloop()
+
+    def test_impossible_to_change_column(self):
+        self.tableview = TableView({"a":"Column A","b":"Column B"})
+        self.tableview.grid_into(self.app.window)
+
+        with self.assertRaises(Exception):
+            self.tableview.widget["columns"] = ("c","d","e")
 
     def add_change(self):
         record = self.tableview.data_source.append_record({"a":"value a","b":"value b"})

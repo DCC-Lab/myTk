@@ -5,8 +5,19 @@ import json
 import uuid
 import weakref 
 import collections
+from contextlib import contextmanager
 
 from .bindable import Bindable
+
+class PostponeChangeCalls:
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def __enter__(self):
+        self.data_source.disable_change_calls()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.data_source.enable_change_calls()
 
 class TabularData(Bindable):
     class MissingField(Exception):
@@ -153,15 +164,9 @@ class TabularData(Bindable):
 
     def load(self, filepath, disable_change_calls=False):
         records_from_file = self.load_records_from_json(filepath)
-
-        if disable_change_calls:
-            self.disable_change_calls()
-
-        for record in records_from_file:
-            self.insert_record(None, record)
-
-        if disable_change_calls:
-            self.enable_change_calls()
+        with PostponeChangeCalls(self):
+            for record in records_from_file:
+                self.insert_record(None, record)
 
     def load_records_from_json(self, filepath):
         with open(filepath,"r") as fp:
@@ -196,15 +201,15 @@ class TabularData(Bindable):
     def set_records_from_dataframe(self, df):
         fields = df.columns.to_list()
 
-        self.disable_change_calls()
-
-        for row in df.to_dict(orient='records'):
-            self.append_record(row)
-
-        self.enable_change_calls()
+        with PostponeChangeCalls(self):
+            for row in df.to_dict(orient='records'):
+                self.append_record(row)
 
 class TableView(Base):
     class DelegateError(Exception):
+        pass
+
+    class WidgetNotYetCreated(Exception):
         pass
 
     def __init__(self, columns_labels):
@@ -227,7 +232,7 @@ class TableView(Base):
         if self.widget is not None:
             return self.widget.column(cid)
         else:
-            return None
+            raise TableView.WidgetNotYetCreated()
 
     @property
     def displaycolumns(self):
@@ -256,13 +261,13 @@ class TableView(Base):
         if self.widget is not None:
             return self.widget.heading(cid)
         else:
-            return None
+            raise TableView.WidgetNotYetCreated()
 
     def item_info(self, iid):
         if self.widget is not None:
             return self.widget.item(iid)
         else:
-            return None
+            raise TableView.WidgetNotYetCreated()
     
     def create_widget(self, master):
         self.parent = master
@@ -320,7 +325,7 @@ class TableView(Base):
             except Exception as err:
                 raise TableView.DelegateError(err)
 
-    def click(self, event) -> bool:
+    def click(self, event) -> bool: # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
@@ -340,7 +345,7 @@ class TableView(Base):
 
         return True
 
-    def click_cell(self, item_id, column_id):
+    def click_cell(self, item_id, column_id): # pragma: no cover
         item_dict = self.widget.item(item_id)
 
         keep_running = True
@@ -414,7 +419,7 @@ class TableView(Base):
 
         return True
 
-    def doubleclick(self, event) -> bool:
+    def doubleclick(self, event) -> bool: # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
@@ -455,10 +460,22 @@ class TableView(Base):
                 except Exception as err:
                     raise TableView.DelegateError(err)
 
-    def doubleclick_header(self, column_id):
+    def doubleclick_header(self, column_id): # pragma: no cover
         keep_running = True
         if self.delegate is not None:
             try:
                 keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
             except Exception as err:
                 raise TableView.DelegateError(err)
+
+
+
+# class postponed_change_calls(ContextDecorator):
+#     def __enter__(self, data_source):
+#         print("Entering")
+#         return self
+
+#     def __exit__(self, *exc):
+#         data_source.change_calls_enabled()
+#         print("exiting")
+#         return False

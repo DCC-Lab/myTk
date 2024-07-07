@@ -163,6 +163,12 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertEqual(t.records[1]['b'], 2)
         self.assertTrue(self.delegate_function_called)
 
+    def test_rename_field_error(self):
+        t = TabularData(delegate = self)
+        t.insert_record(0, {"a":1,"b":1})
+        with self.assertRaises(RuntimeError):
+            t.rename_field("a","b")
+
     def test_insert_with_disabled_source_data_changed(self):
         t = TabularData(delegate = self)
         t.disable_change_calls()
