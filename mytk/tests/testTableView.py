@@ -234,16 +234,19 @@ class TestTableview(unittest.TestCase):
 
         self.app.mainloop()
 
-    def test_impossible_to_change_column(self):
+    def test_impossible_to_change_column_after_setting_them(self):
         self.tableview = TableView({"a":"Column A","b":"Column B"})
         self.tableview.grid_into(self.app.window)
 
         with self.assertRaises(Exception):
             self.tableview.widget["columns"] = ("c","d","e")
 
+        with self.assertRaises(Exception):
+            self.widget.configure(columns=("c","d","e"))
+
     def add_change(self):
         record = self.tableview.data_source.append_record({"a":"value a","b":"value b"})
-        iinfo = self.tableview.widget.item(record["__uuid"], values=["new value a","new value b"])
+        iinfo = self.tableview.item_modified(record["__uuid"], values=["new value a","new value b"])
 
 if __name__ == "__main__":
     unittest.main()

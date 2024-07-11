@@ -1,6 +1,5 @@
 import tkinter.ttk as ttk
-from tkinter import BooleanVar
-
+from tkinter import BooleanVar, IntVar
 from .base import Base
 from .canvasview import CanvasView
 from .modulesmanager import ModulesManager
@@ -19,9 +18,11 @@ class Image(Base):
                 self.pil_image = self.PILImage.new('RGB', size=(100,100))
         self._displayed_tkimage = None
 
-        self._is_rescalable = BooleanVar(name="is_rescalable", value=False)
-        self._is_rescalable.trace_add("write", self.property_changed)
-        self._last_resize_event = time.time()
+        self.is_rescalable = False
+        self.add_observer(self, "is_rescalable")
+        self.resize_update_delay = 0
+        self._last_resize_event = None
+        self.scheduled_resize = None
 
     def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
@@ -33,34 +34,28 @@ class Image(Base):
 
         return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
 
-    def property_changed(self, var, index, mode):
-        if var == "is_rescalable" and self.is_rescalable:
-            # self.update_display()
-            pass
-
-    @property
-    def is_rescalable(self):
-        return self._is_rescalable.get()
-
-    @is_rescalable.setter
-    def is_rescalable(self, value):
-        return self._is_rescalable.set(value)
-
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
-            return self.PILImage.open(filepath)
+            pil_image = self.PILImage.open(filepath)
         elif url is not None:
             import requests
             from io import BytesIO
-
             response = requests.get(url)
-            return self.PILImage.open(BytesIO(response.content))
+            pil_image = self.PILImage.open(BytesIO(response.content))
 
-        return None
+        pil_image.load()
+        return pil_image
+
+    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
+        if observed_property_name == "is_rescalable" and self.is_rescalable:
+            self.resize_image_to_fit_widget()
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, compound='image')
-        self.update_display()
+        if self.is_rescalable:
+            self.resize_image_to_fit_widget()
+        else:
+            self.update_display()
         self.widget.bind("<Configure>", self.event_resized)
 
     def event_resized(self, event):
@@ -68,25 +63,37 @@ class Image(Base):
         We resize the image is_rescalable but this may affect the widget size.
         This can go into an infinite loop, we avoid resizing too often
         """
-        if time.time() - self._last_resize_event > 0.5:
-            if self.is_rescalable and self.pil_image is not None:
-                width = event.width
-                height = event.height
-
-                current_aspect_ratio = self.pil_image.width / self.pil_image.height
-                if width / current_aspect_ratio <= height:
-                    height = int(width / current_aspect_ratio)
+        if self.is_rescalable:
+            if self.resize_update_delay > 0:
+                if self.scheduled_resize is None:
+                    self.scheduled_resize = self.widget.after(self.resize_update_delay, self.resize_image_to_fit_widget)
                 else:
-                    width = int(height * current_aspect_ratio)
+                    pass
+            else:
+                self.resize_image_to_fit_widget()
+        else:
+            self.update_display()
 
-                if self.pil_image.width != width or self.pil_image.height != height:
-                    resized_image = self.pil_image.resize(
-                        (width, height), self.PILImage.NEAREST
-                    )
+    def resize_image_to_fit_widget(self):
+        if self.widget is None:
+            return
 
-                    self.update_display(resized_image)
+        width = self.widget.winfo_width()
+        height = self.widget.winfo_height()
 
-        self._last_resize_event = time.time()
+        current_aspect_ratio = self.pil_image.width / self.pil_image.height
+        if width / current_aspect_ratio <= height:
+            height = int(width / current_aspect_ratio)
+        else:
+            width = int(height * current_aspect_ratio)
+
+        if self.pil_image.width != width or self.pil_image.height != height:
+            resized_image = self.pil_image.resize(
+                (width, height), self.PILImage.NEAREST
+            )
+            self.update_display(resized_image)
+
+        self.scheduled_resize = None
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
