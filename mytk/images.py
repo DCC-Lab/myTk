@@ -21,7 +21,6 @@ class Image(Base):
         self.is_rescalable = False
         self.add_observer(self, "is_rescalable")
         self.resize_update_delay = 0
-        self._last_resize_event = None
         self.scheduled_resize = None
 
     def is_environment_valid(self):

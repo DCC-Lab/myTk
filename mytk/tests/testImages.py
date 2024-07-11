@@ -54,7 +54,7 @@ class TestImage(unittest.TestCase):
         img.is_rescalable = True
         img.resize_update_delay = 100
         img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
-        self.start_timed_mainloop(timeout=50000)
+        self.start_timed_mainloop(timeout=5000)
         self.app.mainloop()
 
 
