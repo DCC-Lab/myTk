@@ -7,10 +7,11 @@ from .base import Base
 class Label(Base):
     def __init__(self, text=None, wrapping=False, **kwargs):
         Base.__init__(self)
-        self.text = text
         self.wrapping = wrapping
         self.kwargs = kwargs
-
+        self.text = text
+        self.bind_properties('value_variable', self, 'text')
+    
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Label(master, **self.kwargs, **self.debug_kwargs)
