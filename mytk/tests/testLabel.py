@@ -19,7 +19,7 @@ class TestLabel(unittest.TestCase):
 
     def start_timed_mainloop(self, function=None, timeout=500):
         if function is not None:
-            self.app.root.after( int(timeout/4), function)    
+            self.app.root.after(int(timeout/4), function)
         self.app.root.after(timeout, self.app.quit) # max 5 seconds
     
     def test_binding_is_enabled(self):
