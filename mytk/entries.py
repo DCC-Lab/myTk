@@ -48,8 +48,6 @@ class CellEntry(Base):
 
         self.tableview.item_modified(item_id=self.item_id, values=values)
         self.event_generate("<FocusOut>")
-        # raise NotImplementedError("Need to return change to data_source from widget")
-        # self.tableview.data_source.source_data_changed(self.tableview.data_source.records)
 
     def event_focusout_callback(self, event):
         if self.user_event_callback is not None:
