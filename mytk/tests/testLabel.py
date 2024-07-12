@@ -64,7 +64,7 @@ class TestLabel(unittest.TestCase):
     def test_binding_text(self):
         self.ui_object.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
         
-        self.start_timed_mainloop(function = self.change_text_to_bla, timeout=300)
+        self.start_timed_mainloop(function=self.change_text_to_bla, timeout=300)
         self.app.mainloop()
         self.assertEqual(self.ui_object.value_variable.get() ,'bla')
 
