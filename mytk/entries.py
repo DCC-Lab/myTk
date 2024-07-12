@@ -45,9 +45,9 @@ class CellEntry(Base):
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
         values[self.column_id-1] = self.value_variable.get()
-        self.tableview.widget.item(self.item_id, values=values)
+
+        self.tableview.item_modified(item_id=self.item_id, values=values)
         self.event_generate("<FocusOut>")
-        self.tableview.table_data_changed()
 
     def event_focusout_callback(self, event):
         if self.user_event_callback is not None:

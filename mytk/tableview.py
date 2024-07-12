@@ -5,9 +5,11 @@ import json
 import uuid
 import weakref 
 import collections
+import re
 from contextlib import contextmanager
 
 from .bindable import Bindable
+from .entries import CellEntry
 
 class PostponeChangeCalls:
     def __init__(self, data_source):
@@ -114,7 +116,11 @@ class TabularData(Bindable):
             raise RuntimeError('Pass dictionaries, not arrays')
 
         index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
+
+        match = re.match(r"^\d+$", str(index_or_uuid))
+        if match is not None:
+            index = int(index_or_uuid)
+        else:
             index = self.field('__uuid').index(index_or_uuid) 
 
         self.records[index].update(values)
@@ -309,6 +315,11 @@ class TableView(Base):
             except:
                 raise NotImplementedError("Delegate must implement source_data_changed()")
 
+    def item_modified(self, item_id, values):
+        self.widget.item(item_id, values=values)
+        values_dict = dict(zip(self.columns, values))
+        self.data_source.update_record(item_id, values=values_dict)
+
     def clear_widget_content(self):
         items_ids = self.widget.get_children()
         self.widget.delete(*items_ids)
@@ -446,10 +457,7 @@ class TableView(Base):
         item_dict = self.widget.item(item_id)
 
         if self.is_editable(item_id, column_id):
-            bbox = self.widget.bbox(item_id, column_id-1)
-            entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
-            entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
-            entry_box.widget.focus()
+            self.focus_edit_cell(item_id, column_id)
         else:
             keep_running = True
             if self.delegate is not None:
@@ -459,6 +467,12 @@ class TableView(Base):
                     )
                 except Exception as err:
                     raise TableView.DelegateError(err)
+
+    def focus_edit_cell(self, item_id, column_id):
+        bbox = self.widget.bbox(item_id, column_id-1)
+        entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
+        entry_box.place_into(parent=self, x=bbox[0]-2, y=bbox[1]-2, width=bbox[2]+4, height=bbox[3]+4)
+        entry_box.widget.focus()
 
     def doubleclick_header(self, column_id): # pragma: no cover
         keep_running = True
