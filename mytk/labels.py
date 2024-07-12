@@ -7,16 +7,15 @@ from .base import Base
 class Label(Base):
     def __init__(self, text=None, wrapping=False, **kwargs):
         Base.__init__(self)
-        self._initial_text = text
         self.wrapping = wrapping
         self.kwargs = kwargs
-        self.text = None
+        self.text = text
         self.bind_properties('value_variable', self, 'text')
     
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Label(master, **self.kwargs, **self.debug_kwargs)
-        self.bind_textvariable(StringVar(value=self._initial_text))
+        self.bind_textvariable(StringVar(value=self.text))
         
         if self.wrapping:
             self.widget.bind("<Configure>", self.set_label_wrap)
