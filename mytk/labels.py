@@ -26,11 +26,13 @@ class Label(Base):
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
-        if text is None:
-            text = url
-        Label.__init__(self, text)
+        # if text is None:
+        #     text = url
+        super().__init__(self, text)
         self.url = url
-
+        if self.text is None:
+            self.text = text
+            
     def create_widget(self, master):
         super().create_widget(master)
 
