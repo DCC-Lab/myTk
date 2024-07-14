@@ -7,6 +7,7 @@ import uuid
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
+        super().setUp()
         self.delegate_function_called = False
 
     def source_data_changed(self, records):

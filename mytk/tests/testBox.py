@@ -8,7 +8,7 @@ class TestController(Bindable):
         self.to_property = None
         self.to_TkVariable = None
 
-class TestCheckbox(unittest.TestCase):
+class TestCheckbox(envtest.MyTkTestCase):
     def setUp(self):
         self.app = App()
         self.delegate_function_called = False

@@ -16,6 +16,7 @@ class App(Bindable):
         self.window = Window(geometry)
         self.check_requirements()
         self.create_menu()
+        self.scheduled_tasks = []
         App.app = self
 
     @property
@@ -106,7 +107,21 @@ class App(Bindable):
                              message="There is no help available for this Application.",
                              timeout=3000)
 
+    def after(self, delay, function):
+        if self.root is not None:
+            self.scheduled_tasks.append(self.root.after(delay, function))
+
+    def after_cancel(self, task_id):
+        if self.root is not None:
+            self.root.after_cancel(task_id)
+            self.scheduled_tasks.remove(task_id)
+
+    def after_cancel_all(self):
+        for task_id in self.scheduled_tasks:
+            self.after_cancel(task_id)
+
     def quit(self):
         if self.is_running:
+            self.after_cancel_all()
             self.window.widget.destroy()
             self.window.widget = None

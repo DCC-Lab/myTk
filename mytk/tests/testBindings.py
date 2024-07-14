@@ -42,9 +42,7 @@ class BuggyObserver(Bindable):
     def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
         raise Exception("I will not be caught")
 
-class TestBindings(unittest.TestCase):
-    def setUp(self):
-        root = Tk()
+class TestBindings(envtest.MyTkTestCase):
 
     def test_init(self):
         a = A(1)

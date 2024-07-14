@@ -6,7 +6,7 @@ import uuid
 import weakref 
 import collections
 import re
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from .bindable import Bindable
 from .entries import CellEntry
@@ -133,8 +133,11 @@ class TabularData(Bindable):
 
     def record(self, index_or_uuid):
         index = index_or_uuid
+
         if isinstance(index_or_uuid, uuid.UUID):
-            index = self.field('__uuid').index(index_or_uuid) 
+            index = self.field('__uuid').index(index_or_uuid)
+        elif re.search(r'\D', str(index)) is not None:
+            index = self.field('__uuid').index(uuid.UUID(index_or_uuid))
 
         return self.records[index]
 
@@ -338,11 +341,11 @@ class TableView(Base):
 
     def click(self, event) -> bool: # pragma: no cover
         keep_running = True
-        if self.delegate is not None:
-            try:
+        try:
+            with suppress(AttributeError):
                 keep_running = self.delegate.click(event, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
+        except Exception as err:
+            raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -360,11 +363,11 @@ class TableView(Base):
         item_dict = self.widget.item(item_id)
 
         keep_running = True
-        if self.delegate is not None:
-            try:
+        try:
+            with suppress(AttributeError):
                 keep_running = self.delegate.click_cell(item_id, column_id, item_dict, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
+        except Exception as err:
+            raise TableView.DelegateError(err)
 
         if keep_running:
             value = item_dict["values"][column_id - 1]
@@ -413,11 +416,11 @@ class TableView(Base):
 
     def click_header(self, column_id):
         keep_running = True
-        if self.delegate is not None:
-            try:
+        try:
+            with suppress(AttributeError):
                 keep_running = self.delegate.click_header(column_id, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
+        except Exception as err:
+            raise TableView.DelegateError(err)
 
         if keep_running:
             if self.is_column_sorted(column_id) == "<":
@@ -432,11 +435,11 @@ class TableView(Base):
 
     def doubleclick(self, event) -> bool: # pragma: no cover
         keep_running = True
-        if self.delegate is not None:
-            try:
+        try:
+            with suppress(AttributeError):
                 keep_running = self.delegate.doubleclick(event, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
+        except Exception as err:
+            raise TableView.DelegateError(err)
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -460,13 +463,14 @@ class TableView(Base):
             self.focus_edit_cell(item_id, column_id)
         else:
             keep_running = True
-            if self.delegate is not None:
-                try:
-                    keep_running = self.delegate.doubleclick_cell(
-                        item_id, column_id, item_dict, self
-                    )
-                except Exception as err:
-                    raise TableView.DelegateError(err)
+
+        try:
+            with suppress(AttributeError):
+                keep_running = self.delegate.doubleclick_cell(
+                    item_id, column_id, item_dict, self
+                )
+        except Exception as err:
+            raise TableView.DelegateError(err)
 
     def focus_edit_cell(self, item_id, column_id):
         bbox = self.widget.bbox(item_id, column_id-1)
@@ -476,20 +480,8 @@ class TableView(Base):
 
     def doubleclick_header(self, column_id): # pragma: no cover
         keep_running = True
-        if self.delegate is not None:
-            try:
+        try:
+            with suppress(AttributeError):
                 keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
-
-
-
-# class postponed_change_calls(ContextDecorator):
-#     def __enter__(self, data_source):
-#         print("Entering")
-#         return self
-
-#     def __exit__(self, *exc):
-#         data_source.change_calls_enabled()
-#         print("exiting")
-#         return False
+        except Exception as err:
+            raise TableView.DelegateError(err)

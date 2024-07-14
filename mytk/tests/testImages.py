@@ -7,20 +7,7 @@ import collections
 import random
 import pathlib
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.app = App(geometry="500x300")
-        self.delegate_function_called = False
-        self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
-
-    def tearDown(self):
-        self.app.quit()
-
-    def start_timed_mainloop(self, function=None, timeout=500):
-        if function is not None:
-            self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
-
+class TestImage(envtest.MyTkTestCase):
     def test_init_empty(self):
         self.assertIsNotNone(Image())
 

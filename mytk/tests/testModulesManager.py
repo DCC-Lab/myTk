@@ -6,7 +6,7 @@ import re
 import io
 import contextlib
 
-class TestModulesManager(unittest.TestCase):
+class TestModulesManager(envtest.MyTkTestCase):
     def test_is_installed(self):
         self.assertTrue(ModulesManager.is_installed("io"))
         self.assertFalse(ModulesManager.is_installed("alouette"))

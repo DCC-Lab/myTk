@@ -5,15 +5,8 @@ from mytk import *
 
 class TestDialog(unittest.TestCase):
     def setUp(self):
-        self.app = App()
-        self.timeout = 300
-
-    def tearDown(self):
-        self.app.quit()
-
-    def start_timed_mainloop(self, function, timeout=500):
-        self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
+        super().setUp()
+        self.timeout = 500
 
     def test_run_ok_cancel(self):
         self.diag = Dialog(dialog_type = 'warning',

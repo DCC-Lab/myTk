@@ -6,20 +6,13 @@ import tempfile
 import collections
 import random
 
-class TestTableview(unittest.TestCase):
+class TestTableview(envtest.MyTkTestCase):
     def source_data_changed(self, records):
         self.delegate_function_called = True
 
     def setUp(self):
-        self.app = App(geometry="500x300")
+        super().setUp()
         self.delegate_function_called = False
-
-    def tearDown(self):
-        self.app.quit()
-
-    def start_timed_mainloop(self, function=None, timeout=500):
-        self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
 
     def test_init(self):
         self.tableview = TableView({"a":"Column A","b":"Column B"})

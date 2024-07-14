@@ -8,20 +8,12 @@ class TestController(Bindable):
         self.to_property = None
         self.to_TkVariable = None
 
-class TestLabel(unittest.TestCase):
+class TestLabel(envtest.MyTkTestCase):
     def setUp(self):
-        self.app = App()
+        super().setUp()
         self.callback_called = False
         self.ui_object = Label("Test")
 
-    def tearDown(self):
-        self.app.quit()
-
-    def start_timed_mainloop(self, function=None, timeout=500):
-        if function is not None:
-            self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
-    
     def test_binding_is_enabled(self):
         controller = TestController()
 
