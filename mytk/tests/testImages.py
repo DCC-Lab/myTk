@@ -39,7 +39,7 @@ class TestImage(envtest.MyTkTestCase):
         self.start_timed_mainloop(timeout=500)
         self.app.mainloop()
 
-    def test_rescalable_chnage(self):
+    def test_rescalable_change(self):
         self.app.window.all_resize_weight(1)
         self.img = Image(self.resource_directory / "error.png")
         self.img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
@@ -107,6 +107,19 @@ class TestImageWithGrid(envtest.MyTkTestCase):
 
     def change_grid_count(self):
         self.img.grid_count = 10
+
+    def test_rescalable_change(self):
+        self.app.window.all_resize_weight(1)
+        self.img = Image(self.resource_directory / "error.png")
+        self.img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+        self.img.is_rescalable = False
+        self.start_timed_mainloop(function=self.change_rescalable, timeout=1000)
+        self.app.mainloop()
+
+    def change_rescalable(self):
+        self.img.width
+        self.img.is_rescalable = True
+
 
 if __name__ == "__main__":
     unittest.main()

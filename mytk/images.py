@@ -23,6 +23,30 @@ class Image(Base):
         self.resize_update_delay = 0
         self.scheduled_resize = None
 
+    @property
+    def width(self):
+        if self.pil_image is not None:
+            return self.pil_image.width
+        return None
+
+    @property
+    def height(self):
+        if self.pil_image is not None:
+            return self.pil_image.height
+        return None
+
+    @property
+    def displayed_width(self):
+        if self._displayed_tkimage is not None:
+            return self._displayed_tkimage.width
+        return None
+
+    @property
+    def displayed_height(self):
+        if self._displayed_tkimage is not None:
+            return self._displayed_tkimage.height
+        return None
+    
     def is_environment_valid(self):
         ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
 
@@ -51,6 +75,8 @@ class Image(Base):
                 self.resize_image_to_fit_widget()
             else:
                 self.update_display()
+
+        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
 
 
     def create_widget(self, master):

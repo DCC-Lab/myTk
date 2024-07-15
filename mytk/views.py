@@ -20,15 +20,15 @@ class Box(Base):
     def __init__(self, label="", width=None, height=None):
         Base.__init__(self)
         self.label = label
-        self.width = width
-        self.height = height
+        self._width = width
+        self._height = height
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.LabelFrame(
             master,
-            width=self.width,
-            height=self.height,
+            width=self._width,
+            height=self._height,
             text=self.label,
             **self.debug_kwargs,
         )

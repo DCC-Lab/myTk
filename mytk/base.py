@@ -57,6 +57,28 @@ class Base(Bindable):
         else:
             self.widget.state(["!selected"])
 
+    @property
+    def width(self):
+        if self.widget is not None:
+            return self.widget['width']
+        return None
+
+    @width.setter
+    def width(self, value):
+        if self.widget is not None:
+            self.widget['width'] = value
+    
+    @property
+    def height(self):
+        if self.widget is not None:
+            return self.widget['height']
+        return None
+
+    @height.setter
+    def height(self, value):
+        if self.widget is not None:
+            self.widget['height'] = value
+    
     """
     Convenience setters/getters
     """

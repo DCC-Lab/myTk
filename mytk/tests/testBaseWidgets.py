@@ -18,6 +18,9 @@ class TestWidget(Base):
             )
 
 class TestBaseView(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.widget = None
 
     def test_init_view(self):
         widget = TestWidget()
@@ -103,6 +106,40 @@ class TestBaseView(envtest.MyTkTestCase):
 
         with self.assertRaises(Exception):
             widget.is_selected = False
+
+    def test_widget_width(self):
+        widget = TestWidget()
+        self.assertIsNone(widget.height)
+        widget.grid_into(self.app.window)
+        self.assertTrue(widget.height > 0)
+        self.assertTrue(widget.width > 0)
+
+    def test_set_widget_width(self):
+        self.widget = Box(width=100, height=100)
+        self.assertIsNone(self.widget.height)
+        self.widget.grid_into(self.app.window)
+        self.assertTrue(self.widget.height > 0)
+        self.assertTrue(self.widget.width > 0)
+        self.start_timed_mainloop(function=self.change_width_from_100_to_300, timeout=1000)
+        self.app.mainloop()
+
+    def change_width_from_100_to_300(self):
+        self.assertTrue(self.widget.width == 100)
+        self.widget.width = 300
+        self.assertTrue(self.widget.width == 300)
+
+    def test_set_widget_height(self):
+        self.widget = Box(width=100, height=200)
+        self.assertIsNone(self.widget.height)
+        self.widget.grid_into(self.app.window)
+        self.assertTrue(self.widget.height == 200)
+        self.start_timed_mainloop(function=self.change_height_from_200_to_300, timeout=1000)
+        self.app.mainloop()
+
+    def change_height_from_200_to_300(self):
+        self.assertTrue(self.widget.height == 200)
+        self.widget.height = 300
+        self.assertTrue(self.widget.height == 300)
 
 class TestBaseWidgetBindings(envtest.MyTkTestCase):
     def test_init_view(self):
