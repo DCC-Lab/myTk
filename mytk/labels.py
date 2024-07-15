@@ -9,8 +9,9 @@ class Label(Base):
         Base.__init__(self)
         self.wrapping = wrapping
         self.kwargs = kwargs
-        self.text = text
+        self.text = ""
         self.bind_properties('text', self, 'value_variable') # binding this way will set value_variable to 'text'
+        self.text = text
     
     def create_widget(self, master):
         self.parent = master
@@ -30,8 +31,9 @@ class URLLabel(Label):
         #     text = url
         super().__init__(self, text)
         self.url = url
-        if self.text is None:
-            self.text = text
+        if text is None:
+            text = url
+        self.text = text
             
     def create_widget(self, master):
         super().create_widget(master)

@@ -95,7 +95,7 @@ class App(Bindable):
     def about(self, timeout=3000):
         Dialog.showinfo(title="About this App", 
                         message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
-                        timeout=timeout)
+                        auto_click= (Dialog.Replies.Ok, timeout))
 
     def help(self):
         ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
