@@ -1,7 +1,19 @@
 import tkinter.ttk as ttk
+from tkinter import StringVar, IntVar
 from .base import Base
 
 class RadioButton(Base):
+    @classmethod
+    def linked_group(cls, labels_values, user_callback=None):
+        radios = []
+        common_value_variable = IntVar()
+
+        for label, value in labels_values.items():
+            radio = RadioButton(label, value, user_callback)
+            radio.value_variable = common_value_variable
+            radios.append(radio)
+        return radios
+
     def __init__(self, label, value, user_callback=None):
         super().__init__()
         self.label = label
@@ -15,13 +27,9 @@ class RadioButton(Base):
             value=self.value,
             command=self.value_changed,
         )
+        self.bind_variable(self.value_variable)
     
     def value_changed(self):
-        if self.value_variable.get() == self.value:
-            self.is_selected = True
-        else:
-            self.is_selected = False
-
         if self.user_callback is not None:
             try:
                 self.user_callback(self)

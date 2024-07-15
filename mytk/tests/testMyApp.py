@@ -32,8 +32,14 @@ class TestMyApp(envtest.MyTkTestCase):
         self.app.help_url = "http://www.google.com"
         self.start_timed_mainloop(function=self.app.help, timeout=100)
 
+    @unittest.skip('Not needed')
     def test_reveal(self):
         self.app.reveal_path("./")
+
+    def test_windowing_system(self):
+        systems = ['x11', 'win32', 'aqua']
+        self.assertTrue(self.app.root.tk.call('tk', 'windowingsystem') in systems)
+
 
 if __name__ == "__main__":
     unittest.main()

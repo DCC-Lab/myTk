@@ -19,7 +19,7 @@ class MyTkTestCase(unittest.TestCase):
     def setUp(self):
         timeout = 1000
         self.app = App(geometry="500x300")
-        self.app.window.widget.title("Main Window for Testing")
+        self.app.window.widget.title(self.__class__.__name__)
         self.delegate_function_called = False
         self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
         # self.app.after(timeout, self.app.quit) # max 5 seconds
