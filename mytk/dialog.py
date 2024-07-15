@@ -15,33 +15,37 @@ class Dialog(Base):
         Timedout = 'Timedout'
 
     @classmethod
-    def showinfo(cls, message, title="Info", timeout=None):
-        diag = Dialog(dialog_type = 'info', title=title, message=message, timeout=timeout)
+    def showinfo(cls, message, title="Info", auto_click=(None, None)):
+        diag = Dialog(dialog_type = 'info', title=title, message=message, auto_click=auto_click)
         return diag.run()
 
     @classmethod
-    def showwarning(cls, message, title="Warning", timeout=None):
-        diag = Dialog(dialog_type = 'warning', title=title, message=message, timeout=timeout)
+    def showwarning(cls, message, title="Warning", auto_click=(None, None)):
+        diag = Dialog(dialog_type = 'warning', title=title, message=message, auto_click=auto_click)
         return diag.run()
 
     @classmethod
-    def showerror(cls, message, title="Error", timeout=None):
-        diag = Dialog(dialog_type = 'error', title=title, message=message, timeout=timeout)
+    def showerror(cls, message, title="Error", auto_click=(None, None)):
+        diag = Dialog(dialog_type = 'error', title=title, message=message, auto_click=auto_click)
         return diag.run()
 
-    def __init__(self, dialog_type, title, message, buttons_labels=None, timeout=None):
+    def __init__(self, dialog_type, title, message, buttons_labels=None, auto_click=(None, None)):
         super().__init__()
         self.dialog_type = dialog_type
-        self.timeout = timeout
         self.title = title
         self.message = message
         self.reply = None
-        self.auto_click = None
+        self.auto_click = auto_click[0]
+        self.timeout = auto_click[1]
+
         if buttons_labels is None:
             self.buttons_labels = [Dialog.Replies.Ok]
         else:
             self.buttons_labels = buttons_labels
         self.buttons = {}
+
+        if self.auto_click not in self.buttons_labels:
+            raise ValueError("The auto-click button must be present in the window")
 
         self.create_widget(master=None)
 
@@ -71,6 +75,9 @@ class Dialog(Base):
         for i, button_label in enumerate(self.buttons_labels):
             button = self.buttons[button_label]
             button.grid_into(control_buttons, column=2-i, row=1, pady=5, padx=5, sticky="se")
+
+        label1 = Label(text=self.message, wrapping=True, width=30, wraplength=300, justify="center")
+        label1.grid_into(widget=self.widget, column=1, columnspan=2, row=0, pady=5, padx=5, sticky="nsew")
 
         self.assign_default_key_shortcuts()
 
@@ -104,8 +111,6 @@ class Dialog(Base):
         self.widget.destroy()
 
     def run(self):
-        label1 = Label(self.message, wrapping=True, width=30, wraplength=300, justify="center")
-        label1.grid_into(self, column=1, columnspan=2, row=0, pady=5, padx=5, sticky="nsew")
         self.all_resize_weight(1)
 
         if self.auto_click is not None:
@@ -119,4 +124,5 @@ class Dialog(Base):
 
         self.widget.grab_set()        # ensure all input goes to our window, including shortcut enter
         self.widget.wait_window()
+        # breakpoint()
         return self.reply

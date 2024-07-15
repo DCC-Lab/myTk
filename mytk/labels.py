@@ -10,7 +10,7 @@ class Label(Base):
         self.wrapping = wrapping
         self.kwargs = kwargs
         self.text = text
-        self.bind_properties('value_variable', self, 'text')
+        self.bind_properties('text', self, 'value_variable') # binding this way will set value_variable to 'text'
     
     def create_widget(self, master):
         self.parent = master

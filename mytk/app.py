@@ -13,7 +13,7 @@ class App(Bindable):
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry)
+        self.window = Window(geometry=geometry, title=name)
         self.check_requirements()
         self.create_menu()
         self.scheduled_tasks = []
