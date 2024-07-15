@@ -46,8 +46,12 @@ class Image(Base):
         return pil_image
 
     def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
-        if observed_property_name == "is_rescalable" and self.is_rescalable:
-            self.resize_image_to_fit_widget()
+        if observed_property_name == "is_rescalable":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
+
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, compound='image')
@@ -113,35 +117,27 @@ class ImageWithGrid(Image):
     def __init__(self, filepath=None, url=None, pil_image=None):
         super().__init__(filepath=filepath, url=url, pil_image=pil_image)
 
-        self._is_grid_showing = BooleanVar(name="is_grid_showing", value=False)
-        self._is_grid_showing.trace_add("write", self.property_changed)
-        self._grid_count = IntVar(name="grid_count", value=5)
-        self._grid_count.trace_add("write", self.property_changed)
+        self.is_grid_showing = True
+        self.grid_count = 5
 
-    def property_changed(self, var, index, mode):
-        if var == "is_rescalable" and self.is_rescalable:
-            self.update_display()
-        elif var == "is_grid_showing":
-            self.update_display()
-        elif var == "grid_count":
-            self.update_display()
+        self.add_observer(self, "is_grid_showing")
+        self.add_observer(self, "grid_count")
 
-    @property
-    def grid_count(self):
-        return self._grid_count.get()
 
-    @grid_count.setter
-    def grid_count(self, value):
-        if self._grid_count.get() != value:
-            self._grid_count.set(value)
+    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
+        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
 
-    @property
-    def is_grid_showing(self):
-        return self._is_grid_showing.get()
+        if observed_property_name == "is_grid_showing":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
+        elif observed_property_name == "grid_count":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
 
-    @is_grid_showing.setter
-    def is_grid_showing(self, value):
-        return self._is_grid_showing.set(value)
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -165,22 +161,22 @@ class ImageWithGrid(Image):
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
             image = pil_image.copy()
-            draw = self.PILImageDraw.Draw(image)
+            draw = self.ImageDraw.Draw(image)
 
             y_start = 0
             y_end = image.height
             step_size = int(image.width / self.grid_count)
+            if step_size > 0 :
+                for x in range(0, image.width, step_size):
+                    line = ((x, y_start), (x, y_end))
+                    draw.line(line, fill=255)
 
-            for x in range(0, image.width, step_size):
-                line = ((x, y_start), (x, y_end))
-                draw.line(line, fill=255)
+                x_start = 0
+                x_end = image.width
 
-            x_start = 0
-            x_end = image.width
-
-            for y in range(0, image.height, step_size):
-                line = ((x_start, y), (x_end, y))
-                draw.line(line, fill=255)
+                for y in range(0, image.height, step_size):
+                    line = ((x_start, y), (x_end, y))
+                    draw.line(line, fill=255)
 
             return image
         else:

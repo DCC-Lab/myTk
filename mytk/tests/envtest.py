@@ -22,7 +22,7 @@ class MyTkTestCase(unittest.TestCase):
         self.app.window.widget.title("Main Window for Testing")
         self.delegate_function_called = False
         self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
-        self.app.after(timeout, self.app.quit) # max 5 seconds
+        # self.app.after(timeout, self.app.quit) # max 5 seconds
 
     def tearDown(self):
         self.app.quit()
