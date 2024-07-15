@@ -29,7 +29,7 @@ class TestSlider(envtest.MyTkTestCase):
 
     def test_value_change(self):
         self.ui_object.grid_into(self.app.window)
-        self.start_timed_mainloop(function=self.change_value_to_50, timeout=2000)
+        self.start_timed_mainloop(function=self.change_value_to_50, timeout=500)
         self.app.mainloop()
 
     def change_value_to_50(self):
@@ -41,10 +41,29 @@ class TestSlider(envtest.MyTkTestCase):
         controller = TestController()
         self.ui_object.delegate = controller
         self.ui_object.grid_into(self.app.window)
-        self.start_timed_mainloop(function=self.change_value_to_50, timeout=2000)
+        self.start_timed_mainloop(function=self.change_value_to_50, timeout=500)
         self.app.mainloop()
         self.assertTrue(controller.callback_called)
 
+    def test_value_change_beyond_max(self):
+        self.ui_object.grid_into(self.app.window)
+        self.start_timed_mainloop(function=self.change_value_to_150, timeout=500)
+        self.app.mainloop()
+
+    def test_value_change_below_min(self):
+        self.ui_object.grid_into(self.app.window)
+        self.start_timed_mainloop(function=self.change_value_to_minus_100, timeout=500)
+        self.app.mainloop()
+
+    def change_value_to_150(self):
+        self.assertEqual(self.ui_object.value, 0)
+        self.ui_object.value = 150
+        self.assertEqual(self.ui_object.value, 100)
+
+    def change_value_to_minus_100(self):
+        self.assertEqual(self.ui_object.value, 0)
+        self.ui_object.value = -100
+        self.assertEqual(self.ui_object.value, 0)
 
 if __name__ == "__main__":
     unittest.main()
