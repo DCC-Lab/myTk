@@ -22,7 +22,6 @@ class TestWidget(Base):
 class TestBaseView(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
-        Base.debug = True
         self.widget = None
         # self.style = ttk.Style()
         # self.style.configure(".", borderwidth=2, relief='groove')
@@ -41,23 +40,18 @@ class TestBaseView(envtest.MyTkTestCase):
         widget = TestWidget()
         widget.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="")
         widget.enable()
-        # self.assertTrue(widget.is_enabled)
         self.assertFalse(widget.is_disabled)
 
         widget.disable()
         self.assertTrue(widget.is_disabled)
-        # self.assertFalse(widget.is_enabled)
 
         widget.is_enabled = True
-        # self.assertTrue(widget.is_enabled)
         self.assertFalse(widget.is_disabled)
 
         widget.is_enabled = False
         self.assertTrue(widget.is_disabled)
-        # self.assertFalse(widget.is_enabled)
 
         widget.is_disabled = False
-        # self.assertTrue(widget.is_enabled)
         self.assertFalse(widget.is_disabled)
 
         widget.is_disabled = True
@@ -129,8 +123,8 @@ class TestBaseView(envtest.MyTkTestCase):
         self.assertTrue(widget.width > 0)
 
     def test_set_widget_width(self):
-        self.widget = Box(width=100, height=100)
-        self.assertIsNone(self.widget.height)
+        self.widget = Box(width=100, height=200)
+        self.assertEqual(self.widget.height, 200)
         self.widget.grid_into(self.app.window)
         self.assertTrue(self.widget.height > 0)
         self.assertTrue(self.widget.width > 0)
@@ -144,7 +138,7 @@ class TestBaseView(envtest.MyTkTestCase):
 
     def test_set_widget_height(self):
         self.widget = Box(width=100, height=200)
-        self.assertIsNone(self.widget.height)
+        self.assertEqual(self.widget.height, 200)
         self.widget.grid_into(self.app.window)
         self.assertTrue(self.widget.height == 200)
         self.start_timed_mainloop(function=self.change_height_from_200_to_300, timeout=1000)

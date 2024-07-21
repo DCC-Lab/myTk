@@ -17,6 +17,7 @@ class Base(Bindable):
         self.widget = None
         self.parent = None
         self.value_variable = None
+        self._widget_args = {}
 
         self._grid_kwargs = None
         self.is_environment_valid()
@@ -73,24 +74,30 @@ class Base(Bindable):
 
     @property
     def width(self):
-        if self.widget is not None:
+        if self.widget is None:
+            return self._widget_args.get('width')
+        else:
             return self.widget['width']
-        return None
 
     @width.setter
     def width(self, value):
-        if self.widget is not None:
+        if self.widget is None:
+            self._widget_args['width'] = value
+        else:
             self.widget['width'] = value
     
     @property
     def height(self):
-        if self.widget is not None:
+        if self.widget is None:
+            return self._widget_args.get('height')
+        else:
             return self.widget['height']
-        return None
 
     @height.setter
     def height(self, value):
-        if self.widget is not None:
+        if self.widget is None:
+            self._widget_args['height'] = value
+        else:
             self.widget['height'] = value
     
     """

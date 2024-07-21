@@ -27,8 +27,6 @@ class Label(Base):
 
 class URLLabel(Label):
     def __init__(self, url=None, text=None):
-        # if text is None:
-        #     text = url
         super().__init__(self, text)
         self.url = url
         if text is None:

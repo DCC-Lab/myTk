@@ -4,32 +4,39 @@ from .base import *
 class View(Base):
     def __init__(self, width, height):
         Base.__init__(self)
-        self.original_width = width
-        self.original_height = height
+        self._widget_args = {"width":width, "height":height}
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Frame(
             master,
-            width=self.original_width,
-            height=self.original_height,
+            **self._widget_args,
             **self.debug_kwargs
         )
 
 class Box(Base):
     def __init__(self, label="", width=None, height=None):
         Base.__init__(self)
-        self.label = label
-        self._width = width
-        self._height = height
+        self._widget_args = {"width":width, "height":height,"text":label}
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.LabelFrame(
             master,
-            width=self._width,
-            height=self._height,
-            text=self.label,
+            **self._widget_args,
             **self.debug_kwargs,
         )
 
+    @property
+    def label(self):
+        if self.widget is None:
+            return self._widget_args.get('text')
+        else:
+            return self.widget['text']
+
+    @label.setter
+    def label(self, value):
+        if self.widget is None:
+            self._widget_args['text'] = value
+        else:
+            self.widget['text'] = value
