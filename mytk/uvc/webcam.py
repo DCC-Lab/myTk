@@ -2,10 +2,13 @@ import usb.core
 import usb.util
 import usb.core
 import usb.backend.libusb1
-backend = usb.backend.libusb1.get_backend(find_library=lambda x: "/opt/homebrew/lib/libusb-1.0.dylib")
+
+backend = usb.backend.libusb1.get_backend(
+    find_library=lambda x: "/opt/homebrew/lib/libusb-1.0.dylib"
+)
 
 # Vendor ID and Product ID of your UVC camera
-VENDOR_ID = 0x0c45  # Replace VVVV with your actual vendor ID
+VENDOR_ID = 0x0C45  # Replace VVVV with your actual vendor ID
 PRODUCT_ID = 0x6366  # Replace PPPP with your actual product ID
 
 # Find the UVC camera device
@@ -13,7 +16,7 @@ dev = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID, backend=backend)
 # print(dev)
 
 if dev is None:
-    raise ValueError('Device not found')
+    raise ValueError("Device not found")
 
 # Detach kernel driver if active
 if dev.is_kernel_driver_active(0):

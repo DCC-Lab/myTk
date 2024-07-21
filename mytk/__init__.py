@@ -33,4 +33,3 @@ from .images import Image, DynamicImage, ImageWithGrid
 from .tableview import TableView, TabularData
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
-

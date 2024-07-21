@@ -17,6 +17,9 @@ class PyDatagraphApp(App):
         App.__init__(self, geometry="800x800", name="PyDatagraph")
 
         self.window.widget.title("Data")
+        self.window.column_resize_weight(0, 1)
+        # self.widget.grid_rowconfigure(0, weight=1)
+
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
@@ -222,6 +225,8 @@ class PyDatagraphApp(App):
     def load_data(self, filepath):
         if filepath != '':
             df = self.data.data_source.load_tabular_data(filepath)
+            if df is None:
+                return
             rows, cols = df.shape
             if cols <= 3:
                 first_heading = ord('x')

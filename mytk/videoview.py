@@ -9,6 +9,7 @@ import importlib
 import signal
 import cv2
 
+
 class VideoView(Base):
 
     def __init__(self, device=0, zoom_level=3, auto_start=True):
@@ -34,18 +35,21 @@ class VideoView(Base):
         self.next_scheduled_update = None
         self.next_scheduled_update_histogram = None
 
-
     def is_environment_valid(self):
-        ModulesManager.install_and_import_modules_if_absent({"opencv-python":"cv2","Pillow":"PIL"})
+        ModulesManager.install_and_import_modules_if_absent(
+            {"opencv-python": "cv2", "Pillow": "PIL"}
+        )
 
-        self.cv2 = ModulesManager.imported.get('opencv-python', None)
-        self.PIL = ModulesManager.imported.get('Pillow', None)
+        self.cv2 = ModulesManager.imported.get("opencv-python", None)
+        self.PIL = ModulesManager.imported.get("Pillow", None)
 
         if self.PIL is not None:
-            self.PILImage = importlib.import_module('PIL.Image')
-            self.PILImageTk = importlib.import_module('PIL.ImageTk')
+            self.PILImage = importlib.import_module("PIL.Image")
+            self.PILImageTk = importlib.import_module("PIL.ImageTk")
 
-        return all(v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk])
+        return all(
+            v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk]
+        )
 
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
@@ -164,12 +168,14 @@ class VideoView(Base):
         if self.histogram_xyplot is not None:
             self.histogram_xyplot.clear_plot()
             values = self.image.histogram()
-            bins_per_channel = len(values)//3
+            bins_per_channel = len(values) // 3
             decimate = 8
-            self.histogram_xyplot.x = list(range(bins_per_channel//decimate))
+            self.histogram_xyplot.x = list(range(bins_per_channel // decimate))
             self.histogram_xyplot.y.append(values[0:bins_per_channel:decimate])
-            self.histogram_xyplot.y.append(values[bins_per_channel:2*bins_per_channel:decimate])
-            self.histogram_xyplot.y.append(values[2*bins_per_channel::decimate])
+            self.histogram_xyplot.y.append(
+                values[bins_per_channel : 2 * bins_per_channel : decimate]
+            )
+            self.histogram_xyplot.y.append(values[2 * bins_per_channel :: decimate])
 
             self.histogram_xyplot.update_plot()
 
@@ -258,17 +264,33 @@ class VideoView(Base):
             )
         )
         print("CAP_PROP_FPS : '{}'".format(capture.get(self.cv2.CAP_PROP_FPS)))
-        print("CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC)))
         print(
-            "CAP_PROP_FRAME_COUNT  : '{}'".format(capture.get(self.cv2.CAP_PROP_FRAME_COUNT))
+            "CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC))
         )
-        print("CAP_PROP_BRIGHTNESS : '{}'".format(capture.get(self.cv2.CAP_PROP_BRIGHTNESS)))
-        print("CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST)))
-        print("CAP_PROP_SATURATION : '{}'".format(capture.get(self.cv2.CAP_PROP_SATURATION)))
+        print(
+            "CAP_PROP_FRAME_COUNT  : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_FRAME_COUNT)
+            )
+        )
+        print(
+            "CAP_PROP_BRIGHTNESS : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_BRIGHTNESS)
+            )
+        )
+        print(
+            "CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST))
+        )
+        print(
+            "CAP_PROP_SATURATION : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_SATURATION)
+            )
+        )
         print("CAP_PROP_HUE : '{}'".format(capture.get(self.cv2.CAP_PROP_HUE)))
         print("CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN)))
         print(
-            "CAP_PROP_CONVERT_RGB : '{}'".format(capture.get(self.cv2.CAP_PROP_CONVERT_RGB))
+            "CAP_PROP_CONVERT_RGB : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_CONVERT_RGB)
+            )
         )
 
     def get_prop_id(self, prop_id):

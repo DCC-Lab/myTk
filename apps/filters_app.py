@@ -14,7 +14,7 @@ from pathlib import Path
 
 class FilterDBApp(App):
     def __init__(self):
-        App.__init__(self, geometry="1100x650", name="Filter Database")
+        App.__init__(self, name="Filter Database")
         self.filepath_root = 'tpop_filters_data'
         self.web_root = 'http://www.dccmlab.ca'
         self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
@@ -214,6 +214,8 @@ class FilterDBApp(App):
                 message="You must have the module pyperclip installed to copy the data.",
             )
 
+    def source_data_changed(self):
+        pass
 
     def selection_changed(self, event, table):
         for selected_item in table.widget.selection():

@@ -4,6 +4,7 @@ import tkinter.ttk as ttk
 from .base import Base
 from .canvasview import CanvasView
 
+
 class NumericIndicator(Base):
     def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
@@ -30,9 +31,10 @@ class NumericIndicator(Base):
         except Exception as err:
             print(err)
 
+
 class BooleanIndicator(CanvasView):
     def __init__(self, diameter=15):
-        super().__init__(width=diameter+4, height=diameter+4)
+        super().__init__(width=diameter + 4, height=diameter + 4)
         self.diameter = diameter
 
     def create_widget(self, master, **kwargs):
@@ -54,8 +56,12 @@ class BooleanIndicator(CanvasView):
             color = "red"
 
         self.widget.create_oval(
-            (4, 4, 4+self.diameter, 4+self.diameter), outline="black", fill=color, width=border
+            (4, 4, 4 + self.diameter, 4 + self.diameter),
+            outline="black",
+            fill=color,
+            width=border,
         )
+
 
 class Level(CanvasView):
     def __init__(self, maximum=100, width=200, height=20):

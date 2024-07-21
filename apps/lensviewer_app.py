@@ -4,7 +4,7 @@ import raytracing as rt
 import raytracing.thorlabs as thorlabs
 import raytracing.eo as eo
 from raytracing.figure import GraphicOf
-
+from contextlib import suppress
 
 class OpticalComponentViewer(App):
     def __init__(self):
@@ -45,7 +45,7 @@ class OpticalComponentViewer(App):
             "materials": "Material(s)",
             "url": "URL",
         }
-        self.table = TableView(columns=self.columns)
+        self.table = TableView(columns_labels=self.columns)
         self.table.delegate = self
         self.table.grid_into(self.header, sticky="nsew", padx=5)
 
@@ -68,8 +68,8 @@ class OpticalComponentViewer(App):
                 if lens.mat is not None:
                     materials = "{0}".format(str(lens.mat()))
 
-            iid = self.table.append(
-                values=(
+
+            values=(
                     lens.label,
                     "{0:.1f}".format(lens.backFocalLength()),
                     "{0:.1f}".format(lens.frontFocalLength()),
@@ -79,10 +79,12 @@ class OpticalComponentViewer(App):
                     materials,
                     lens.url,
                 )
-            )
+
+            record = dict(zip(self.columns.keys(), values))
+            iid = self.table.data_source.append_record(record)
             iids.append(iid)
 
-        self.table.widget.selection_set(iids[0])
+        self.table.widget.selection_set(iids[0]['__uuid'])
 
         scrollbar = ttk.Scrollbar(
             self.header.widget, orient=VERTICAL, command=self.table.widget.yview
@@ -111,35 +113,33 @@ class OpticalComponentViewer(App):
 
         for i, lens in enumerate(rt.CompoundLens.all()):
             for module in modules:
-                try:
+                with suppress(Exception):
                     class_ = getattr(module, lens)
                     lens = class_()
                     f1, f2 = lens.effectiveFocalLengths()
                     self.lenses[lens.label] = lens
-                except Exception as err:
-                    pass
 
     def selection_changed(self, event, table):
         for selected_item in table.widget.selection():
-            item = table.widget.item(selected_item)
-            record = item["values"]
-            lens = self.lenses[record[0]]  # label
+            record = table.data_source.record(selected_item)
+            lens = self.lenses[record['label']]  # label
             self.update_figures(lens)
+
+    def source_data_changed(self):
+        pass
 
     def update_figures(self, lens):
         graphic = GraphicOf(lens)
         self.figure = graphic.drawFigure().figure
         self.figure.set_size_inches((5, 5), forward=True)
 
-        try:
+        with suppress(Exception):
             wavelengths, focalShifts = lens.focalShifts()
 
             axis = self.dispersion.figure.add_subplot()
             axis.plot(wavelengths, focalShifts, "k-")
             axis.set_xlabel(r"Wavelength [nm]")
             axis.set_ylabel(r"Focal shift [mm]")
-        except Exception as err:
-            pass
 
     def about(self):
         showinfo(

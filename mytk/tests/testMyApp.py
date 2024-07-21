@@ -2,23 +2,19 @@ import envtest
 import unittest
 from mytk import *
 
+
 # @unittest.skip("Requires interactions")
-class TestMyApp(unittest.TestCase):
-    def setUp(self):
-        self.app = App()
-
-    def tearDown(self):
-        self.app.quit()
-
-    def start_timed_mainloop(self, function, timeout=500):
-        self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
-
-    def test_exists(self):  
+class TestMyApp(envtest.MyTkTestCase):
+    def test_exists(self):
         self.assertIsNotNone(self.app)
         self.assertIsNotNone(self.app.window)
         self.assertIsNotNone(self.app.root)
 
+    def test_window_resizable(self):
+        self.app.window.is_resizable = False
+        self.assertFalse(self.app.window.is_resizable)
+        self.app.window.is_resizable = True
+        self.assertTrue(self.app.window.is_resizable)
 
     def test_about(self):
         self.app.about(timeout=100)
@@ -42,8 +38,14 @@ class TestMyApp(unittest.TestCase):
         self.app.help_url = "http://www.google.com"
         self.start_timed_mainloop(function=self.app.help, timeout=100)
 
+    @unittest.skip("Not needed")
     def test_reveal(self):
         self.app.reveal_path("./")
+
+    def test_windowing_system(self):
+        systems = ["x11", "win32", "aqua"]
+        self.assertTrue(self.app.root.tk.call("tk", "windowingsystem") in systems)
+
 
 if __name__ == "__main__":
     unittest.main()

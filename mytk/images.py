@@ -6,6 +6,7 @@ from .modulesmanager import ModulesManager
 
 import time
 
+
 class Image(Base):
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
@@ -15,23 +16,57 @@ class Image(Base):
             try:
                 self.pil_image = self.read_pil_image(filepath=filepath, url=url)
             except:
-                self.pil_image = self.PILImage.new('RGB', size=(100,100))
+                self.pil_image = self.PILImage.new("RGB", size=(100, 100))
         self._displayed_tkimage = None
 
         self.is_rescalable = False
         self.add_observer(self, "is_rescalable")
         self.resize_update_delay = 0
-        self.scheduled_resize = None
+        self.parent_grid_cell = None
+
+    @property
+    def width(self):
+        if self.pil_image is not None:
+            return self.pil_image.width
+        return None
+
+    @property
+    def height(self):
+        if self.pil_image is not None:
+            return self.pil_image.height
+        return None
+
+    @property
+    def displayed_width(self):
+        if self._displayed_tkimage is not None:
+            return self._displayed_tkimage.width
+        return None
+
+    @property
+    def displayed_height(self):
+        if self._displayed_tkimage is not None:
+            return self._displayed_tkimage.height
+        return None
 
     def is_environment_valid(self):
-        ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
+        ModulesManager.install_and_import_modules_if_absent(
+            {
+                "Pillow": "PIL",
+                "ImageTk": "PIL.ImageTk",
+                "PILImage": "PIL.Image",
+                "ImageDraw": "PIL.ImageDraw",
+            }
+        )
 
-        self.PIL = ModulesManager.imported['Pillow']
-        self.PILImage = ModulesManager.imported['PILImage']
-        self.ImageDraw = ModulesManager.imported['ImageDraw']
-        self.ImageTk = ModulesManager.imported['ImageTk']
+        self.PIL = ModulesManager.imported["Pillow"]
+        self.PILImage = ModulesManager.imported["PILImage"]
+        self.ImageDraw = ModulesManager.imported["ImageDraw"]
+        self.ImageTk = ModulesManager.imported["ImageTk"]
 
-        return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
+        return all(
+            v is not None
+            for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw]
+        )
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
@@ -39,18 +74,28 @@ class Image(Base):
         elif url is not None:
             import requests
             from io import BytesIO
+
             response = requests.get(url)
             pil_image = self.PILImage.open(BytesIO(response.content))
 
         pil_image.load()
         return pil_image
 
-    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
-        if observed_property_name == "is_rescalable" and self.is_rescalable:
-            self.resize_image_to_fit_widget()
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
+        if observed_property_name == "is_rescalable":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
+
+        super().observed_property_changed(
+            observed_object, observed_property_name, new_value, context
+        )
 
     def create_widget(self, master):
-        self.widget = ttk.Label(master, compound='image')
+        self.widget = ttk.Label(master, compound="image")
         if self.is_rescalable:
             self.resize_image_to_fit_widget()
         else:
@@ -59,15 +104,15 @@ class Image(Base):
 
     def event_resized(self, event):
         """
-        We resize the image is_rescalable but this may affect the widget size.
+        We resize the image if is_rescalable but this may affect the widget size.
         This can go into an infinite loop, we avoid resizing too often
         """
         if self.is_rescalable:
             if self.resize_update_delay > 0:
-                if self.scheduled_resize is None:
-                    self.scheduled_resize = self.widget.after(self.resize_update_delay, self.resize_image_to_fit_widget)
-                else:
-                    pass
+                if len(self.scheduled_tasks) == 0:
+                    self.after(
+                        self.resize_update_delay, self.resize_image_to_fit_widget
+                    )
             else:
                 self.resize_image_to_fit_widget()
         else:
@@ -77,8 +122,25 @@ class Image(Base):
         if self.widget is None:
             return
 
-        width = self.widget.winfo_width()
-        height = self.widget.winfo_height()
+        row_weight = self.parent.widget.grid_rowconfigure(self.parent_grid_cell["row"])[
+            "weight"
+        ]
+        column_weight = self.parent.widget.grid_columnconfigure(
+            self.parent_grid_cell["column"]
+        )["weight"]
+        if row_weight == 0 or column_weight == 0:
+            raise ValueError(
+                f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} grid({row_properties['weight']}, {column_properties['weight']}) to a value other than 0"
+            )
+
+        (_, _, width, height) = self.parent.widget.grid_bbox(
+            self.parent_grid_cell["row"], self.parent_grid_cell["column"]
+        )
+        # It is possible that the cell has no width and height when image is placed. It will then scale a second time
+        if width <= 0:
+            width = 1
+        if height <= 0:
+            height = 1
 
         current_aspect_ratio = self.pil_image.width / self.pil_image.height
         if width / current_aspect_ratio <= height:
@@ -91,8 +153,6 @@ class Image(Base):
                 (width, height), self.PILImage.NEAREST
             )
             self.update_display(resized_image)
-
-        self.scheduled_resize = None
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -108,40 +168,35 @@ class Image(Base):
 
         self.widget.configure(image=self._displayed_tkimage)
 
+
 class ImageWithGrid(Image):
 
     def __init__(self, filepath=None, url=None, pil_image=None):
         super().__init__(filepath=filepath, url=url, pil_image=pil_image)
 
-        self._is_grid_showing = BooleanVar(name="is_grid_showing", value=False)
-        self._is_grid_showing.trace_add("write", self.property_changed)
-        self._grid_count = IntVar(name="grid_count", value=5)
-        self._grid_count.trace_add("write", self.property_changed)
+        self.is_grid_showing = True
+        self.grid_count = 5
 
-    def property_changed(self, var, index, mode):
-        if var == "is_rescalable" and self.is_rescalable:
-            self.update_display()
-        elif var == "is_grid_showing":
-            self.update_display()
-        elif var == "grid_count":
-            self.update_display()
+        self.add_observer(self, "is_grid_showing")
+        self.add_observer(self, "grid_count")
 
-    @property
-    def grid_count(self):
-        return self._grid_count.get()
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
+        super().observed_property_changed(
+            observed_object, observed_property_name, new_value, context
+        )
 
-    @grid_count.setter
-    def grid_count(self, value):
-        if self._grid_count.get() != value:
-            self._grid_count.set(value)
-
-    @property
-    def is_grid_showing(self):
-        return self._is_grid_showing.get()
-
-    @is_grid_showing.setter
-    def is_grid_showing(self, value):
-        return self._is_grid_showing.set(value)
+        if observed_property_name == "is_grid_showing":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
+        elif observed_property_name == "grid_count":
+            if self.is_rescalable:
+                self.resize_image_to_fit_widget()
+            else:
+                self.update_display()
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -165,26 +220,27 @@ class ImageWithGrid(Image):
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
             image = pil_image.copy()
-            draw = self.PILImageDraw.Draw(image)
+            draw = self.ImageDraw.Draw(image)
 
             y_start = 0
             y_end = image.height
             step_size = int(image.width / self.grid_count)
+            if step_size > 0:
+                for x in range(0, image.width, step_size):
+                    line = ((x, y_start), (x, y_end))
+                    draw.line(line, fill=255)
 
-            for x in range(0, image.width, step_size):
-                line = ((x, y_start), (x, y_end))
-                draw.line(line, fill=255)
+                x_start = 0
+                x_end = image.width
 
-            x_start = 0
-            x_end = image.width
-
-            for y in range(0, image.height, step_size):
-                line = ((x_start, y), (x_end, y))
-                draw.line(line, fill=255)
+                for y in range(0, image.height, step_size):
+                    line = ((x_start, y), (x_end, y))
+                    draw.line(line, fill=255)
 
             return image
         else:
             return None
+
 
 class DynamicImage(CanvasView):
     def __init__(self, width=200, height=200):

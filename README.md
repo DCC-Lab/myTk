@@ -5,11 +5,13 @@ by Daniel C. Côté
 Making a UI interface should not be complicated. **myTk** is a set of UI classes that simplifies the use of Tkinter to make simple (and not so simple!) GUIs in Python.
 
 ## Why Tk?
+Tk comes standard with Python.  It is highly portable to all main platforms.
+
 I know Qt, wxWidgets, and the many other ways to make an interface in Python, and I have programmed macOS since System 7 (Quickdraw, Powerplant) and Mac OS X (Carbon, Aqua, .nib and .xib files in Objective-C and in Swift).  The issues I have found with UIs in Python is either the lack of portability or the complexity of the UI strategy: 
-Qt is very powerful but for most applications (and most scientific programmers) it is too complex, and my experience is that it is fairly fragile to transport to another device (same or different OS). On the other hand, `Tkinter` is standard on Python, but uses UI strategies that are showing their age (for example, raw function callbacks for events, inconsistent nomenclature, and some hoop jumping to get simple things done). It was easier to encapsulate `Tkinter` into something easy to use than to simplify Qt or other UI frameworks. This is therefore the objective of this micro-project: make `Tkinter` simple to use for non-professional programmers.
+**Qt** is very powerful but for most applications (and most scientific programmers) it is too complex, and my experience is that it is fairly fragile to transport to another device (same or different OS). On the other hand, `Tkinter` is standard on Python, but uses UI strategies that are showing their age (for example, raw function callbacks for events, inconsistent nomenclature, and some hoop jumping to get simple things done). It was easier to encapsulate `Tkinter` into something easy to use than to simplify Qt or other UI frameworks. This is therefore the objective of this micro-project: make `Tkinter` very simple to use for non-professional programmers.  Many common tasks have classes ready to use.
 
 ## Design
-Having been a macOS programmer for a long time, I have lived through the many incarnations of UI frameworks. Over the years, I have come to first understand, and second appreciate,  good design patterns.  If interested in Design Patterns, I would recommend reading [Design Patterns](https://refactoring.guru/design-patterns). I sought to make `Tkinter` a bit more mac-like because many design patterns in Apple's libraries are particularly mature and useful.  For instance, Tkinter requires the parent of the UI-element to be specified at creation, even though there is no reason for it to be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore I implemented a simple strategy to handle many cases by default for the Table, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
+Having been a macOS programmer for a long time, I have lived through the many incarnations of UI frameworks. Over the years, I have come to first understand, and second appreciate,  good design patterns.  If interested in Design Patterns, I would recommend reading [Design Patterns](https://refactoring.guru/design-patterns). I sought to make `Tkinter` a bit more mac-like because many design patterns in Apple's libraries are particularly mature and useful.  For instance, Tkinter requires the parent of the UI-element to be specified at creation, even though there is no reason for it to be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore when appropriate I implemented a simple strategy to handle many cases by default for the Table, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
 
 * All `Tkinter` widgets are encapsulated into a `View` that provides easy access to many behaviours, but the `widget` remains accessible for you to call functions directly.
 * You can `bind` the property of a GUI-object (`View`) to the value of a control (another `View`).  They will always be synchronized, via the interface or even if you change them programmatically
@@ -18,9 +20,13 @@ Having been a macOS programmer for a long time, I have lived through the many in
 * You can set a delegate to manage the details 
 
 ## Layout manager
-The most important aspect to understand with Tk is how to position things on screen. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid will adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`sticky` and `column/row` `weight`). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
+The most important aspect to understand with Tk is how to position things on screen, and I have found it quite confusing. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid may adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`column/row` `weight`) and the widget itself may also resize (depending on its `sticky` options ). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
 
 The tutorials that helped me the most are: [pythonguis.com](https://www.pythonguis.com/faq/pack-place-and-grid-in-tkinter/) and [TkDocs](https://tkdocs.com/tutorial/index.html).
+
+The key elements to remember when using the grid layout manager:
+
+1. 
 
 
 ## Classes
@@ -31,7 +37,7 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Window`: A window that can hold other views
 
-`BaseView`: A class grouping functions common to all View classes
+`Base`: A class grouping functions common to all View classes
 
 `View`: A plain, empty view. It can be used as a container for other views in grid, so that the View is a single element of the grid even if it holds several elements itself also in a grid.
 
@@ -45,7 +51,7 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Entry`: An entry box for single line text
 
-`TableView`: A Table of items. You provide headers and items in list. You can sort columns by clicking on the header. Headers can also be used to resize the columns. If a cell is a URL, it is clickable. Currently, the table is not editable.
+`TableView`: A Table of items. You provide headers and items in list. You can sort columns by clicking on the header. Headers can also be used to resize the columns. If a cell is a URL, it is clickable. The table can be editable.
 
 `Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
