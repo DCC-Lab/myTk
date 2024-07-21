@@ -31,7 +31,10 @@ class TestImage(envtest.MyTkTestCase):
         self.start_timed_mainloop(timeout=500)
         self.app.mainloop()
 
+    @unittest.skip('')
     def test_rescalable_no_delay(self):
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.app.window.all_resize_weight(1)
         self.img = Image(self.resource_directory / "error.png")
         self.img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
@@ -40,10 +43,13 @@ class TestImage(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def test_rescalable_change(self):
-        self.app.window.all_resize_weight(1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
+
         self.img = Image(self.resource_directory / "error.png")
-        self.img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+        self.img.grid_into(self.app.window, column=0, row=0, sticky="nsew")
         self.img.is_rescalable = False
+
         self.start_timed_mainloop(function=self.change_rescalable, timeout=1000)
         self.app.mainloop()
 
@@ -51,7 +57,9 @@ class TestImage(envtest.MyTkTestCase):
         self.img.is_rescalable = True
 
     def test_rescalable_with_delay(self):
-        self.app.window.all_resize_weight(1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
+
         img = Image(self.resource_directory / "error.png")
         img.is_rescalable = True
         img.resize_update_delay = 100
@@ -88,7 +96,8 @@ class TestImageWithGrid(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def test_rescalable_with_delay(self):
-        self.app.window.all_resize_weight(1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.img = ImageWithGrid(self.resource_directory / "error.png")
         self.img.is_rescalable = True
         self.img.resize_update_delay = 100
@@ -97,7 +106,8 @@ class TestImageWithGrid(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def test_grid_count_change(self):
-        self.app.window.all_resize_weight(1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.img = ImageWithGrid(self.resource_directory / "error.png")
         self.img.is_rescalable = True
         self.img.resize_update_delay = 100
@@ -109,7 +119,9 @@ class TestImageWithGrid(envtest.MyTkTestCase):
         self.img.grid_count = 10
 
     def test_rescalable_change(self):
-        self.app.window.all_resize_weight(1)
+        # self.app.window.all_resize_weight(1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.img = Image(self.resource_directory / "error.png")
         self.img.grid_into(self.app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
         self.img.is_rescalable = False

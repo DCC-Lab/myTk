@@ -9,6 +9,11 @@ class TestMyApp(envtest.MyTkTestCase):
         self.assertIsNotNone(self.app.window)
         self.assertIsNotNone(self.app.root)
 
+    def test_window_resizable(self):
+        self.app.window.is_resizable = False
+        self.assertFalse(self.app.window.is_resizable)
+        self.app.window.is_resizable = True
+        self.assertTrue(self.app.window.is_resizable)
 
     def test_about(self):
         self.app.about(timeout=100)

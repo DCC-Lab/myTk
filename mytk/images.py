@@ -21,7 +21,7 @@ class Image(Base):
         self.is_rescalable = False
         self.add_observer(self, "is_rescalable")
         self.resize_update_delay = 0
-        self.scheduled_resize = None
+        self.parent_grid_cell = None
 
     @property
     def width(self):
@@ -78,7 +78,6 @@ class Image(Base):
 
         super().observed_property_changed(observed_object, observed_property_name, new_value, context)
 
-
     def create_widget(self, master):
         self.widget = ttk.Label(master, compound='image')
         if self.is_rescalable:
@@ -89,15 +88,13 @@ class Image(Base):
 
     def event_resized(self, event):
         """
-        We resize the image is_rescalable but this may affect the widget size.
+        We resize the image if is_rescalable but this may affect the widget size.
         This can go into an infinite loop, we avoid resizing too often
         """
         if self.is_rescalable:
             if self.resize_update_delay > 0:
-                if self.scheduled_resize is None:
-                    self.scheduled_resize = self.widget.after(self.resize_update_delay, self.resize_image_to_fit_widget)
-                else:
-                    pass
+                if len(self.scheduled_tasks) == 0:
+                    self.after(self.resize_update_delay, self.resize_image_to_fit_widget)
             else:
                 self.resize_image_to_fit_widget()
         else:
@@ -107,8 +104,18 @@ class Image(Base):
         if self.widget is None:
             return
 
-        width = self.widget.winfo_width()
-        height = self.widget.winfo_height()
+        row_weight = self.parent.widget.grid_rowconfigure(self.parent_grid_cell["row"])["weight"]
+        column_weight = self.parent.widget.grid_columnconfigure(self.parent_grid_cell["column"])["weight"]
+        if row_weight == 0 or column_weight == 0:
+            raise ValueError(f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} grid({row_properties['weight']}, {column_properties['weight']}) to a value other than 0")
+
+
+        (_, _, width, height) = self.parent.widget.grid_bbox(self.parent_grid_cell["row"], self.parent_grid_cell["column"])
+        # It is possible that the cell has no width and height when image is placed. It will then scale a second time
+        if width <= 0:
+            width = 1
+        if height <= 0:
+            height = 1
 
         current_aspect_ratio = self.pil_image.width / self.pil_image.height
         if width / current_aspect_ratio <= height:
@@ -121,8 +128,6 @@ class Image(Base):
                 (width, height), self.PILImage.NEAREST
             )
             self.update_display(resized_image)
-
-        self.scheduled_resize = None
 
     def update_display(self, image_to_display=None):
         if self.widget is None:

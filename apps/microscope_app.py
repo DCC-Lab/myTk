@@ -16,7 +16,7 @@ from queue import Queue, Empty
 
 class MicroscopeApp(App):
     def __init__(self):
-        App.__init__(self, geometry="920x380")
+        App.__init__(self)
 
         self.window.widget.title("Microscope")
 

@@ -95,7 +95,7 @@ class App(Bindable):
     def about(self, timeout=3000):
         Dialog.showinfo(title="About this App", 
                         message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
-                        auto_click= (Dialog.Replies.Ok, timeout))
+                        auto_click= (Dialog.Replies.Ok, 5000))
 
     def help(self):
         ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
@@ -108,8 +108,11 @@ class App(Bindable):
                              timeout=3000)
 
     def after(self, delay, function):
-        if self.root is not None:
-            self.scheduled_tasks.append(self.root.after(delay, function))
+        task_id = None
+        if self.root is not None and function is not None:
+            task_id = self.root.after(delay, function)
+            self.scheduled_tasks.append(task_id)
+        return task_id
 
     def after_cancel(self, task_id):
         if self.root is not None:
