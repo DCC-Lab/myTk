@@ -6,6 +6,7 @@ import re
 import io
 import contextlib
 
+
 class TestModulesManager(envtest.MyTkTestCase):
     def test_is_installed(self):
         self.assertTrue(ModulesManager.is_installed("io"))
@@ -26,18 +27,26 @@ class TestModulesManager(envtest.MyTkTestCase):
             ModulesManager.install_module("alouette")
 
     def test_install_import(self):
-        ModulesManager.install_and_import_modules_if_absent({"matplotlib":"matplotlib"})
+        ModulesManager.install_and_import_modules_if_absent(
+            {"matplotlib": "matplotlib"}
+        )
 
     def test_install_import_error(self):
         with self.assertRaises(RuntimeError):
-            ModulesManager.install_and_import_modules_if_absent({"alouette":"alouette"}, ask_for_confirmation=False)
-        
+            ModulesManager.install_and_import_modules_if_absent(
+                {"alouette": "alouette"}, ask_for_confirmation=False
+            )
+
     def test_validate_environment_error(self):
         with self.assertRaises(RuntimeError):
-            ModulesManager.validate_environment({"alouette":"alouette"}, ask_for_confirmation=False)
+            ModulesManager.validate_environment(
+                {"alouette": "alouette"}, ask_for_confirmation=False
+            )
 
     def test_validate_environment_no_error(self):
-        ModulesManager.validate_environment({"os":"os","path":"path"}, ask_for_confirmation=False)
+        ModulesManager.validate_environment(
+            {"os": "os", "path": "path"}, ask_for_confirmation=False
+        )
 
 
 if __name__ == "__main__":

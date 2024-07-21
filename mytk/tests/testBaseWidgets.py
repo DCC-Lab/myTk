@@ -10,14 +10,13 @@ class TestController(Bindable):
         self.test_property1 = None
         self.test_property2 = None
 
+
 class TestWidget(Base):
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Frame(
-            master,
-            width=100,
-            height=100
-            )
+        self.widget = ttk.Frame(master, width=100, height=100)
+
+
 # @unittest.skip("Requires interactions")
 class TestBaseView(envtest.MyTkTestCase):
     def setUp(self):
@@ -128,7 +127,9 @@ class TestBaseView(envtest.MyTkTestCase):
         self.widget.grid_into(self.app.window)
         self.assertTrue(self.widget.height > 0)
         self.assertTrue(self.widget.width > 0)
-        self.start_timed_mainloop(function=self.change_width_from_100_to_300, timeout=1000)
+        self.start_timed_mainloop(
+            function=self.change_width_from_100_to_300, timeout=1000
+        )
         self.app.mainloop()
 
     def change_width_from_100_to_300(self):
@@ -141,7 +142,9 @@ class TestBaseView(envtest.MyTkTestCase):
         self.assertEqual(self.widget.height, 200)
         self.widget.grid_into(self.app.window)
         self.assertTrue(self.widget.height == 200)
-        self.start_timed_mainloop(function=self.change_height_from_200_to_300, timeout=1000)
+        self.start_timed_mainloop(
+            function=self.change_height_from_200_to_300, timeout=1000
+        )
         self.app.mainloop()
 
     def change_height_from_200_to_300(self):
@@ -149,13 +152,16 @@ class TestBaseView(envtest.MyTkTestCase):
         self.widget.height = 300
         self.assertTrue(self.widget.height == 300)
 
+
 class TestBaseWidgetBindings(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
         Base.debug = True
         self.widget = None
         self.style = ttk.Style()
-        self.style.configure(".", borderwidth=5, relief='groove', bordercolor="red", foreground='green')
+        self.style.configure(
+            ".", borderwidth=5, relief="groove", bordercolor="red", foreground="green"
+        )
 
     def test_init_view(self):
         button = Button()
@@ -164,12 +170,13 @@ class TestBaseWidgetBindings(envtest.MyTkTestCase):
         # button.widget['style'] = "BW.TButton"
 
         controller = TestController()
-        button.bind_properties('is_enabled', controller, 'test_property1')
+        button.bind_properties("is_enabled", controller, "test_property1")
         self.assertEqual(controller.test_property1, button.is_enabled)
-        button.bind_properties('is_selected', controller, 'test_property2')
+        button.bind_properties("is_selected", controller, "test_property2")
         self.assertEqual(controller.test_property2, button.is_selected)
         self.start_timed_mainloop(timeout=1000)
         self.app.mainloop()
+
 
 if __name__ == "__main__":
     unittest.main()

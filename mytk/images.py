@@ -6,6 +6,7 @@ from .modulesmanager import ModulesManager
 
 import time
 
+
 class Image(Base):
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
@@ -15,7 +16,7 @@ class Image(Base):
             try:
                 self.pil_image = self.read_pil_image(filepath=filepath, url=url)
             except:
-                self.pil_image = self.PILImage.new('RGB', size=(100,100))
+                self.pil_image = self.PILImage.new("RGB", size=(100, 100))
         self._displayed_tkimage = None
 
         self.is_rescalable = False
@@ -46,16 +47,26 @@ class Image(Base):
         if self._displayed_tkimage is not None:
             return self._displayed_tkimage.height
         return None
-    
+
     def is_environment_valid(self):
-        ModulesManager.install_and_import_modules_if_absent({'Pillow':"PIL",'ImageTk':"PIL.ImageTk","PILImage":'PIL.Image',"ImageDraw":'PIL.ImageDraw'})
+        ModulesManager.install_and_import_modules_if_absent(
+            {
+                "Pillow": "PIL",
+                "ImageTk": "PIL.ImageTk",
+                "PILImage": "PIL.Image",
+                "ImageDraw": "PIL.ImageDraw",
+            }
+        )
 
-        self.PIL = ModulesManager.imported['Pillow']
-        self.PILImage = ModulesManager.imported['PILImage']
-        self.ImageDraw = ModulesManager.imported['ImageDraw']
-        self.ImageTk = ModulesManager.imported['ImageTk']
+        self.PIL = ModulesManager.imported["Pillow"]
+        self.PILImage = ModulesManager.imported["PILImage"]
+        self.ImageDraw = ModulesManager.imported["ImageDraw"]
+        self.ImageTk = ModulesManager.imported["ImageTk"]
 
-        return all(v is not None for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw])
+        return all(
+            v is not None
+            for v in [self.ImageTk, self.PIL, self.PILImage, self.ImageDraw]
+        )
 
     def read_pil_image(self, filepath=None, url=None):
         if filepath is not None:
@@ -63,23 +74,28 @@ class Image(Base):
         elif url is not None:
             import requests
             from io import BytesIO
+
             response = requests.get(url)
             pil_image = self.PILImage.open(BytesIO(response.content))
 
         pil_image.load()
         return pil_image
 
-    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
         if observed_property_name == "is_rescalable":
             if self.is_rescalable:
                 self.resize_image_to_fit_widget()
             else:
                 self.update_display()
 
-        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+        super().observed_property_changed(
+            observed_object, observed_property_name, new_value, context
+        )
 
     def create_widget(self, master):
-        self.widget = ttk.Label(master, compound='image')
+        self.widget = ttk.Label(master, compound="image")
         if self.is_rescalable:
             self.resize_image_to_fit_widget()
         else:
@@ -94,7 +110,9 @@ class Image(Base):
         if self.is_rescalable:
             if self.resize_update_delay > 0:
                 if len(self.scheduled_tasks) == 0:
-                    self.after(self.resize_update_delay, self.resize_image_to_fit_widget)
+                    self.after(
+                        self.resize_update_delay, self.resize_image_to_fit_widget
+                    )
             else:
                 self.resize_image_to_fit_widget()
         else:
@@ -104,13 +122,20 @@ class Image(Base):
         if self.widget is None:
             return
 
-        row_weight = self.parent.widget.grid_rowconfigure(self.parent_grid_cell["row"])["weight"]
-        column_weight = self.parent.widget.grid_columnconfigure(self.parent_grid_cell["column"])["weight"]
+        row_weight = self.parent.widget.grid_rowconfigure(self.parent_grid_cell["row"])[
+            "weight"
+        ]
+        column_weight = self.parent.widget.grid_columnconfigure(
+            self.parent_grid_cell["column"]
+        )["weight"]
         if row_weight == 0 or column_weight == 0:
-            raise ValueError(f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} grid({row_properties['weight']}, {column_properties['weight']}) to a value other than 0")
+            raise ValueError(
+                f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} grid({row_properties['weight']}, {column_properties['weight']}) to a value other than 0"
+            )
 
-
-        (_, _, width, height) = self.parent.widget.grid_bbox(self.parent_grid_cell["row"], self.parent_grid_cell["column"])
+        (_, _, width, height) = self.parent.widget.grid_bbox(
+            self.parent_grid_cell["row"], self.parent_grid_cell["column"]
+        )
         # It is possible that the cell has no width and height when image is placed. It will then scale a second time
         if width <= 0:
             width = 1
@@ -143,6 +168,7 @@ class Image(Base):
 
         self.widget.configure(image=self._displayed_tkimage)
 
+
 class ImageWithGrid(Image):
 
     def __init__(self, filepath=None, url=None, pil_image=None):
@@ -154,9 +180,12 @@ class ImageWithGrid(Image):
         self.add_observer(self, "is_grid_showing")
         self.add_observer(self, "grid_count")
 
-
-    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
-        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
+        super().observed_property_changed(
+            observed_object, observed_property_name, new_value, context
+        )
 
         if observed_property_name == "is_grid_showing":
             if self.is_rescalable:
@@ -168,7 +197,6 @@ class ImageWithGrid(Image):
                 self.resize_image_to_fit_widget()
             else:
                 self.update_display()
-
 
     def update_display(self, image_to_display=None):
         if self.widget is None:
@@ -197,7 +225,7 @@ class ImageWithGrid(Image):
             y_start = 0
             y_end = image.height
             step_size = int(image.width / self.grid_count)
-            if step_size > 0 :
+            if step_size > 0:
                 for x in range(0, image.width, step_size):
                     line = ((x, y_start), (x, y_end))
                     draw.line(line, fill=255)
@@ -212,6 +240,7 @@ class ImageWithGrid(Image):
             return image
         else:
             return None
+
 
 class DynamicImage(CanvasView):
     def __init__(self, width=200, height=200):

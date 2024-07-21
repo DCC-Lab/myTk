@@ -5,6 +5,7 @@ from .bindable import *
 from .window import *
 from .dialog import Dialog
 
+
 class App(Bindable):
     app = None
 
@@ -26,7 +27,7 @@ class App(Bindable):
     @property
     def is_running(self):
         return self.root is not None
-        
+
     def check_requirements(self):
         mac_version = platform.mac_ver()[0]
         python_version = platform.python_version()
@@ -64,7 +65,9 @@ class App(Bindable):
         menubar.add_cascade(label="Edit", menu=editmenu)
         helpmenu = Menu(menubar, tearoff=0)
         if self.help_url is None:
-            helpmenu.add_command(label="No help available", command=self.help, state="disabled")
+            helpmenu.add_command(
+                label="No help available", command=self.help, state="disabled"
+            )
         else:
             helpmenu.add_command(label="Documentation web site", command=self.help)
 
@@ -74,12 +77,12 @@ class App(Bindable):
 
     def reveal_path(self, path):
         try:
-            if platform.system() == 'Windows':
+            if platform.system() == "Windows":
                 os.startfile(path)
-            elif platform.system() == 'Darwin':
+            elif platform.system() == "Darwin":
                 subprocess.call(["open", path])
             else:
-                subprocess.call(['xdg-open', path])
+                subprocess.call(["xdg-open", path])
         except:
             Dialog.showerror(
                 title=f"Unable to show {path}",
@@ -93,19 +96,25 @@ class App(Bindable):
         raise NotImplementedError("Implement preferences: in derived class")
 
     def about(self, timeout=3000):
-        Dialog.showinfo(title="About this App", 
-                        message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
-                        auto_click= (Dialog.Replies.Ok, 5000))
+        Dialog.showinfo(
+            title="About this App",
+            message="Created with myTk: A simple user interface framework for busy scientists.\n\nhttps://github.com/DCC-Lab/myTk",
+            auto_click=(Dialog.Replies.Ok, 5000),
+        )
 
     def help(self):
-        ModulesManager.install_and_import_modules_if_absent({'webbrowser':'webbrowser'})
-        webbrowser = ModulesManager.imported.get('webbrowser')
+        ModulesManager.install_and_import_modules_if_absent(
+            {"webbrowser": "webbrowser"}
+        )
+        webbrowser = ModulesManager.imported.get("webbrowser")
         if self.help_url is not None and webbrowser is not None:
             webbrowser.open(self.help_url)
         else:
-            Dialog.showinfo( title="Help",
-                             message="There is no help available for this Application.",
-                             timeout=3000)
+            Dialog.showinfo(
+                title="Help",
+                message="There is no help available for this Application.",
+                timeout=3000,
+            )
 
     def after(self, delay, function):
         task_id = None

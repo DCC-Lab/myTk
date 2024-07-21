@@ -4,6 +4,7 @@ from .base import Base
 from .views import View
 from .labels import Label
 
+
 class Entry(Base):
     def __init__(self, text="", character_width=None):
         Base.__init__(self)
@@ -21,8 +22,9 @@ class Entry(Base):
     def event_return_callback(self, event):
         self.parent.widget.focus_set()
 
+
 class CellEntry(Base):
-    def __init__(self,  tableview, item_id, column_id, user_event_callback=None):
+    def __init__(self, tableview, item_id, column_id, user_event_callback=None):
         Base.__init__(self)
         self.tableview = tableview
         self.item_id = item_id
@@ -30,10 +32,10 @@ class CellEntry(Base):
         self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
-        bbox = self.tableview.widget.bbox(self.item_id, self.column_id-1)
+        bbox = self.tableview.widget.bbox(self.item_id, self.column_id - 1)
 
         item_dict = self.tableview.widget.item(self.item_id)
-        selected_text = item_dict["values"][self.column_id-1]
+        selected_text = item_dict["values"][self.column_id - 1]
 
         self.parent = master
         self.value_variable = StringVar()
@@ -44,7 +46,7 @@ class CellEntry(Base):
 
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
-        values[self.column_id-1] = self.value_variable.get()
+        values[self.column_id - 1] = self.value_variable.get()
 
         self.tableview.item_modified(item_id=self.item_id, values=values)
         self.event_generate("<FocusOut>")
@@ -54,9 +56,9 @@ class CellEntry(Base):
             self.user_event_callback(event, cell)
         self.widget.destroy()
 
+
 class NumericEntry(Base):
-    def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1):
+    def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = value
         self.minimum = minimum
@@ -75,9 +77,9 @@ class NumericEntry(Base):
         )
         self.bind_textvariable(DoubleVar(value=self.value))
 
+
 class IntEntry(Base):
-    def __init__(
-        self, value=0, width=None, minimum=0, maximum=100, increment=1):
+    def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
         self.value = int(value)
         self.minimum = minimum
@@ -95,6 +97,7 @@ class IntEntry(Base):
             increment=self.increment,
         )
         self.bind_textvariable(IntVar(value=self.value))
+
 
 class LabelledEntry(View):
     def __init__(self, label, text="", character_width=None):

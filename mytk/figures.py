@@ -2,6 +2,7 @@ from .base import Base
 from .modulesmanager import ModulesManager
 import importlib
 
+
 class Figure(Base):
 
     def __init__(self, figure=None, figsize=None):
@@ -15,15 +16,30 @@ class Figure(Base):
         self.toolbar = None
 
     def is_environment_valid(self):
-        ModulesManager.install_and_import_modules_if_absent({'matplotlib':'matplotlib'})
-        self.matplotlib = ModulesManager.imported.get('matplotlib', None)
+        ModulesManager.install_and_import_modules_if_absent(
+            {"matplotlib": "matplotlib"}
+        )
+        self.matplotlib = ModulesManager.imported.get("matplotlib", None)
         if self.matplotlib is not None:
-            self.plt = importlib.import_module('matplotlib.pyplot')
-            self.MPLFigure = importlib.import_module('matplotlib.figure').Figure
-            self.FigureCanvasTkAgg = importlib.import_module('matplotlib.backends.backend_tkagg').FigureCanvasTkAgg
-            self.NavigationToolbar2Tk = importlib.import_module('matplotlib.backends.backend_tkagg').NavigationToolbar2Tk
-    
-        return all(v is not None for v in [self.matplotlib, self.plt, self.MPLFigure, self.FigureCanvasTkAgg, self.NavigationToolbar2Tk])
+            self.plt = importlib.import_module("matplotlib.pyplot")
+            self.MPLFigure = importlib.import_module("matplotlib.figure").Figure
+            self.FigureCanvasTkAgg = importlib.import_module(
+                "matplotlib.backends.backend_tkagg"
+            ).FigureCanvasTkAgg
+            self.NavigationToolbar2Tk = importlib.import_module(
+                "matplotlib.backends.backend_tkagg"
+            ).NavigationToolbar2Tk
+
+        return all(
+            v is not None
+            for v in [
+                self.matplotlib,
+                self.plt,
+                self.MPLFigure,
+                self.FigureCanvasTkAgg,
+                self.NavigationToolbar2Tk,
+            ]
+        )
 
     def create_widget(self, master):
         self.parent = master
@@ -33,7 +49,9 @@ class Figure(Base):
         self.canvas = self.FigureCanvasTkAgg(self.figure, master=master)
         self.widget = self.canvas.get_tk_widget()
 
-        self.toolbar = self.NavigationToolbar2Tk(self.canvas, master, pack_toolbar=False)
+        self.toolbar = self.NavigationToolbar2Tk(
+            self.canvas, master, pack_toolbar=False
+        )
         self.toolbar.update()
 
     @property
@@ -62,89 +80,164 @@ class Figure(Base):
             return self.figure.axes
         return None
 
-    def styles_pointmarker(self, linestyle=''):
+    def styles_pointmarker(self, linestyle=""):
         default_size = 8
-        plain_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='black',
-                           markerfacecoloralt='black',
-                           markeredgecolor='black')
+        plain_black = dict(
+            fillstyle="full",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="black",
+            markerfacecoloralt="black",
+            markeredgecolor="black",
+        )
 
-        circle_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='white',
-                           markerfacecoloralt='white',
-                           markeredgecolor='black')
+        circle_black = dict(
+            fillstyle="full",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="white",
+            markerfacecoloralt="white",
+            markeredgecolor="black",
+        )
 
-        plain_s_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='black',
-                           markerfacecoloralt='black',
-                           markeredgecolor='black')
+        plain_s_black = dict(
+            fillstyle="full",
+            marker="s",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="black",
+            markerfacecoloralt="black",
+            markeredgecolor="black",
+        )
 
-        square_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='white',
-                           markerfacecoloralt='white',
-                           markeredgecolor='black')
+        square_black = dict(
+            fillstyle="full",
+            marker="s",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="white",
+            markerfacecoloralt="white",
+            markeredgecolor="black",
+        )
 
-        plain_red = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='red',
-                           markerfacecolor='red',
-                           markerfacecoloralt='red',
-                           markeredgecolor='red')
+        plain_red = dict(
+            fillstyle="full",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="red",
+            markerfacecolor="red",
+            markerfacecoloralt="red",
+            markeredgecolor="red",
+        )
 
-        circle_red = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='red',
-                           markerfacecolor='white',
-                           markerfacecoloralt='white',
-                           markeredgecolor='red')
+        circle_red = dict(
+            fillstyle="none",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="red",
+            markerfacecolor="white",
+            markerfacecoloralt="white",
+            markeredgecolor="red",
+        )
 
-        styles = [plain_black, circle_black, plain_s_black, square_black, plain_red, circle_red]
+        styles = [
+            plain_black,
+            circle_black,
+            plain_s_black,
+            square_black,
+            plain_red,
+            circle_red,
+        ]
 
         return styles
 
-    def styles_points_linemarkers(self, linestyle='-'):
+    def styles_points_linemarkers(self, linestyle="-"):
         default_size = 8
-        plain_black = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='black',
-                           markerfacecoloralt='black',
-                           markeredgecolor='black')
+        plain_black = dict(
+            fillstyle="full",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="black",
+            markerfacecoloralt="black",
+            markeredgecolor="black",
+        )
 
-        circle_black = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
-                           markeredgecolor='black')
+        circle_black = dict(
+            fillstyle="none",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor=None,
+            markerfacecoloralt=None,
+            markeredgecolor="black",
+        )
 
-        plain_s_black = dict(fillstyle='full', marker='s', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor='black',
-                           markerfacecoloralt='black',
-                           markeredgecolor='black')
+        plain_s_black = dict(
+            fillstyle="full",
+            marker="s",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor="black",
+            markerfacecoloralt="black",
+            markeredgecolor="black",
+        )
 
-        square_black = dict(fillstyle='none', marker='s', linestyle=linestyle, markersize=default_size,
-                           color='black',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
-                           markeredgecolor='black')
+        square_black = dict(
+            fillstyle="none",
+            marker="s",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="black",
+            markerfacecolor=None,
+            markerfacecoloralt=None,
+            markeredgecolor="black",
+        )
 
-        plain_red = dict(fillstyle='full', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='red',
-                           markerfacecolor='red',
-                           markerfacecoloralt='red',
-                           markeredgecolor='red')
+        plain_red = dict(
+            fillstyle="full",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="red",
+            markerfacecolor="red",
+            markerfacecoloralt="red",
+            markeredgecolor="red",
+        )
 
-        circle_red = dict(fillstyle='none', marker='o', linestyle=linestyle, markersize=default_size,
-                           color='red',
-                           markerfacecolor=None,
-                           markerfacecoloralt=None,
-                           markeredgecolor='red')
+        circle_red = dict(
+            fillstyle="none",
+            marker="o",
+            linestyle=linestyle,
+            markersize=default_size,
+            color="red",
+            markerfacecolor=None,
+            markerfacecoloralt=None,
+            markeredgecolor="red",
+        )
 
-        styles = [plain_black, circle_black, plain_s_black, square_black, plain_red, circle_red]
+        styles = [
+            plain_black,
+            circle_black,
+            plain_s_black,
+            square_black,
+            plain_red,
+            circle_red,
+        ]
 
         return styles
+
 
 class XYPlot(Figure):
     def __init__(self, figsize):
@@ -180,6 +273,7 @@ class XYPlot(Figure):
         # self.x = self.x[-self.x_range : -1]
         # self.y = self.y[-self.x_range : -1]
 
+
 class Histogram(Figure):
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
@@ -188,8 +282,8 @@ class Histogram(Figure):
 
     def is_environment_valid(self):
         if super().is_environment_valid():
-            ModulesManager.install_and_import_modules_if_absent({'numpy':'numpy'})
-            return ModulesManager.imported['numpy']
+            ModulesManager.install_and_import_modules_if_absent({"numpy": "numpy"})
+            return ModulesManager.imported["numpy"]
         else:
             return False
 
@@ -207,16 +301,15 @@ class Histogram(Figure):
 
     def update_plot(self):
         if len(self.x) > 1:
-            colors = ['red','green','blue']
+            colors = ["red", "green", "blue"]
             for i, y in enumerate(self.y):
                 self.first_axis.stairs(y[:-1], self.x, color=colors[i])
 
-            numpy = ModulesManager.imported['numpy']
-            self.first_axis.set_ylim( (0, numpy.mean(self.y)+numpy.std(self.y)*2) )
+            numpy = ModulesManager.imported["numpy"]
+            self.first_axis.set_ylim((0, numpy.mean(self.y) + numpy.std(self.y) * 2))
             self.first_axis.set_yticklabels([])
             self.first_axis.set_xticklabels([])
             self.first_axis.set_xticks([])
             self.first_axis.set_yticks([])
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
-

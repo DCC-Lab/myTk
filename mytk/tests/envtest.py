@@ -1,19 +1,15 @@
 import sys
 import os
+
 # append module root directory to sys.path
-sys.path.insert(0,
-                os.path.dirname(
-                    os.path.dirname(
-                        os.path.dirname(
-                            os.path.abspath(__file__)
-                        )
-                    )
-                )
-                )
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 import pathlib
 import unittest
 from mytk import App
+
 
 class MyTkTestCase(unittest.TestCase):
     def setUp(self):
@@ -33,6 +29,5 @@ class MyTkTestCase(unittest.TestCase):
 
     def start_timed_mainloop(self, function=None, timeout=500):
         if function is not None:
-            self.app.root.after(int(timeout/4), function)
-        self.app.root.after(timeout, self.app.quit) # max 5 seconds
-
+            self.app.root.after(int(timeout / 4), function)
+        self.app.root.after(timeout, self.app.quit)  # max 5 seconds

@@ -4,6 +4,7 @@ from functools import partial
 
 from .base import Base
 
+
 class PopupMenu(Base):
     def __init__(self, menu_items=None, user_callback=None):
         Base.__init__(self)
@@ -24,7 +25,7 @@ class PopupMenu(Base):
 
     def clear_menu_items(self):
         if self.widget is not None:
-            self.menu.delete(0,'end')
+            self.menu.delete(0, "end")
         self.menu_items = []
 
     def add_menu_items(self, menu_items):
@@ -40,7 +41,7 @@ class PopupMenu(Base):
         if selected_index is not None:
             self.value_variable.set(value=self.menu_items[self.selected_index])
         else:
-            self.value_variable.set('')
+            self.value_variable.set("")
 
         if self.user_callback is not None:
             self.user_callback(self, selected_index)

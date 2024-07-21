@@ -2,6 +2,7 @@ from tkinter import Canvas
 
 from .base import Base
 
+
 class CanvasView(Base):
     def __init__(self, width=200, height=200):
         super().__init__()

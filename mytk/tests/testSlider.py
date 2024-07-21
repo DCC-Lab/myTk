@@ -2,6 +2,7 @@ import envtest
 import unittest
 from mytk import *
 
+
 class TestController(Bindable):
     def __init__(self):
         super().__init__()
@@ -18,7 +19,7 @@ class TestSlider(envtest.MyTkTestCase):
         super().setUp()
         self.callback_called = False
         self.ui_object = Slider()
-    
+
     def test_init(self):
         self.assertIsNotNone(self.ui_object)
         self.assertEqual(self.ui_object.value, 0)
@@ -64,6 +65,7 @@ class TestSlider(envtest.MyTkTestCase):
         self.assertEqual(self.ui_object.value, 0)
         self.ui_object.value = -100
         self.assertEqual(self.ui_object.value, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

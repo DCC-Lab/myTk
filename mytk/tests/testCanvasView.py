@@ -14,5 +14,6 @@ class TestCanvasView(envtest.MyTkTestCase):
         self.assertIsNotNone(c)
         c.grid_into(self.app.window)
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,7 @@ import envtest
 import unittest
 from mytk import *
 
+
 class TestController(Bindable):
     def __init__(self):
         super().__init__()
@@ -20,11 +21,13 @@ class TestRadioButton(envtest.MyTkTestCase):
         self.common = None
 
     def test_init(self):
-        button = RadioButton('Option 1', 1)
+        button = RadioButton("Option 1", 1)
         self.assertIsNotNone(button)
 
     def test_group(self):
-        buttons = RadioButton.linked_group({'Option 1':1, 'Option 2':2, 'Option 3':3})
+        buttons = RadioButton.linked_group(
+            {"Option 1": 1, "Option 2": 2, "Option 3": 3}
+        )
         self.assertIsNotNone(buttons)
         self.assertEqual(len(buttons), 3)
         for i, button in enumerate(buttons):
@@ -34,7 +37,9 @@ class TestRadioButton(envtest.MyTkTestCase):
             self.assertFalse(button.is_selected)
 
     def test_group_set_value(self):
-        buttons = RadioButton.linked_group({'Option 1':1,"Option 2":2, 'Option 3':3})
+        buttons = RadioButton.linked_group(
+            {"Option 1": 1, "Option 2": 2, "Option 3": 3}
+        )
         self.assertIsNotNone(buttons)
         self.assertEqual(len(buttons), 3)
         for i, button in enumerate(buttons):
@@ -55,6 +60,7 @@ class TestRadioButton(envtest.MyTkTestCase):
 
     def set2(self):
         self.common.set(value=2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 import tkinter.ttk as ttk
 from .base import *
 
+
 class Checkbox(Base):
     def __init__(self, label="", user_callback=None):
         super().__init__()
@@ -34,5 +35,4 @@ class Checkbox(Base):
             try:
                 self.user_callback(self)
             except Exception as err:
-                raise RuntimeError(f'Error when calling user_callback in {self}: {err}')
-
+                raise RuntimeError(f"Error when calling user_callback in {self}: {err}")

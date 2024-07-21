@@ -2,9 +2,10 @@ import envtest
 import unittest
 from mytk import *
 
+
 # @unittest.skip("Requires interactions")
 class TestMyApp(envtest.MyTkTestCase):
-    def test_exists(self):  
+    def test_exists(self):
         self.assertIsNotNone(self.app)
         self.assertIsNotNone(self.app.window)
         self.assertIsNotNone(self.app.root)
@@ -37,13 +38,13 @@ class TestMyApp(envtest.MyTkTestCase):
         self.app.help_url = "http://www.google.com"
         self.start_timed_mainloop(function=self.app.help, timeout=100)
 
-    @unittest.skip('Not needed')
+    @unittest.skip("Not needed")
     def test_reveal(self):
         self.app.reveal_path("./")
 
     def test_windowing_system(self):
-        systems = ['x11', 'win32', 'aqua']
-        self.assertTrue(self.app.root.tk.call('tk', 'windowingsystem') in systems)
+        systems = ["x11", "win32", "aqua"]
+        self.assertTrue(self.app.root.tk.call("tk", "windowingsystem") in systems)
 
 
 if __name__ == "__main__":
