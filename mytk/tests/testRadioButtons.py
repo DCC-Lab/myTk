@@ -24,7 +24,7 @@ class TestRadioButton(envtest.MyTkTestCase):
         self.assertIsNotNone(button)
 
     def test_group(self):
-        buttons = RadioButton.linked_group({'Option 1':1,"Option 2":2, 'Option 3':3})
+        buttons = RadioButton.linked_group({'Option 1':1, 'Option 2':2, 'Option 3':3})
         self.assertIsNotNone(buttons)
         self.assertEqual(len(buttons), 3)
         for i, button in enumerate(buttons):
