@@ -169,7 +169,8 @@ class TabularData(Bindable):
     def source_records_changed(self):
         if not self._disable_change_calls:
             if self.delegate is not None:
-                self.delegate().source_data_changed(self.records)
+                with suppress(AttributeError):
+                    self.delegate().source_data_changed(self.records)
 
     def load(self, filepath, disable_change_calls=False):
         records_from_file = self.load_records_from_json(filepath)

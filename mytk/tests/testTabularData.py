@@ -187,6 +187,13 @@ class TestTabularDataSource(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             t.update_record(0, [1])
 
+    def test_delegate_does_not_implement_source_data_changed(self):
+        class Dummy:
+            pass
+
+        t = TabularData(delegate = Dummy())
+        record = t.insert_record(1, {"a":2})
+
     def test_save_data_exists_json(self):
         t = TabularData(delegate = self)
         t.insert_record(0, {"a":1,"b":2})
