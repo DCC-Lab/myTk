@@ -55,7 +55,7 @@ class TestSlider(envtest.MyTkTestCase):
         self.start_timed_mainloop(function=self.change_value_to_minus_100, timeout=500)
         self.app.mainloop()
 
-    def change_value_to_150(self):
+    def change_value_over_maximum_to_150_reset_to_100(self):
         self.assertEqual(self.ui_object.value, 0)
         self.ui_object.value = 150
         self.assertEqual(self.ui_object.value, 100)
