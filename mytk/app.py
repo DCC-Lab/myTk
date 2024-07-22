@@ -6,6 +6,7 @@ from .window import *
 from .dialog import Dialog
 from contextlib import redirect_stdout
 import io
+from tkinter import TclError
 
 class App(Bindable):
     app = None
@@ -130,16 +131,18 @@ class App(Bindable):
             self.scheduled_tasks.remove(task_id)
 
     def after_cancel_many(self, task_ids):
-        for task_id in task_ids:
+        copy_task_ids = [] # In case we receive scheduled_tasks directly without copy
+        copy_task_ids.extend(task_ids) 
+        for task_id in copy_task_ids:
             self.after_cancel(task_id)
 
     def after_cancel_all(self):
-        for task_id in self.scheduled_tasks:
-            self.after_cancel(task_id)
+        self.after_cancel_many(self.scheduled_tasks)
 
     def quit(self):
         if self.is_running:
             self.after_cancel_all()
-            with redirect_stdout(io.StringIO()): # tkinter may complain, we ignore
-                self.window.widget.destroy()
-                self.window.widget = None
+            with suppress(TclError):# tkinter may complain, we ignore
+                with redirect_stdout(io.StringIO()): 
+                    self.window.widget.destroy()
+                    self.window.widget = None

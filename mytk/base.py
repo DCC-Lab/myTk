@@ -141,19 +141,22 @@ class Base(Bindable):
 
     def after(self, delay, function):
         task_id = None
-        if self.widget is not None and function is not None:
-            task_id = self.widget.after(delay, function)
+        if self.root is not None and function is not None:
+            task_id = self.root.after(delay, function)
             self.scheduled_tasks.append(task_id)
         return task_id
 
     def after_cancel(self, task_id):
-        if self.widget is not None:
-            self.widget.after_cancel(task_id)
+        if self.root is not None:
+            self.root.after_cancel(task_id)
             self.scheduled_tasks.remove(task_id)
 
-    def after_cancel_all(self):
-        for task_id in self.scheduled_tasks:
+    def after_cancel_many(self, task_ids):
+        for task_id in task_ids:
             self.after_cancel(task_id)
+
+    def after_cancel_all(self):
+        self.after_cancel_many(self.scheduled_tasks)
 
     """
     Placing widgets in other widgets
