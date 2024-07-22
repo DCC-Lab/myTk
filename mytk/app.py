@@ -4,7 +4,8 @@ from .modulesmanager import ModulesManager
 from .bindable import *
 from .window import *
 from .dialog import Dialog
-
+from contextlib import redirect_stdout
+import io
 
 class App(Bindable):
     app = None
@@ -128,6 +129,10 @@ class App(Bindable):
             self.root.after_cancel(task_id)
             self.scheduled_tasks.remove(task_id)
 
+    def after_cancel_many(self, task_ids):
+        for task_id in task_ids:
+            self.after_cancel(task_id)
+
     def after_cancel_all(self):
         for task_id in self.scheduled_tasks:
             self.after_cancel(task_id)
@@ -135,5 +140,6 @@ class App(Bindable):
     def quit(self):
         if self.is_running:
             self.after_cancel_all()
-            self.window.widget.destroy()
-            self.window.widget = None
+            with redirect_stdout(io.StringIO()): # tkinter may complain, we ignore
+                self.window.widget.destroy()
+                self.window.widget = None
