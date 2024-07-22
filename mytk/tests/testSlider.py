@@ -58,7 +58,7 @@ class TestSlider(envtest.MyTkTestCase):
 
     def change_value_over_maximum_to_150_reset_to_100(self):
         self.assertEqual(self.ui_object.value, 0)
-        self.ui_object.value = 150
+        self.ui_object.value = 150 # will clip back to 100
         self.assertEqual(self.ui_object.value, 100)
 
     def change_value_to_minus_100(self):
