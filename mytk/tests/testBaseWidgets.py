@@ -156,7 +156,7 @@ class TestBaseView(envtest.MyTkTestCase):
 class TestBaseWidgetBindings(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
-        Base.debug = True
+        # Base.debug = True
         self.widget = None
         self.style = ttk.Style()
         self.style.configure(
