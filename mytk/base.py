@@ -111,6 +111,7 @@ class Base(Bindable):
         else:
             self.widget["height"] = value
 
+
     """
     Convenience setters/getters
     """
@@ -141,14 +142,14 @@ class Base(Bindable):
 
     def after(self, delay, function):
         task_id = None
-        if self.root is not None and function is not None:
-            task_id = self.root.after(delay, function)
+        if self.widget is not None and function is not None:
+            task_id = self.widget.after(delay, function)
             self.scheduled_tasks.append(task_id)
         return task_id
 
     def after_cancel(self, task_id):
-        if self.root is not None:
-            self.root.after_cancel(task_id)
+        if self.widget is not None:
+            self.widget.after_cancel(task_id)
             self.scheduled_tasks.remove(task_id)
 
     def after_cancel_many(self, task_ids):
