@@ -22,6 +22,7 @@ class MyTkTestCase(unittest.TestCase):
         self.callback_function_called = False
         self.delegate_function_called = False
         self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
+        self.widget_under_test = None
 
     def tearDown(self):
         self.kill_app_if_needed()

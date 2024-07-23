@@ -84,6 +84,27 @@ class Base(Bindable):
             self.widget.state(["!selected"])
 
     @property
+    def has_focus(self):
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        self.widget.update()
+        return self.widget.instate(["focus"])
+
+    @has_focus.setter
+    def has_focus(self, value):
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        if value:
+            self.widget.state(["focus"])
+        else:
+            self.widget.state(["!focus"])
+
+
+    @property
     def width(self):
         if self.widget is None:
             return self._widget_args.get("width")

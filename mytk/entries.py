@@ -3,24 +3,54 @@ import tkinter.ttk as ttk
 from .base import Base
 from .views import View
 from .labels import Label
+import tkinter.font as tkFont
 
 
 class Entry(Base):
     def __init__(self, text="", character_width=None):
         Base.__init__(self)
-        self.initial_text = text
-        self.character_width = character_width
+        self._widget_args = {"width":character_width}
+        self.value_variable = StringVar(value=text)
+        self.text = None
+        self.bind_properties("value_variable", self, "text")
+
+    @property
+    def character_width(self):
+        if self.widget is None:
+            return self._widget_args["width"]
+        else:
+            return self.widget["width"]
+
+    @character_width.setter
+    def character_width(self, value):
+        if self.widget is None:
+            self._widget_args["width"] = value
+        else:
+            self.widget["width"] = value
+
+    @property
+    def width(self):
+        if self.widget is None:
+            raise NotImplementedError('It is not possible to get the width in pixels for an Entry before placing it into a window.')
+        else:
+            self.widget.update()
+            return self.widget.winfo_width()
+
+    @width.setter
+    def width(self, pixel_width):
+        raise NotImplementedError('It is not possible (yet) to set the width in pixels for an Entry.')
+
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(StringVar(value=self.initial_text))
+        self.bind_textvariable(self.value_variable)
         self.widget.bind("<Return>", self.event_return_callback)
         self.widget.update()
 
     def event_return_callback(self, event):
-        self.parent.widget.focus_set()
+        self.parent.focus_set()
 
 
 class CellEntry(Base):
@@ -60,43 +90,140 @@ class CellEntry(Base):
 class NumericEntry(Base):
     def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
-        self.value = value
-        self.minimum = minimum
-        self.maximum = maximum
-        self.increment = increment
-        self.width = width
+        self._widget_args = {"width":width, "from":minimum, "to":maximum, "increment":increment}
+        self.value_variable = DoubleVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Spinbox(
             master,
-            width=self.width,
-            from_=self.minimum,
-            to=self.maximum,
-            increment=self.increment,
+            **self._widget_args
         )
-        self.bind_textvariable(DoubleVar(value=self.value))
+        self.bind_textvariable(self.value_variable)
 
+    @property
+    def value(self):
+        return self.value_variable.get()
+
+    @value.setter
+    def value(self, value):
+        if value > self.maximum:
+            self.value_variable.set(value=self.maximum)
+        elif value < self.minimum:
+            self.value_variable.set(value=self.minimum)
+        else:
+            self.value_variable.set(value=value)
+
+    @property
+    def minimum(self):
+        if self.widget is None:
+            return self._widget_args.get("from")
+        else:
+            return self.widget["from"]
+
+    @minimum.setter
+    def minimum(self, value):
+        if self.widget is None:
+            self._widget_args["from"] = value
+        else:
+            self.widget["from"] = value
+
+    @property
+    def maximum(self):
+        if self.widget is None:
+            return self._widget_args.get("to")
+        else:
+            return self.widget["to"]
+
+    @maximum.setter
+    def maximum(self, value):
+        if self.widget is None:
+            self._widget_args["to"] = value
+        else:
+            self.widget["to"] = value
+
+    @property
+    def increment(self):
+        if self.widget is None:
+            return self._widget_args.get("increment")
+        else:
+            return self.widget["increment"]
+
+    @increment.setter
+    def increment(self, value):
+        if self.widget is None:
+            self._widget_args["increment"] = value
+        else:
+            self.widget["increment"] = value
 
 class IntEntry(Base):
     def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
-        self.value = int(value)
-        self.minimum = minimum
-        self.maximum = maximum
-        self.increment = increment
-        self.width = width
+        self._widget_args = {"width":width, "from":minimum, "to":maximum, "increment":increment}
+        self.value_variable = IntVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
         self.widget = ttk.Spinbox(
             master,
-            width=self.width,
-            from_=self.minimum,
-            to=self.maximum,
-            increment=self.increment,
+            **self._widget_args
         )
-        self.bind_textvariable(IntVar(value=self.value))
+        self.bind_textvariable(self.value_variable)
+
+    @property
+    def value(self):
+        return self.value_variable.get()
+
+    @value.setter
+    def value(self, value):
+        if value > self.maximum:
+            self.value_variable.set(value=self.maximum)
+        elif value < self.minimum:
+            self.value_variable.set(value=self.minimum)
+        else:
+            self.value_variable.set(value=value)
+
+    @property
+    def minimum(self):
+        if self.widget is None:
+            return self._widget_args.get("from")
+        else:
+            return self.widget["from"]
+
+    @minimum.setter
+    def minimum(self, value):
+        if self.widget is None:
+            self._widget_args["from"] = value
+        else:
+            self.widget["from"] = value
+
+    @property
+    def maximum(self):
+        if self.widget is None:
+            return self._widget_args.get("to")
+        else:
+            return self.widget["to"]
+
+    @maximum.setter
+    def maximum(self, value):
+        if self.widget is None:
+            self._widget_args["to"] = value
+        else:
+            self.widget["to"] = value
+
+    @property
+    def increment(self):
+        if self.widget is None:
+            return self._widget_args.get("increment")
+        else:
+            return self.widget["increment"]
+
+    @increment.setter
+    def increment(self, value):
+        if self.widget is None:
+            self._widget_args["increment"] = value
+        else:
+            self.widget["increment"] = value
 
 
 class LabelledEntry(View):
