@@ -125,20 +125,26 @@ class TestIntEntry(envtest.MyTkTestCase):
         self.ui_object = IntEntry(minimum=-10, maximum=110)
         self.assertEqual(self.ui_object.minimum, -10)
         self.assertEqual(self.ui_object.maximum, 110)
+        self.assertEqual(self.ui_object.increment, 1)
         self.ui_object.minimum = 10
         self.ui_object.maximum = 120
+        self.ui_object.increment = 2
         self.assertEqual(self.ui_object.minimum, 10)
         self.assertEqual(self.ui_object.maximum, 120)
+        self.assertEqual(self.ui_object.increment, 2)
 
     def test_change_min_max_after_creation(self):
         self.ui_object = IntEntry(minimum=-10, maximum=110)
         self.ui_object.grid_into(self.app.window, row=0, column=0)
         self.assertEqual(self.ui_object.minimum, -10)
         self.assertEqual(self.ui_object.maximum, 110)
+        self.assertEqual(self.ui_object.increment, 1)
         self.ui_object.minimum = 10
         self.ui_object.maximum = 120
+        self.ui_object.increment = 2
         self.assertEqual(self.ui_object.minimum, 10)
         self.assertEqual(self.ui_object.maximum, 120)
+        self.assertEqual(self.ui_object.increment, 2)
 
 class TestNumericEntry(envtest.MyTkTestCase):
     def setUp(self):
