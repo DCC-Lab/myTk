@@ -446,13 +446,14 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
         if keep_running:
-            if self.is_column_sorted(column_id) == "<":
-                items_ids_sorted = self.sort_column(column_id, reverse=True)
-            else:
-                items_ids_sorted = self.sort_column(column_id, reverse=False)
+            with suppress(IndexError): # if empty, not an error
+                if self.is_column_sorted(column_id) == "<":
+                    items_ids_sorted = self.sort_column(column_id, reverse=True)
+                else:
+                    items_ids_sorted = self.sort_column(column_id, reverse=False)
 
-            for i, item_id in enumerate(items_ids_sorted):
-                self.widget.move(item_id, "", i)
+                for i, item_id in enumerate(items_ids_sorted):
+                    self.widget.move(item_id, "", i)
 
         return True
 
