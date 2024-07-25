@@ -25,7 +25,7 @@ from checkbox import Checkbox
 from radiobutton import RadioButton
 from popupmenu import PopupMenu
 from labels import Label, URLLabel
-from entries import Entry, CellEntry, NumericEntry, IntEntry, CellEntry, LabelledEntry
+from entries import Entry, FormattedEntry, CellEntry, NumericEntry, IntEntry, CellEntry, LabelledEntry
 from controls import Slider
 from canvasview import CanvasView
 from indicators import NumericIndicator, BooleanIndicator, Level

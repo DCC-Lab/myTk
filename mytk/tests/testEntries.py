@@ -1,8 +1,7 @@
 import envtest
 import unittest
 from mytk import *
-from tkinter.ttk import Style
-
+from mytk.entries import *
 
 class TestController(Bindable):
     def __init__(self):
@@ -195,6 +194,22 @@ class TestNumericEntry(envtest.MyTkTestCase):
         self.assertEqual(self.ui_object.minimum, 10)
         self.assertEqual(self.ui_object.maximum, 120)
         self.assertEqual(self.ui_object.increment, 2)
+
+class TestFormattedEntry(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.ui_object = None
+
+    def test_init_formatted_entry(self):
+        self.ui_object = FormattedEntry()
+        self.assertIsNotNone(self.ui_object)
+
+    def test_format(self):
+        entry = FormattedEntry()
+        entry.value = 1.2345
+        self.assertEqual(entry.value_variable.get(), 1.2345)
+        entry.value_variable.set(value="1.234")
+        print(entry.value)
 
 if __name__ == "__main__":
     unittest.main()

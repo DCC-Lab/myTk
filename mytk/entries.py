@@ -4,7 +4,7 @@ from .base import Base
 from .views import View
 from .labels import Label
 import tkinter.font as tkFont
-
+import re
 
 class Entry(Base):
     def __init__(self, text="", character_width=None):
@@ -52,6 +52,29 @@ class Entry(Base):
     def event_return_callback(self, event):
         self.parent.focus_set()
 
+class FormattedEntry(Entry):
+    def __init__(self, format_string = None, reverse_regex = None,character_width=None):
+        super().__init__(text="", character_width=character_width)
+        # super().__init__()
+
+        self.format_string = format_string
+        if self.format_string is None:
+            self.format_string = r"{0}"
+        self.reverse_regex = reverse_regex
+        if self.reverse_regex is None:
+            self.reverse_regex = r"(.+)"
+
+    @property
+    def value(self):
+        match = re.search(self.reverse_regex, self.value_variable.get())
+        if match is not None:
+            return float(match.group(1))
+
+
+    @value.setter
+    def value(self, new_value):
+        self.value_variable.set(value=self.format_string.format(new_value))
+    
 
 class CellEntry(Base):
     def __init__(self, tableview, item_id, column_id, user_event_callback=None):
