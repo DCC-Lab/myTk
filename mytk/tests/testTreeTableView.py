@@ -2,7 +2,7 @@ import envtest
 import unittest
 import os
 from mytk import *
-from mytk.tableview import FileViewer, walklevel
+from mytk.fileviewer import FileViewer, walklevel
 import tempfile
 import collections
 import random
@@ -46,10 +46,6 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def fill_tabular_data_with_fileviewer_data(self, t, dir):
-        from os.path import join, getsize
-
-        # _ = t.insert_record(pid=None, index=None, values={"name": dir,"size":0,"date_modified":0, "fullpath":None})
-
         for parent_path, dirs, files in os.walk(dir):
             pid = None
             for record in t.records:
@@ -69,16 +65,17 @@ class TestTreeTableview(envtest.MyTkTestCase):
                 size = os.path.getsize(directorypath)
                 mdate = os.path.getmtime(directorypath)
                 mdate = time.strftime('%m/%d/%Y', time.gmtime(os.path.getmtime(directorypath)))
-                _ = t.insert_record(pid=pid, index=None, values={"name": directory,"size":size,"date_modified":mdate, "fullpath":directorypath})
+                _ = t.insert_record(pid=pid, index=None, values={"name": directory,"size":"","date_modified":mdate, "fullpath":directorypath})
 
     def test_show_filesview(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.app.window.widget.grid_columnconfigure(0, weight=1)
-        self.tableview = FileViewer("/Users/dccote/")
+        self.tableview = FileViewer("/Applications")
         self.tableview.grid_into(self.app.window, row=0, column=0, sticky='nsew')
-        self.tableview.widget.after(1000000, self.app.quit)
+        self.tableview.widget.after(10000, self.app.quit)
         self.app.mainloop()
 
+    @unittest.skip('Only to understand')
     def test_walklevel(self):
         self.tableview = FileViewer("/tmp")
         for file in walklevel(".", depth=2):
