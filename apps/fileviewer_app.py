@@ -6,6 +6,18 @@ import raytracing.eo as eo
 from raytracing.figure import GraphicOf
 from contextlib import suppress
 
+class TreeData(TabularData):
+    class MissingField(Exception):
+        pass
+
+    class ExtraField(Exception):
+        pass
+
+    def __init__(self, tableview=None, delegate=None, required_fields=None):
+        super().__init__(tableview, delegate, required_fields)
+
+    
+
 class FileViewerApp(App):
     def __init__(self):
         App.__init__(self)
