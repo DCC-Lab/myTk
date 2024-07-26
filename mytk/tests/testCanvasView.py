@@ -12,7 +12,7 @@ class TestCanvasView(envtest.MyTkTestCase):
     def test_init(self):
         c = CanvasView()
         self.assertIsNotNone(c)
-        c.grid_into(self.app.window)
+        c.grid_into(self.app.window, row=0, column=0)
 
 
 if __name__ == "__main__":

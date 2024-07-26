@@ -30,12 +30,12 @@ class TestTableview(envtest.MyTkTestCase):
     def test_init_in_window(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.assertIsNotNone(self.tableview)
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
     def test_tableview_widget_init(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.assertIsNotNone(self.tableview)
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.assertEqual(self.tableview.columns, ["a", "b"])
         self.assertEqual(self.tableview.displaycolumns, ["a", "b"])
@@ -51,7 +51,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_show_tableview(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.tableview.widget.after(100, self.add_record)
         self.tableview.widget.after(200, self.add_record)
@@ -75,7 +75,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_show_tableview(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.tableview.widget.after(100, self.add_record)
         self.tableview.widget.after(200, self.add_record)
@@ -85,7 +85,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_show_full_tableview(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.tableview.widget.after(100, self.add_many_records)
         self.tableview.widget.after(200, self.app.quit)
@@ -93,7 +93,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_clear_content_tableview(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.app.root.after(100, self.add_many_records)
         self.app.root.after(150, self.tableview.clear_widget_content)
@@ -161,7 +161,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def subtest_recreate(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         self.add_many_records()
 
     def subtest_delete(self):
@@ -170,14 +170,14 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_show_full_tableview_change_displayorder(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         self.assertEqual(self.tableview.displaycolumns, ["a", "b"])
         self.tableview.displaycolumns = ("b", "a")
         self.assertEqual(self.tableview.displaycolumns, ["b", "a"])
 
     def test_column_info(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         cinfo = self.tableview.column_info("a")
 
         self.assertIsNotNone(cinfo["width"])
@@ -188,7 +188,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_heading_info(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         hinfo = self.tableview.heading_info("a")
         self.assertIsNotNone(hinfo["text"])
         self.assertIsNotNone(hinfo["image"])
@@ -203,7 +203,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_item_info(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         record = self.tableview.data_source.append_record(
             {"a": "value a", "b": "value b"}
@@ -223,7 +223,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_item_modification(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         self.tableview.widget.after(100, self.add_change)
         self.tableview.widget.after(500, self.app.quit)
@@ -232,7 +232,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_impossible_to_change_column_after_setting_them(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
 
         with self.assertRaises(Exception):
             self.tableview.widget["columns"] = ("c", "d", "e")

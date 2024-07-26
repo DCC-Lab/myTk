@@ -21,7 +21,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview = TableView(
             {"a": "Column A", "b": "Column B"}, is_treetable=True
         )
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         self.tableview.display_columns = ["#0", "a", "b"]
         self.tableview.all_elements_are_editable = False
         t = self.tableview.data_source
@@ -45,7 +45,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
             },
             is_treetable=True,
         )
-        self.tableview.grid_into(self.app.window)
+        self.tableview.grid_into(self.app.window, row=0, column=0)
         self.tableview.display_columns = ["#0", "name", "size", "date_modified"]
         self.tableview.all_elements_are_editable = False
         self.tableview.widget.column("#0", width=20)

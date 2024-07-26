@@ -18,7 +18,7 @@ class MyTkTestCase(unittest.TestCase):
         testcase_id = self.id()
         self.app.window.widget.title(testcase_id)
         empty_view = View(width=500, height=200)
-        empty_view.grid_into(self.app.window)
+        empty_view.grid_into(self.app.window, row=0, column=0)
 
         self.callback_function_called = False
         self.delegate_function_called = False

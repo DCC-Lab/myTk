@@ -117,14 +117,14 @@ class TestBaseView(envtest.MyTkTestCase):
     def test_widget_width(self):
         widget = TestWidget()
         self.assertIsNone(widget.height)
-        widget.grid_into(self.app.window)
+        widget.grid_into(self.app.window, row=0, column=0)
         self.assertTrue(widget.height > 0)
         self.assertTrue(widget.width > 0)
 
     def test_set_widget_width(self):
         self.widget = Box(width=100, height=200)
         self.assertEqual(self.widget.height, 200)
-        self.widget.grid_into(self.app.window)
+        self.widget.grid_into(self.app.window, row=0, column=0)
         self.assertTrue(self.widget.height > 0)
         self.assertTrue(self.widget.width > 0)
         self.start_timed_mainloop(
@@ -140,7 +140,7 @@ class TestBaseView(envtest.MyTkTestCase):
     def test_set_widget_height(self):
         self.widget = Box(width=100, height=200)
         self.assertEqual(self.widget.height, 200)
-        self.widget.grid_into(self.app.window)
+        self.widget.grid_into(self.app.window, row=0, column=0)
         self.assertTrue(self.widget.height == 200)
         self.start_timed_mainloop(
             function=self.change_height_from_200_to_300, timeout=1000
