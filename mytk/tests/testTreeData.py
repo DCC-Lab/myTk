@@ -5,6 +5,7 @@ from mytk import *
 import tempfile
 import uuid
 
+
 class TreeData(TabularData):
     class MissingField(Exception):
         pass
@@ -38,9 +39,6 @@ class TestTreeDataSource(unittest.TestCase):
         record = t.insert_record(pid=None, index=0, values={"a": 1})
         self.assertEqual(t.record_count, 1)
         self.assertTrue(self.delegate_function_called)
-
-
-        
 
     # def test_insert_records(self):
     #     t = TreeData(delegate=self)

@@ -48,7 +48,9 @@ class TestSlider(envtest.MyTkTestCase):
 
     def test_value_change_beyond_max(self):
         self.ui_object.grid_into(self.app.window)
-        self.start_timed_mainloop(function=self.change_value_over_maximum_to_150_reset_to_100, timeout=500)
+        self.start_timed_mainloop(
+            function=self.change_value_over_maximum_to_150_reset_to_100, timeout=500
+        )
         self.app.mainloop()
 
     def test_value_change_below_min(self):
@@ -58,7 +60,7 @@ class TestSlider(envtest.MyTkTestCase):
 
     def change_value_over_maximum_to_150_reset_to_100(self):
         self.assertEqual(self.ui_object.value, 0)
-        self.ui_object.value = 150 # will clip back to 100
+        self.ui_object.value = 150  # will clip back to 100
         self.assertEqual(self.ui_object.value, 100)
 
     def change_value_to_minus_100(self):
