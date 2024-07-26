@@ -133,7 +133,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
         self.tableview.displaycolumns = ["name", "size", "date_modified",'custom','custom2']
-        self.tableview.widget.after(10000, self.app.quit)
+        self.tableview.widget.after(100000, self.app.quit)
         self.app.mainloop()
 
 

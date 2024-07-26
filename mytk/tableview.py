@@ -125,11 +125,24 @@ class TabularData(Bindable):
 
         return record
 
-    def insert_record(self, index, values, pid=None):
+    def new_record(self, values, pid=None):
         if not isinstance(values, dict):
             raise RuntimeError("Pass dictionaries, not arrays")
 
         values["__puuid"] = pid
+        values = self._normalize_record(values)
+        return values
+
+    def insert_records(self, index, records, pid=None):
+        for record in records:
+            self.insert_record(index, record, pid)
+
+    def insert_record(self, index, values, pid=None):
+        if not isinstance(values, dict):
+            raise RuntimeError("Pass dictionaries, not arrays")
+
+        if values.get("__puuid") is None:
+            values["__puuid"] = pid
         values = self._normalize_record(values)
 
         if index is None:
@@ -144,12 +157,10 @@ class TabularData(Bindable):
             raise RuntimeError("Pass dictionaries, not arrays")
 
         index = index_or_uuid
-
-        match = re.match(r"^\d+$", str(index_or_uuid))
-        if match is not None:
-            index = int(index_or_uuid)
-        else:
+        if isinstance(index_or_uuid, uuid.UUID):
             index = self.field("__uuid").index(index_or_uuid)
+        elif re.search(r"\D", str(index)) is not None:
+            index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
 
         self.records[index].update(values)
         self.source_records_changed()
@@ -358,7 +369,7 @@ class TableView(Base):
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
-    def source_data_changed(self, records):
+    def source_data_changed2(self, records):
         items_ids = self.clear_widget_content()
 
         for record in records:
@@ -388,7 +399,7 @@ class TableView(Base):
                 )
 
 
-    def source_data_updated(self, records):
+    def source_data_changed(self, records):
         items_ids = self.widget.get_children()
 
         for record in records:
@@ -402,10 +413,10 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            if item_id in items_ids:
-                for i, value in enumerated(formatted_values):
+            if self.widget.exists(item_id):
+                for i, value in enumerate(formatted_values):
                     self.widget.set(
-                        item_id, column=1, value=value
+                        item_id, column=i, value=value
                     )
             else:
                 parentid = ""

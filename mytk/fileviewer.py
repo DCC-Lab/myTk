@@ -24,36 +24,41 @@ class FileTreeData(TabularData):
         self.date_format = "%c"
         self.refresh_directory_records(self.root_dir)
 
-    def record_with_fullpath(self, fullpath):
+    def recordid_with_fullpath(self, fullpath):
         for record in self.records:
             if record["fullpath"] == fullpath:
                 return record["__uuid"]
 
     def refresh_directory_records(self, root_dir):
-        records_added = self.add_directory_content(root_dir)
-        for record in records_added:
+        records_to_add = self.directory_content_records(root_dir)
+        self.insert_records(index=None, records=records_to_add)
+        for record in records_to_add:
             if record['is_directory']:
-                self.add_directory_content(record['fullpath'])
+                records_to_add = self.directory_content_records(record['fullpath'])
+                self.insert_records(index=None, records=records_to_add)
 
-    def add_directory_content(self, root_dir):
-        parent_id = self.record_with_fullpath(root_dir)
-        records_added = []
+    def directory_content_records(self, root_dir):
+        parent_id = self.recordid_with_fullpath(root_dir)
+        records_to_add = []
 
         if not os.access(root_dir, os.R_OK):
-            record = self.insert_record(
+            record = self.new_record(
                 pid=parent_id,
-                index=None,
                 values={
                     "name": "You dont have permission to read this directory",
                     "size": "",
                     "date_modified": "",
                     "fullpath": "",
-                    "is_directory": False
+                    "is_directory": False,
+                    "is_refreshed": False
                 },
             )
-            records_added.append(record)
+            records_to_add.append(record)
         else:
             for filename in os.listdir(root_dir):
+                if filename[0] == '.':
+                    continue
+
                 fullpath = os.path.join(root_dir, filename)
 
                 is_directory = False
@@ -65,20 +70,20 @@ class FileTreeData(TabularData):
                 mdate = time.strftime(
                     self.date_format, time.gmtime(os.path.getmtime(fullpath))
                 )
-                record = self.insert_record(
+                record = self.new_record(
                     pid=parent_id,
-                    index=None,
                     values={
                         "name": filename,
                         "size": "{0:.1f} k".format(size / 1000) if not is_directory else "",
                         "date_modified": mdate,
                         "fullpath": fullpath,
-                        "is_directory": is_directory
+                        "is_directory": is_directory,
+                        "is_refreshed": False
                     },
                 )
-                records_added.append(record)
+                records_to_add.append(record)
         
-        return records_added
+        return records_to_add
 
 
 class FileViewer(TableView):
@@ -113,5 +118,18 @@ class FileViewer(TableView):
         self.widget.column("size", width=70, stretch=False)
 
         self.source_data_changed(self.data_source.records)
-        # self.widget.bind("<<TreeviewSelect>>", self.update_child)
+        self.widget.bind("<<TreeviewSelect>>", self.refresh_child_if_needed)
+
+    def refresh_child_if_needed(self, event):
+        item_id = self.widget.focus()
+        parent_record = self.data_source.record(item_id)
+        if parent_record['is_directory'] and not parent_record['is_refreshed']:
+            print('Updating', item_id)
+            records_to_add = self.data_source.directory_content_records(parent_record['fullpath'])
+
+            for record in records_to_add:
+                print(record['name'])
+
+            self.data_source.insert_records(index=None, records=records_to_add, pid=item_id)
+            self.data_source.update_record(item_id, values={'is_refreshed':True})
 
