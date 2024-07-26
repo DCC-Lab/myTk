@@ -133,8 +133,10 @@ class TabularData(Bindable):
         values = self._normalize_record(values)
         return values
 
-    def insert_records(self, index, records, pid=None):
+    def insert_child_records(self, index, records, pid):
+        depth_level = self.record_depth_level(pid)
         for record in records:
+            record['depth_level'] = depth_level
             self.insert_record(index, record, pid)
 
     def insert_record(self, index, values, pid=None):
@@ -189,6 +191,15 @@ class TabularData(Bindable):
         ]
 
         return childs
+
+    def record_depth_level(self, uuid):
+        level = 0
+        while uuid is not None:
+            record = self.record(uuid)
+            uuid = record['__puuid']
+            level += 1
+
+        return level
 
     def field(self, name):
         return [record[name] for record in self.records]
@@ -408,10 +419,15 @@ class TableView(Base):
 
             formatted_values = []
             for i, value in enumerate(values):
+                padding = ''
+                if self.columns[i] == self.displaycolumns[0]:
+                    level = record.get('depth_level',0)
+                    padding = '   '*level
                 try:
-                    formatted_values.append(self.default_format_string.format(value))
+                    formatted_values.append(padding + self.default_format_string.format(value))
                 except Exception as err:
-                    formatted_values.append(value)
+                    formatted_values.append(padding + value)
+
 
             if self.widget.exists(item_id):
                 for i, value in enumerate(formatted_values):

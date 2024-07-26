@@ -30,20 +30,19 @@ class FileTreeData(TabularData):
                 return record["__uuid"]
 
     def refresh_directory_records(self, root_dir):
+        pid = self.recordid_with_fullpath(root_dir)
         records_to_add = self.directory_content_records(root_dir)
-        self.insert_records(index=None, records=records_to_add)
-        for record in records_to_add:
-            if record['is_directory']:
-                records_to_add = self.directory_content_records(record['fullpath'])
-                self.insert_records(index=None, records=records_to_add)
+        self.insert_child_records(index=None, records=records_to_add, pid=pid)
+        # for record in records_to_add:
+        #     if record['is_directory']:
+        #         pid = self.recordid_with_fullpath(record['fullpath'])
+        #         records_to_add = self.directory_content_records(record['fullpath'])
+        #         self.insert_child_records(index=None, records=records_to_add, pid=pid)
 
     def directory_content_records(self, root_dir):
-        parent_id = self.recordid_with_fullpath(root_dir)
         records_to_add = []
-
         if not os.access(root_dir, os.R_OK):
             record = self.new_record(
-                pid=parent_id,
                 values={
                     "name": "You dont have permission to read this directory",
                     "size": "",
@@ -56,32 +55,34 @@ class FileTreeData(TabularData):
             records_to_add.append(record)
         else:
             for filename in os.listdir(root_dir):
-                if filename[0] == '.':
-                    continue
+                try:
+                    if filename[0] == '.':
+                        continue
 
-                fullpath = os.path.join(root_dir, filename)
+                    fullpath = os.path.join(root_dir, filename)
 
-                is_directory = False
-                if os.path.isdir(fullpath):
-                    is_directory = True
+                    is_directory = False
+                    if os.path.isdir(fullpath):
+                        is_directory = True
 
-                size = os.path.getsize(fullpath)
-                mdate = os.path.getmtime(fullpath)
-                mdate = time.strftime(
-                    self.date_format, time.gmtime(os.path.getmtime(fullpath))
-                )
-                record = self.new_record(
-                    pid=parent_id,
-                    values={
-                        "name": filename,
-                        "size": "{0:.1f} k".format(size / 1000) if not is_directory else "",
-                        "date_modified": mdate,
-                        "fullpath": fullpath,
-                        "is_directory": is_directory,
-                        "is_refreshed": False
-                    },
-                )
-                records_to_add.append(record)
+                    size = os.path.getsize(fullpath)
+                    mdate = os.path.getmtime(fullpath)
+                    mdate = time.strftime(
+                        self.date_format, time.gmtime(os.path.getmtime(fullpath))
+                    )
+                    record = self.new_record(
+                        values={
+                            "name": filename,
+                            "size": "{0:.1f} k".format(size / 1000) if not is_directory else "",
+                            "date_modified": mdate,
+                            "fullpath": fullpath,
+                            "is_directory": is_directory,
+                            "is_refreshed": False
+                        },
+                    )
+                    records_to_add.append(record)
+                except FileNotFoundError:
+                    pass
         
         return records_to_add
 
@@ -124,12 +125,7 @@ class FileViewer(TableView):
         item_id = self.widget.focus()
         parent_record = self.data_source.record(item_id)
         if parent_record['is_directory'] and not parent_record['is_refreshed']:
-            print('Updating', item_id)
             records_to_add = self.data_source.directory_content_records(parent_record['fullpath'])
-
-            for record in records_to_add:
-                print(record['name'])
-
-            self.data_source.insert_records(index=None, records=records_to_add, pid=item_id)
+            self.data_source.insert_child_records(index=None, records=records_to_add, pid=item_id)
             self.data_source.update_record(item_id, values={'is_refreshed':True})
 
