@@ -24,6 +24,7 @@ class B(Bindable):
         self.py_b = b
         self.var_b = IntVar(value=b)
 
+
 class C(Bindable):
     def __init__(self, c):
         super().__init__()
@@ -34,10 +35,11 @@ class C(Bindable):
     @property
     def foo(self):
         return self._dict.get("foo", None)
-    
+
     @foo.setter
     def foo(self, value):
         self._dict["foo"] = value
+
 
 class Observer(Bindable):
     def __init__(self):
@@ -239,6 +241,7 @@ class TestBindings(envtest.MyTkTestCase):
         c.foo = 2
         self.assertEqual(c.foo, 2)
         self.assertEqual(c.py_c, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

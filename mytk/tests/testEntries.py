@@ -3,11 +3,13 @@ import unittest
 from mytk import *
 from mytk.entries import *
 
+
 class TestController(Bindable):
     def __init__(self):
         super().__init__()
         self.test_property1 = None
         self.test_property2 = None
+
 
 class TestEntry(envtest.MyTkTestCase):
     def setUp(self):
@@ -53,12 +55,10 @@ class TestEntry(envtest.MyTkTestCase):
         self.ui_object.character_width = 10
         self.assertTrue(original == self.ui_object.width)
 
-
     def test_cannot_read_pixel_width_before_creation(self):
         self.ui_object = Entry(text="bla", character_width=10)
         with self.assertRaises(NotImplementedError):
             self.ui_object.width
-
 
     def test_cannot_set_pixel_width(self):
         self.ui_object = Entry(text="bla", character_width=10)
@@ -91,7 +91,7 @@ class TestEntry(envtest.MyTkTestCase):
         self.assertFalse(self.ui_object.has_focus)
         self.ui_object.widget.focus()
         self.assertTrue(self.ui_object.has_focus)
-        self.ui_object.widget.event_generate('<Return>')
+        self.ui_object.widget.event_generate("<Return>")
         self.assertFalse(self.ui_object.has_focus)
 
 
@@ -145,6 +145,7 @@ class TestIntEntry(envtest.MyTkTestCase):
         self.assertEqual(self.ui_object.maximum, 120)
         self.assertEqual(self.ui_object.increment, 2)
 
+
 class TestNumericEntry(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
@@ -195,6 +196,7 @@ class TestNumericEntry(envtest.MyTkTestCase):
         self.assertEqual(self.ui_object.maximum, 120)
         self.assertEqual(self.ui_object.increment, 2)
 
+
 class TestFormattedEntry(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
@@ -209,6 +211,7 @@ class TestFormattedEntry(envtest.MyTkTestCase):
         entry.value = 1.2345
         # self.assertEqual(entry.value_variable.get(), 1.2345)
         entry.value_variable.set(value="1.234")
+
 
 if __name__ == "__main__":
     unittest.main()

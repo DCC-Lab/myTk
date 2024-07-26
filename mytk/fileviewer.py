@@ -49,14 +49,14 @@ class FileTreeData(TabularData):
                     "date_modified": "",
                     "fullpath": "",
                     "is_directory": False,
-                    "is_refreshed": False
+                    "is_refreshed": False,
                 },
             )
             records_to_add.append(record)
         else:
             for filename in os.listdir(root_dir):
                 try:
-                    if filename[0] == '.':
+                    if filename[0] == ".":
                         continue
 
                     fullpath = os.path.join(root_dir, filename)
@@ -73,17 +73,21 @@ class FileTreeData(TabularData):
                     record = self.new_record(
                         values={
                             "name": filename,
-                            "size": "{0:.1f} k".format(size / 1000) if not is_directory else "",
+                            "size": (
+                                "{0:.1f} k".format(size / 1000)
+                                if not is_directory
+                                else ""
+                            ),
                             "date_modified": mdate,
                             "fullpath": fullpath,
                             "is_directory": is_directory,
-                            "is_refreshed": False
+                            "is_refreshed": False,
                         },
                     )
                     records_to_add.append(record)
                 except FileNotFoundError:
                     pass
-        
+
         return records_to_add
 
 
@@ -124,8 +128,11 @@ class FileViewer(TableView):
     def refresh_child_if_needed(self, event):
         item_id = self.widget.focus()
         parent_record = self.data_source.record(item_id)
-        if parent_record['is_directory'] and not parent_record['is_refreshed']:
-            records_to_add = self.data_source.directory_content_records(parent_record['fullpath'])
-            self.data_source.insert_child_records(index=None, records=records_to_add, pid=item_id)
-            self.data_source.update_record(item_id, values={'is_refreshed':True})
-
+        if parent_record["is_directory"] and not parent_record["is_refreshed"]:
+            records_to_add = self.data_source.directory_content_records(
+                parent_record["fullpath"]
+            )
+            self.data_source.insert_child_records(
+                index=None, records=records_to_add, pid=item_id
+            )
+            self.data_source.update_record(item_id, values={"is_refreshed": True})

@@ -10,7 +10,7 @@ class Label(Base):
         Base.__init__(self)
         self.wrapping = wrapping
         self._widget_args = kwargs
-        
+
         if text is None:
             self.text = ""
         else:

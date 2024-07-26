@@ -136,7 +136,7 @@ class TabularData(Bindable):
     def insert_child_records(self, index, records, pid):
         depth_level = self.record_depth_level(pid)
         for record in records:
-            record['depth_level'] = depth_level
+            record["depth_level"] = depth_level
             self.insert_record(index, record, pid)
 
     def insert_record(self, index, values, pid=None):
@@ -196,7 +196,7 @@ class TabularData(Bindable):
         level = 0
         while uuid is not None:
             record = self.record(uuid)
-            uuid = record['__puuid']
+            uuid = record["__puuid"]
             level += 1
 
         return level
@@ -409,7 +409,6 @@ class TableView(Base):
                     "Delegate must implement source_data_changed()"
                 )
 
-
     def source_data_changed(self, records):
         items_ids = self.widget.get_children()
 
@@ -419,21 +418,20 @@ class TableView(Base):
 
             formatted_values = []
             for i, value in enumerate(values):
-                padding = ''
+                padding = ""
                 if self.columns[i] == self.displaycolumns[0]:
-                    level = record.get('depth_level',0)
-                    padding = '   '*level
+                    level = record.get("depth_level", 0)
+                    padding = "   " * level
                 try:
-                    formatted_values.append(padding + self.default_format_string.format(value))
+                    formatted_values.append(
+                        padding + self.default_format_string.format(value)
+                    )
                 except Exception as err:
                     formatted_values.append(padding + value)
 
-
             if self.widget.exists(item_id):
                 for i, value in enumerate(formatted_values):
-                    self.widget.set(
-                        item_id, column=i, value=value
-                    )
+                    self.widget.set(item_id, column=i, value=value)
             else:
                 parentid = ""
                 if record["__puuid"] is not None:

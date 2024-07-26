@@ -103,7 +103,6 @@ class Base(Bindable):
         else:
             self.widget.state(["!focus"])
 
-
     @property
     def width(self):
         if self.widget is None:
@@ -131,7 +130,6 @@ class Base(Bindable):
             self._widget_args["height"] = value
         else:
             self.widget["height"] = value
-
 
     """
     Convenience setters/getters

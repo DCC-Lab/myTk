@@ -127,13 +127,21 @@ class TestTreeTableview(envtest.MyTkTestCase):
     def test_show_filesview_custom_column(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)
         self.app.window.widget.grid_columnconfigure(0, weight=1)
-        self.tableview = FileViewer("/Users", custom_columns={"custom":"Some stuff", "custom2":"Calculation"})
+        self.tableview = FileViewer(
+            "/Users", custom_columns={"custom": "Some stuff", "custom2": "Calculation"}
+        )
 
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.displaycolumns = ["name", "size", "date_modified",'custom','custom2']
-        self.tableview.widget.after(100000, self.app.quit)
+        self.tableview.displaycolumns = [
+            "name",
+            "size",
+            "date_modified",
+            "custom",
+            "custom2",
+        ]
+        self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
 
 

@@ -132,8 +132,8 @@ class App(Bindable):
             self.scheduled_tasks.remove(task_id)
 
     def after_cancel_many(self, task_ids):
-        copy_task_ids = [] # In case we receive scheduled_tasks directly without copy
-        copy_task_ids.extend(task_ids) 
+        copy_task_ids = []  # In case we receive scheduled_tasks directly without copy
+        copy_task_ids.extend(task_ids)
         for task_id in copy_task_ids:
             self.after_cancel(task_id)
 
@@ -143,7 +143,7 @@ class App(Bindable):
     def quit(self):
         if self.is_running:
             self.after_cancel_all()
-            with suppress(TclError):# tkinter may complain, we ignore
-                with redirect_stdout(io.StringIO()): 
+            with suppress(TclError):  # tkinter may complain, we ignore
+                with redirect_stdout(io.StringIO()):
                     self.window.widget.destroy()
                     self.window.widget = None

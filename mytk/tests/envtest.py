@@ -10,6 +10,7 @@ import pathlib
 import unittest
 from mytk import App, View
 
+
 class MyTkTestCase(unittest.TestCase):
     def setUp(self):
         timeout = 1000

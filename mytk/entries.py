@@ -6,10 +6,11 @@ from .labels import Label
 import tkinter.font as tkFont
 import re
 
+
 class Entry(Base):
     def __init__(self, text="", character_width=None):
         Base.__init__(self)
-        self._widget_args = {"width":character_width}
+        self._widget_args = {"width": character_width}
         self.value_variable = StringVar(value=text)
         self.text = None
         self.bind_properties("value_variable", self, "text")
@@ -31,15 +32,18 @@ class Entry(Base):
     @property
     def width(self):
         if self.widget is None:
-            raise NotImplementedError('It is not possible to get the width in pixels for an Entry before placing it into a window.')
+            raise NotImplementedError(
+                "It is not possible to get the width in pixels for an Entry before placing it into a window."
+            )
         else:
             self.widget.update()
             return self.widget.winfo_width()
 
     @width.setter
     def width(self, pixel_width):
-        raise NotImplementedError('It is not possible (yet) to set the width in pixels for an Entry.')
-
+        raise NotImplementedError(
+            "It is not possible (yet) to set the width in pixels for an Entry."
+        )
 
     def create_widget(self, master):
         self.parent = master
@@ -52,8 +56,9 @@ class Entry(Base):
     def event_return_callback(self, event):
         self.parent.focus_set()
 
+
 class FormattedEntry(Entry):
-    def __init__(self, format_string = None, reverse_regex = None,character_width=None):
+    def __init__(self, format_string=None, reverse_regex=None, character_width=None):
         super().__init__(text="", character_width=character_width)
         # super().__init__()
 
@@ -70,11 +75,10 @@ class FormattedEntry(Entry):
         if match is not None:
             return float(match.group(1))
 
-
     @value.setter
     def value(self, new_value):
         self.value_variable.set(value=self.format_string.format(new_value))
-    
+
 
 class CellEntry(Base):
     def __init__(self, tableview, item_id, column_id, user_event_callback=None):
@@ -113,15 +117,17 @@ class CellEntry(Base):
 class NumericEntry(Base):
     def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
-        self._widget_args = {"width":width, "from":minimum, "to":maximum, "increment":increment}
+        self._widget_args = {
+            "width": width,
+            "from": minimum,
+            "to": maximum,
+            "increment": increment,
+        }
         self.value_variable = DoubleVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Spinbox(
-            master,
-            **self._widget_args
-        )
+        self.widget = ttk.Spinbox(master, **self._widget_args)
         self.bind_textvariable(self.value_variable)
 
     @property
@@ -179,18 +185,21 @@ class NumericEntry(Base):
         else:
             self.widget["increment"] = value
 
+
 class IntEntry(Base):
     def __init__(self, value=0, width=None, minimum=0, maximum=100, increment=1):
         Base.__init__(self)
-        self._widget_args = {"width":width, "from":minimum, "to":maximum, "increment":increment}
+        self._widget_args = {
+            "width": width,
+            "from": minimum,
+            "to": maximum,
+            "increment": increment,
+        }
         self.value_variable = IntVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Spinbox(
-            master,
-            **self._widget_args
-        )
+        self.widget = ttk.Spinbox(master, **self._widget_args)
         self.bind_textvariable(self.value_variable)
 
     @property

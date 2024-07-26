@@ -5,10 +5,23 @@ from .base import Base
 
 class Slider(Base):
     def __init__(
-        self, value=0, minimum=0, maximum=100, increment=1, width=200, height=20, orient=HORIZONTAL, delegate=None
+        self,
+        value=0,
+        minimum=0,
+        maximum=100,
+        increment=1,
+        width=200,
+        height=20,
+        orient=HORIZONTAL,
+        delegate=None,
     ):
         super().__init__()
-        self._widget_args = {"length":width, "from_":minimum, "to":maximum, "orient":orient}
+        self._widget_args = {
+            "length": width,
+            "from_": minimum,
+            "to": maximum,
+            "orient": orient,
+        }
 
         self.value_variable = DoubleVar(value=value)
 
@@ -19,9 +32,7 @@ class Slider(Base):
         self.add_observer(self, "value")
 
     def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(
-            master, **self._widget_args
-        )
+        self.widget = ttk.Scale(master, **self._widget_args)
         self.bind_variable(self.value_variable)
 
     @property
