@@ -7,6 +7,7 @@ from .dialog import Dialog
 from contextlib import redirect_stdout
 import io
 
+
 class App(Bindable):
     app = None
 
@@ -140,6 +141,6 @@ class App(Bindable):
     def quit(self):
         if self.is_running:
             self.after_cancel_all()
-            with redirect_stdout(io.StringIO()): # tkinter may complain, we ignore
+            with redirect_stdout(io.StringIO()):  # tkinter may complain, we ignore
                 self.window.widget.destroy()
                 self.window.widget = None
