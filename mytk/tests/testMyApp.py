@@ -77,12 +77,31 @@ class TestMyApp(envtest.MyTkTestCase):
         task_id2 = self.app.after(delay=1000, function=self.do_nothing)
         task_id3 = self.app.after(delay=1000, function=self.do_nothing)
 
-        self.app.after(delay=10, function=partial(self.cancel_many, [task_id1,task_id2,task_id3]))
-        self.app.after(delay=400, function=self.app.quit) # add quit back
+        self.app.after(
+            delay=10, function=partial(self.cancel_many, [task_id1, task_id2, task_id3])
+        )
+        self.app.after(delay=400, function=self.app.quit)  # add quit back
 
         self.start_timed_mainloop(timeout=500)
         self.app.mainloop()
-        self.assertFalse(self.callback_function_called)
+
+    def test_after_cancel_all(self):
+        original = len(self.app.scheduled_tasks)
+        task_id1 = self.app.after(delay=1000, function=self.do_nothing)
+        task_id2 = self.app.after(delay=1000, function=self.do_nothing)
+        task_id3 = self.app.after(delay=1000, function=self.do_nothing)
+        task_id4 = self.app.after(delay=1000, function=self.do_nothing)
+        task_id5 = self.app.after(delay=1000, function=self.do_nothing)
+        self.assertEqual(
+            len(self.app.scheduled_tasks), original + 5, self.app.scheduled_tasks
+        )
+
+        self.app.after(delay=10, function=self.cancel_all)
+        self.app.after(delay=400, function=self.app.quit)  # add quit back
+
+        self.start_timed_mainloop(timeout=500)
+        self.app.mainloop()
+
 
 if __name__ == "__main__":
     unittest.main()

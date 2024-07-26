@@ -273,6 +273,23 @@ class TestTabularDataSource(unittest.TestCase):
         record = t.append_record({"__uuid": uuid.uuid4(), "a": 1, "b": 1})
         self.assertTrue(isinstance(record["__uuid"], uuid.UUID))
 
+    def test_insert_record_as_child(self):
+        t = TabularData(delegate=self)
+        record = t.insert_record(pid=None, index=0, values={"a": 1})
+        record = t.insert_record(pid=record["__uuid"], index=0, values={"b": 1})
+        self.assertEqual(t.record_count, 2)
+        self.assertTrue(self.delegate_function_called)
+
+    def test_get_children(self):
+        t = TabularData(delegate=self)
+        parent = t.insert_record(pid=None, index=0, values={"a": 1})
+        child1 = t.insert_record(pid=parent["__uuid"], index=0, values={"b": 1})
+        child2 = t.insert_record(pid=parent["__uuid"], index=0, values={"c": 1})
+        child3 = t.insert_record(pid=parent["__uuid"], index=0, values={"d": 1})
+        self.assertTrue(child1 in t.record_childs(parent["__uuid"]))
+        self.assertTrue(child2 in t.record_childs(parent["__uuid"]))
+        self.assertTrue(child3 in t.record_childs(parent["__uuid"]))
+
 
 if __name__ == "__main__":
     unittest.main()

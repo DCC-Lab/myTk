@@ -6,6 +6,8 @@ import uuid
 import weakref
 import collections
 import re
+import os
+import time
 from contextlib import contextmanager, suppress
 
 from .bindable import Bindable
@@ -35,7 +37,8 @@ class TabularData(Bindable):
         self.records = []
         self.field_properties = {}
         self.delegate = None
-
+        self.error_on_extra_field = False
+        self.error_on_missing_field = False
         if tableview is not None:
             self.delegate = weakref.ref(tableview)
         if delegate is not None:
@@ -87,34 +90,65 @@ class TabularData(Bindable):
         if record.get("__uuid") is None:
             record["__uuid"] = uuid.uuid4()
 
+        if "__puuid" not in record.keys() is None:
+            record["__puuid"] = None
+
         if not isinstance(record["__uuid"], uuid.UUID):
             record["__uuid"] = uuid.UUID(record["__uuid"])
+
+        if (
+            not isinstance(record["__puuid"], uuid.UUID)
+            and record["__puuid"] is not None
+        ):
+            record["__puuid"] = uuid.UUID(record["__puuid"])
 
         if self.required_fields is not None:
             all_required_fields = self.required_fields
             all_required_fields.append("__uuid")
+            all_required_fields.append("__puuid")
 
             for field_name in all_required_fields:
                 if field_name not in record.keys():
-                    raise TabularData.MissingField(
-                        f"record is missing field: {field_name}"
-                    )
-            for field_name in record.keys():
-                if field_name not in all_required_fields:
-                    raise TabularData.ExtraField(
-                        f"record has extra field: {field_name}"
-                    )
+                    if self.error_on_missing_field:
+                        raise TabularData.MissingField(
+                            f"record is missing field: {field_name}"
+                        )
+                    else:
+                        record[field_name] = ""
+
+            if self.error_on_extra_field:
+                for field_name in record.keys():
+                    if field_name not in all_required_fields:
+                        raise TabularData.ExtraField(
+                            f"record has extra field: {field_name}"
+                        )
 
         return record
 
-    def insert_record(self, index, values):
+    def new_record(self, values, pid=None):
         if not isinstance(values, dict):
             raise RuntimeError("Pass dictionaries, not arrays")
 
+        values["__puuid"] = pid
+        values = self._normalize_record(values)
+        return values
+
+    def insert_child_records(self, index, records, pid):
+        depth_level = self.record_depth_level(pid)
+        for record in records:
+            record['depth_level'] = depth_level
+            self.insert_record(index, record, pid)
+
+    def insert_record(self, index, values, pid=None):
+        if not isinstance(values, dict):
+            raise RuntimeError("Pass dictionaries, not arrays")
+
+        if values.get("__puuid") is None:
+            values["__puuid"] = pid
         values = self._normalize_record(values)
 
         if index is None:
-            index = len(self.records)
+            index = len(self.records) + 1
 
         self.records.insert(index, values)
         self.source_records_changed()
@@ -125,12 +159,10 @@ class TabularData(Bindable):
             raise RuntimeError("Pass dictionaries, not arrays")
 
         index = index_or_uuid
-
-        match = re.match(r"^\d+$", str(index_or_uuid))
-        if match is not None:
-            index = int(index_or_uuid)
-        else:
+        if isinstance(index_or_uuid, uuid.UUID):
             index = self.field("__uuid").index(index_or_uuid)
+        elif re.search(r"\D", str(index)) is not None:
+            index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
 
         self.records[index].update(values)
         self.source_records_changed()
@@ -142,13 +174,32 @@ class TabularData(Bindable):
 
     def record(self, index_or_uuid):
         index = index_or_uuid
-
         if isinstance(index_or_uuid, uuid.UUID):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
             index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
 
         return self.records[index]
+
+    def record_childs(self, index_or_uuid):
+        parent_record = self.record(index_or_uuid)
+
+        childs = [
+            record
+            for record in self.records
+            if record["__puuid"] == parent_record["__uuid"]
+        ]
+
+        return childs
+
+    def record_depth_level(self, uuid):
+        level = 0
+        while uuid is not None:
+            record = self.record(uuid)
+            uuid = record['__puuid']
+            level += 1
+
+        return level
 
     def field(self, name):
         return [record[name] for record in self.records]
@@ -235,18 +286,25 @@ class TableView(Base):
     class WidgetNotYetCreated(Exception):
         pass
 
-    def __init__(self, columns_labels):
+    def __init__(self, columns_labels, is_treetable=False, create_data_source=True):
         Base.__init__(self)
         if not isinstance(columns_labels, dict):
             raise TypeError(
                 "column_labels must be a dictionary with {'column_name':'column_label'}"
             )
         self._columns_labels = columns_labels  # keep until widget created
-        self.data_source = TabularData(
-            tableview=self, required_fields=list(columns_labels.keys())
-        )
+        self.is_treetable = is_treetable
+
         self.delegate = None
         self.default_format_string = "{0:.4f}"
+        self.all_elements_are_editable = True
+
+        if create_data_source:
+            self.data_source = TabularData(
+                tableview=self, required_fields=list(columns_labels.keys())
+            )
+        else:
+            self.data_source = None
 
     @property
     def columns(self):
@@ -270,7 +328,7 @@ class TableView(Base):
 
     @displaycolumns.setter
     def displaycolumns(self, values):
-        self.widget["displaycolumns"] = values
+        self.widget.configure(displaycolumns=values)
 
     @property
     def headings(self):
@@ -298,12 +356,20 @@ class TableView(Base):
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Treeview(
-            master,
-            show="headings",
-            selectmode="browse",
-            takefocus=True,
-        )
+
+        if self.is_treetable:
+            self.widget = ttk.Treeview(
+                master,
+                selectmode="browse",
+                takefocus=True,
+            )
+        else:
+            self.widget = ttk.Treeview(
+                master,
+                show="headings",
+                selectmode="browse",
+                takefocus=True,
+            )
 
         self.widget.configure(columns=sorted(list(self._columns_labels.keys())))
         self.widget.configure(displaycolumns=sorted(list(self._columns_labels.keys())))
@@ -314,7 +380,7 @@ class TableView(Base):
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
-    def source_data_changed(self, records):
+    def source_data_changed2(self, records):
         items_ids = self.clear_widget_content()
 
         for record in records:
@@ -328,7 +394,53 @@ class TableView(Base):
                 except Exception as err:
                     formatted_values.append(value)
 
-            self.widget.insert("", END, iid=record["__uuid"], values=formatted_values)
+            parentid = ""
+            if record["__puuid"] is not None:
+                parentid = record["__puuid"]
+            self.widget.insert(
+                parentid, END, iid=record["__uuid"], values=formatted_values
+            )
+
+        if self.delegate is not None:
+            try:
+                self.delegate.source_data_changed()
+            except:
+                raise NotImplementedError(
+                    "Delegate must implement source_data_changed()"
+                )
+
+
+    def source_data_changed(self, records):
+        items_ids = self.widget.get_children()
+
+        for record in records:
+            values = [record[column] for column in self.columns]
+            item_id = record["__uuid"]
+
+            formatted_values = []
+            for i, value in enumerate(values):
+                padding = ''
+                if self.columns[i] == self.displaycolumns[0]:
+                    level = record.get('depth_level',0)
+                    padding = '   '*level
+                try:
+                    formatted_values.append(padding + self.default_format_string.format(value))
+                except Exception as err:
+                    formatted_values.append(padding + value)
+
+
+            if self.widget.exists(item_id):
+                for i, value in enumerate(formatted_values):
+                    self.widget.set(
+                        item_id, column=i, value=value
+                    )
+            else:
+                parentid = ""
+                if record["__puuid"] is not None:
+                    parentid = record["__puuid"]
+                self.widget.insert(
+                    parentid, END, iid=record["__uuid"], values=formatted_values
+                )
 
         if self.delegate is not None:
             try:
@@ -446,13 +558,14 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
         if keep_running:
-            if self.is_column_sorted(column_id) == "<":
-                items_ids_sorted = self.sort_column(column_id, reverse=True)
-            else:
-                items_ids_sorted = self.sort_column(column_id, reverse=False)
+            with suppress(IndexError):  # if empty, not an error
+                if self.is_column_sorted(column_id) == "<":
+                    items_ids_sorted = self.sort_column(column_id, reverse=True)
+                else:
+                    items_ids_sorted = self.sort_column(column_id, reverse=False)
 
-            for i, item_id in enumerate(items_ids_sorted):
-                self.widget.move(item_id, "", i)
+                for i, item_id in enumerate(items_ids_sorted):
+                    self.widget.move(item_id, "", i)
 
         return True
 
@@ -477,7 +590,7 @@ class TableView(Base):
         # return True
 
     def is_editable(self, item_id, column_id):
-        return True
+        return self.all_elements_are_editable
 
     def doubleclick_cell(self, item_id, column_id):
         item_dict = self.widget.item(item_id)

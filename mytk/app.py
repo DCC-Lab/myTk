@@ -8,6 +8,7 @@ from contextlib import redirect_stdout
 import io
 from tkinter import TclError
 
+
 class App(Bindable):
     app = None
 
