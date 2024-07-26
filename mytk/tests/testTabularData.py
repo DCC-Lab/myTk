@@ -256,11 +256,13 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_missing_fields(self):
         t = TabularData(required_fields=["a", "b"])
+        t.error_on_missing_field = True
         with self.assertRaises(TabularData.MissingField):
             record = t.append_record({"a": 1})
 
     def test_too_many_fields(self):
         t = TabularData(required_fields=["a", "b"])
+        t.error_on_extra_field = True
         with self.assertRaises(TabularData.ExtraField):
             record = t.append_record({"a": 1, "b": 1, "c": 1})
 
