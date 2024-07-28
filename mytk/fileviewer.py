@@ -22,43 +22,50 @@ class FileTreeData(TabularData):
         self.root_dir = root_dir
         self.depth_level = depth_level
         self.date_format = "%c"
+        self.system_files_regex = [r'^\..+', r'\$RECYCLE\.BIN', r'desktop\.ini']
         self.refresh_directory_records(self.root_dir)
+
+    def is_system_file(self, filename):
+        is_system_file = False
+        for regex in self.system_files_regex:
+            if re.search(regex, filename) is not None:
+                is_system_file = True
+                break
+        return is_system_file
 
     def recordid_with_fullpath(self, fullpath):
         for record in self.records:
             if record["fullpath"] == fullpath:
                 return record["__uuid"]
 
+    def record_needs_children_refresh(self, index_or_uuid):
+        record = self.record(index_or_uuid)
+        if not record['is_refreshed'] and record['is_directory']:
+            return True
+        else:
+            return False
+
     def refresh_directory_records(self, root_dir):
         pid = self.recordid_with_fullpath(root_dir)
-        records_to_add = self.directory_content_records(root_dir)
+        records_to_add = self.records_for_this_directory(root_dir)
         self.insert_child_records(index=None, records=records_to_add, pid=pid)
-        # for record in records_to_add:
-        #     if record['is_directory']:
-        #         pid = self.recordid_with_fullpath(record['fullpath'])
-        #         records_to_add = self.directory_content_records(record['fullpath'])
-        #         self.insert_child_records(index=None, records=records_to_add, pid=pid)
 
-    def directory_content_records(self, root_dir):
+    def records_for_this_directory(self, root_dir):
         records_to_add = []
         if not os.access(root_dir, os.R_OK):
             record = self.new_record(
                 values={
-                    "name": "You dont have permission to read this directory",
-                    "size": "",
-                    "date_modified": "",
-                    "fullpath": "",
-                    "is_directory": False,
-                    "is_refreshed": False,
+                    "name": "You dont have permission to read this directory"
                 },
             )
             records_to_add.append(record)
         else:
-            for filename in os.listdir(root_dir):
-                try:
-                    if filename[0] == ".":
-                        continue
+            filenames = os.listdir(root_dir)
+            if len(filenames) > 200:
+                filenames = filenames[0:200]
 
+            for filename in filenames:
+                try:
                     fullpath = os.path.join(root_dir, filename)
 
                     is_directory = False
@@ -82,6 +89,7 @@ class FileTreeData(TabularData):
                             "fullpath": fullpath,
                             "is_directory": is_directory,
                             "is_refreshed": False,
+                            "is_system_file": self.is_system_file(filename)
                         },
                     )
                     records_to_add.append(record)
@@ -99,6 +107,9 @@ class FileViewer(TableView):
                 "size": "Size",
                 "date_modified": "Date modified",
                 "fullpath": "Full path",
+                "is_system_file":"System file",
+                "is_directory": "Directory",
+                "is_refreshed":"Refreshed?"
             }
 
         if custom_columns is not None:
@@ -115,6 +126,15 @@ class FileViewer(TableView):
 
         self.default_format_string = "{0:.0f}"
         self.all_elements_are_editable = False
+        self.hide_system_files = True
+
+    def source_data_changed(self, records):
+        if self.hide_system_files:
+            trimmed_records = [ record for record in records if not record['is_system_file']]        
+            super().source_data_changed(trimmed_records)
+        else:
+            super().source_data_changed(records)
+        
 
     def create_widget(self, master):
         super().create_widget(master)
@@ -127,10 +147,10 @@ class FileViewer(TableView):
 
     def refresh_child_if_needed(self, event):
         item_id = self.widget.focus()
-        parent_record = self.data_source.record(item_id)
-        if parent_record["is_directory"] and not parent_record["is_refreshed"]:
-            records_to_add = self.data_source.directory_content_records(
-                parent_record["fullpath"]
+        if self.data_source.record_needs_children_refresh(item_id):
+            parent = self.data_source.record(item_id)
+            records_to_add = self.data_source.records_for_this_directory(
+                parent["fullpath"]
             )
             self.data_source.insert_child_records(
                 index=None, records=records_to_add, pid=item_id

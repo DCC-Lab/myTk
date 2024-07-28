@@ -1,10 +1,10 @@
 import envtest
 import unittest
 import os
-from mytk import *
 import tempfile
 import collections
 import random
+from mytk import *
 
 
 class TestTableview(envtest.MyTkTestCase):
@@ -65,12 +65,25 @@ class TestTableview(envtest.MyTkTestCase):
     def add_invalid_record(self):
         self.tableview.data_source.append_record({"a": "value a", "c": "value b"})
 
-    def add_many_records(self):
+    def add_6_records(self):
         self.tableview.data_source.disable_change_calls()
+        parent_record = None
         for i in range(3):
             a = random.random()
             b = random.random()
-            self.tableview.data_source.append_record({"a": f"value a{a}", "b": b})
+            parent_record = self.tableview.data_source.append_record(
+                {"a": f"value a{a}", "b": b}
+            )
+
+        for i in range(3):
+            a = random.random()
+            b = random.random()
+            record = self.tableview.data_source.insert_child_records(
+                index=None,
+                records=[{"a": f"value a{a}", "b": b}],
+                pid=parent_record["__puuid"],
+            )
+
         self.tableview.data_source.enable_change_calls()
 
     def test_show_tableview(self):
@@ -87,7 +100,7 @@ class TestTableview(envtest.MyTkTestCase):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
 
-        self.tableview.widget.after(100, self.add_many_records)
+        self.tableview.widget.after(100, self.add_6_records)
         self.tableview.widget.after(200, self.app.quit)
         self.app.mainloop()
 
@@ -95,7 +108,7 @@ class TestTableview(envtest.MyTkTestCase):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
 
-        self.app.root.after(100, self.add_many_records)
+        self.app.root.after(100, self.add_6_records)
         self.app.root.after(150, self.tableview.clear_widget_content)
         self.app.root.after(500, self.app.quit)
         self.app.mainloop()
@@ -103,7 +116,7 @@ class TestTableview(envtest.MyTkTestCase):
     def test_clear_tableview(self):
         self.subtest_recreate()
 
-        self.app.root.after(100, self.add_many_records)
+        self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.subtest_delete)
         self.app.root.after(400, self.subtest_recreate)
         self.app.root.after(500, self.app.quit)
@@ -112,14 +125,14 @@ class TestTableview(envtest.MyTkTestCase):
     def test_sort_column_1_on_loop(self):
         self.subtest_recreate()
 
-        self.app.root.after(100, self.add_many_records)
+        self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_1)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
 
     def test_sort_column_1(self):
         self.subtest_recreate()
-        self.add_many_records()
+        self.add_6_records()
         self.tableview.click_header(1)
 
     def click_header_1(self):
@@ -129,14 +142,14 @@ class TestTableview(envtest.MyTkTestCase):
     def test_sort_column_2_on_loop(self):
         self.subtest_recreate()
 
-        self.app.root.after(100, self.add_many_records)
+        self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_2)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
 
     def test_sort_column_2(self):
         self.subtest_recreate()
-        self.add_many_records()
+        self.add_6_records()
         self.tableview.click_header(2)
 
     def click_header_2(self):
@@ -151,7 +164,7 @@ class TestTableview(envtest.MyTkTestCase):
     def test_sort_column_2_twice_on_loop(self):
         self.subtest_recreate()
 
-        self.app.root.after(100, self.add_many_records)
+        self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_2_twice)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
@@ -162,7 +175,7 @@ class TestTableview(envtest.MyTkTestCase):
     def subtest_recreate(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
-        self.add_many_records()
+        self.add_6_records()
 
     def subtest_delete(self):
         self.tableview.widget.destroy()
@@ -248,6 +261,66 @@ class TestTableview(envtest.MyTkTestCase):
             record["__uuid"], values=["new value a", "new value b"]
         )
 
+    def test_get_all_items_ids(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.add_6_records()
+
+        items_ids = self.tableview.items_ids()
+        self.assertIsNotNone(items_ids)
+        self.assertEqual(len(items_ids), 6)
+
+    def test_get_all_items_ids_multi_level(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.add_multi_level()
+
+        items_ids = self.tableview.items_ids()
+        self.assertIsNotNone(items_ids)
+        self.assertEqual(len(items_ids), 4)
+
+        self.assertEqual(len(items_ids), self.tableview.data_source.record_count)
+
+    def items_ids(self, tableview):
+        all_item_ids = []
+        parent_items_ids = [None]
+        while len(parent_items_ids) > 0:
+            all_children_item_ids = []
+            for item_id in parent_items_ids:
+                children_items_ids = tableview.widget.get_children(item_id)
+
+                all_item_ids.extend(children_items_ids)
+                all_children_item_ids.extend(children_items_ids)
+
+            parent_items_ids = all_children_item_ids
+
+        return all_item_ids
+
+    def add_multi_level(self):
+        a=1
+        b=2
+
+        self.tableview.data_source.disable_change_calls()
+        parent_record = self.tableview.data_source.append_record(
+            {"a": f"value a1", "b": b}
+        )
+        parent_record2 = self.tableview.data_source.insert_record(
+            index=None,
+            values={"a": f"value a2", "b": b},
+            pid=parent_record["__puuid"],
+        )
+        record3 = self.tableview.data_source.insert_child_records(
+            index=None,
+            records=[{"a": f"value a3", "b": b}],
+            pid=parent_record2["__puuid"],
+        )
+        record4 = self.tableview.data_source.insert_child_records(
+            index=None,
+            records=[{"a": f"value a3", "b": b}],
+            pid=parent_record2["__puuid"],
+        )
+
+        self.tableview.data_source.enable_change_calls()
 
 if __name__ == "__main__":
     unittest.main()

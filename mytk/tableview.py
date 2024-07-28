@@ -86,11 +86,14 @@ class TabularData(Bindable):
         self.source_records_changed()
         return record
 
+    def empty_record(self):
+        return self._normalize_record(record={})
+
     def _normalize_record(self, record):
         if record.get("__uuid") is None:
             record["__uuid"] = uuid.uuid4()
 
-        if "__puuid" not in record.keys() is None:
+        if "__puuid" not in record.keys():
             record["__puuid"] = None
 
         if not isinstance(record["__uuid"], uuid.UUID):
@@ -164,8 +167,9 @@ class TabularData(Bindable):
         elif re.search(r"\D", str(index)) is not None:
             index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
 
-        self.records[index].update(values)
-        self.source_records_changed()
+        if self.records[index] != values:
+            self.records[index].update(values)
+            self.source_records_changed()
 
     def update_field(self, name, values):
         for i, value in enumerate(values):
@@ -410,35 +414,9 @@ class TableView(Base):
                 )
 
     def source_data_changed(self, records):
-        items_ids = self.widget.get_children()
+        self.source_data_added_or_updated(records)
 
-        for record in records:
-            values = [record[column] for column in self.columns]
-            item_id = record["__uuid"]
-
-            formatted_values = []
-            for i, value in enumerate(values):
-                padding = ""
-                if self.columns[i] == self.displaycolumns[0]:
-                    level = record.get("depth_level", 0)
-                    padding = "   " * level
-                try:
-                    formatted_values.append(
-                        padding + self.default_format_string.format(value)
-                    )
-                except Exception as err:
-                    formatted_values.append(padding + value)
-
-            if self.widget.exists(item_id):
-                for i, value in enumerate(formatted_values):
-                    self.widget.set(item_id, column=i, value=value)
-            else:
-                parentid = ""
-                if record["__puuid"] is not None:
-                    parentid = record["__puuid"]
-                self.widget.insert(
-                    parentid, END, iid=record["__uuid"], values=formatted_values
-                )
+        self.source_data_deleted(records)
 
         if self.delegate is not None:
             try:
@@ -447,6 +425,69 @@ class TableView(Base):
                 raise NotImplementedError(
                     "Delegate must implement source_data_changed()"
                 )
+
+    def source_data_added_or_updated(self, records):
+        for record in records:
+            formatted_values = self.record_to_formatted_widget_values(record)
+
+            item_id = record["__uuid"]
+            if self.widget.exists(item_id): #updated
+                for i, value in enumerate(formatted_values):
+                    self.widget.set(item_id, column=i, value=value)
+            else: #added
+                parentid = ""
+                if record["__puuid"] is not None:
+                    parentid = record["__puuid"]
+                self.widget.insert(
+                    parentid, END, iid=item_id, values=formatted_values
+                )
+
+    def source_data_deleted(self, records):
+
+        uuids = [ str(record['__uuid']) for record in records]
+        items_ids = self.items_ids()
+
+        for item_id in items_ids:
+            if item_id not in uuids:
+                self.widget.delete(item_id)
+
+    def record_to_formatted_widget_values(self, record):
+        ordered_values = [record[column] for column in self.columns]
+        formatted_values = []
+        for i, value in enumerate(ordered_values):
+            padding = ""
+            if self.columns[i] == self.displaycolumns[0]:
+                level = record.get("depth_level", 0)
+                padding = "   " * level
+            try:
+                formatted_values.append(
+                    padding + self.default_format_string.format(value)
+                )
+            except Exception as err:
+                formatted_values.append(padding + value)
+
+        return formatted_values
+
+    def extract_record_from_formatted_widget_values(self):
+        return None
+
+    def widget_data_changed(self):
+        pass
+
+    def items_ids(self):
+        all_item_ids = []
+        parent_items_ids = [None]
+        while len(parent_items_ids) > 0:
+            all_children_item_ids = []
+            for item_id in parent_items_ids:
+                children_items_ids = self.widget.get_children(item_id)
+
+                all_item_ids.extend(children_items_ids)
+                all_children_item_ids.extend(children_items_ids)
+
+            parent_items_ids = all_children_item_ids
+
+        return all_item_ids
 
     def item_modified(self, item_id, values):
         self.widget.item(item_id, values=values)

@@ -1,9 +1,9 @@
 import envtest
 import unittest
 import os
-from mytk import *
 import tempfile
 import uuid
+from mytk import *
 
 
 class TestTabularDataSource(unittest.TestCase):
@@ -291,6 +291,10 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertTrue(child1 in t.record_childs(parent["__uuid"]))
         self.assertTrue(child2 in t.record_childs(parent["__uuid"]))
         self.assertTrue(child3 in t.record_childs(parent["__uuid"]))
+
+    def test_normalize_record(self):
+        t = TabularData(required_fields=["a", "b"])
+        print(t._normalize_record({}))
 
 
 if __name__ == "__main__":

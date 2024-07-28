@@ -1,12 +1,11 @@
 import envtest
 import unittest
 import os
-from mytk import *
-from mytk.fileviewer import FileViewer
 import tempfile
 import collections
 import random
 import time
+from mytk import *
 
 
 class TestTreeTableview(envtest.MyTkTestCase):
@@ -109,7 +108,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.widget.after(100, self.app.quit)
+        self.tableview.widget.after(100000, self.app.quit)
         self.app.mainloop()
 
     def test_show_filesview_minimal(self):
@@ -120,7 +119,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.displaycolumns = ["name", "size", "date_modified"]
+        self.tableview.displaycolumns = ["name"]
         self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
 
@@ -141,8 +140,25 @@ class TestTreeTableview(envtest.MyTkTestCase):
             "custom",
             "custom2",
         ]
-        self.tableview.widget.after(100, self.app.quit)
+        self.tableview.after(100, self.insert_record)
+        self.tableview.after(200, self.remove_record)
+        self.tableview.widget.after(300, self.app.quit)
         self.app.mainloop()
+
+    def insert_record(self):
+        total_before = self.tableview.data_source.record_count
+
+        to_insert = self.tableview.data_source.empty_record()
+        to_insert["name"] = "Inserted"
+        self.record_inserted = self.tableview.data_source.insert_record(index=None, values=to_insert)
+        total_after = self.tableview.data_source.record_count
+        self.assertEqual(total_before+1, total_after)
+
+    def remove_record(self):
+        total_before = self.tableview.data_source.record_count
+        self.tableview.data_source.remove_record(index_or_uuid=self.record_inserted["__uuid"])
+        total_after = self.tableview.data_source.record_count
+        self.assertEqual(total_before-1, total_after)
 
 
 if __name__ == "__main__":
