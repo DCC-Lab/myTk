@@ -294,7 +294,20 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_normalize_record(self):
         t = TabularData(required_fields=["a", "b"])
-        print(t._normalize_record({}))
+        # print(t._normalize_record({}))
+
+    def test_sort_records(self):
+        t = TabularData(delegate=self)
+        t.insert_record(0, {"a": 1, "b":2})
+        t.insert_record(1, {"a": 2, "b":4})
+        t.insert_record(1, {"a": 3, "b":3})
+        t.insert_record(1, {"a": 4, "b":1})
+        t.insert_record(1, {"a": 5, "b":5})
+
+        uuids = t.sorted_records_uuids('b')
+        print([t.record(uuid) for uuid in uuids])
+        # print([record for record in records_sorted])
+        # print([record for record in t.records])
 
 
 if __name__ == "__main__":

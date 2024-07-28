@@ -230,6 +230,10 @@ class TabularData(Bindable):
             record.pop(old_name, None)
         self.source_records_changed()
 
+    def sorted_records_uuids(self, field, reverse=False):
+        sorted_records = list(sorted(self.records, key=lambda record: record[field], reverse=reverse))
+        return [ record['__uuid'] for record in sorted_records ]
+
     def source_records_changed(self):
         if not self._disable_change_calls:
             if self.delegate is not None:
@@ -565,28 +569,45 @@ class TableView(Base):
             return None
 
     def sort_column(self, column_id, reverse=False):
+        if column_id == 0:
+            return self.widget.get_children()
+        
+        clicked_name = self.displaycolumns[column_id-1]
+        items_ids_sorted = self.data_source.sorted_records_uuids(field=clicked_name, reverse=reverse)
+        return items_ids_sorted
+
+
+    def sort_column2(self, column_id, reverse=False):
         items_ids = self.widget.get_children()
 
-        items = []
+        items_list = []
         cast = float
+
+        if column_id == 0:
+            # trying to sort the displayed disclosure triangle
+            return items_ids
+        
+        clicked_name = self.displaycolumns[column_id-1]
+        column_id_for_values = self.columns.index(clicked_name)
+
         for item_id in items_ids:
             item_dict = self.widget.item(item_id)
-
-            values = [item_id]
-            values.extend(item_dict["values"])
+            items_list.append( {"item_id":item_id, "columns":item_dict["values"]} ) #ordered like self.columns
 
             try:
-                cast(values[column_id])
+                cast(item_dict["values"][column_id_for_values])
             except Exception as err:
                 cast = str
-            items.append(values)
 
-        items_sorted = list(sorted(items, key=lambda e: cast(e[column_id])))
+        items_list_sorted = list(sorted(items_list, key=lambda e: cast(e["columns"][column_id_for_values])))
         if reverse:
-            items_sorted = reversed(items_sorted)
+            items_list_sorted = reversed(items_list_sorted)
 
-        columns_sorted = list(zip(*items_sorted))
-        return list(columns_sorted[0])
+        items_ids_sorted = []
+        for item in items_list_sorted:
+            items_ids_sorted.append(item['item_id'])
+
+        return items_ids_sorted
 
     def click_header(self, column_id):
         keep_running = True
