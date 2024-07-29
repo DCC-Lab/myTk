@@ -132,10 +132,10 @@ class TestTreeTableview(envtest.MyTkTestCase):
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
         self.tableview.displaycolumns = ["name"]
-        
+
         sorted_items_ids = self.tableview.sort_column(column_id=1)
         tableview_items_ids = self.tableview.items_ids()
-        datasource_items_ids = self.tableview.data_source.field('__uuid')
+        datasource_items_ids = self.tableview.data_source.field("__uuid")
 
         self.assertEqual(set(sorted_items_ids), set(tableview_items_ids))
         # self.assertEqual(set(tableview_items_ids), set(datasource_items_ids))
@@ -176,15 +176,19 @@ class TestTreeTableview(envtest.MyTkTestCase):
 
         to_insert = self.tableview.data_source.empty_record()
         to_insert["name"] = "Inserted"
-        self.record_inserted = self.tableview.data_source.insert_record(index=None, values=to_insert)
+        self.record_inserted = self.tableview.data_source.insert_record(
+            index=None, values=to_insert
+        )
         total_after = self.tableview.data_source.record_count
-        self.assertEqual(total_before+1, total_after)
+        self.assertEqual(total_before + 1, total_after)
 
     def remove_record(self):
         total_before = self.tableview.data_source.record_count
-        self.tableview.data_source.remove_record(index_or_uuid=self.record_inserted["__uuid"])
+        self.tableview.data_source.remove_record(
+            index_or_uuid=self.record_inserted["__uuid"]
+        )
         total_after = self.tableview.data_source.record_count
-        self.assertEqual(total_before-1, total_after)
+        self.assertEqual(total_before - 1, total_after)
 
 
 if __name__ == "__main__":

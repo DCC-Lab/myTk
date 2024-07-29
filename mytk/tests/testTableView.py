@@ -297,8 +297,8 @@ class TestTableview(envtest.MyTkTestCase):
         return all_item_ids
 
     def add_multi_level(self):
-        a=1
-        b=2
+        a = 1
+        b = 2
 
         self.tableview.data_source.disable_change_calls()
         parent_record = self.tableview.data_source.append_record(
@@ -321,6 +321,7 @@ class TestTableview(envtest.MyTkTestCase):
         )
 
         self.tableview.data_source.enable_change_calls()
+
 
 if __name__ == "__main__":
     unittest.main()

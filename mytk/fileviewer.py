@@ -22,7 +22,7 @@ class FileTreeData(TabularData):
         self.root_dir = root_dir
         self.depth_level = depth_level
         self.date_format = "%c"
-        self.system_files_regex = [r'^\..+', r'\$RECYCLE\.BIN', r'desktop\.ini']
+        self.system_files_regex = [r"^\..+", r"\$RECYCLE\.BIN", r"desktop\.ini"]
         self.insert_records_for_this_directory(self.root_dir)
 
     def is_system_file(self, filename):
@@ -41,7 +41,7 @@ class FileTreeData(TabularData):
 
     def record_needs_children_refresh(self, index_or_uuid):
         record = self.record(index_or_uuid)
-        if not record['is_refreshed'] and record['is_directory']:
+        if not record["is_refreshed"] and record["is_directory"]:
             return True
         else:
             return False
@@ -52,18 +52,16 @@ class FileTreeData(TabularData):
         self.insert_child_records(index=None, records=records_to_add, pid=pid)
 
         for record in records_to_add:
-            if record['is_directory']:
+            if record["is_directory"]:
                 placeholder = self.empty_record()
-                placeholder['name'] = 'Placeholder'
-                self.insert_child_records(None, [placeholder], record['__uuid'])
+                placeholder["name"] = "Placeholder"
+                self.insert_child_records(None, [placeholder], record["__uuid"])
 
     def records_for_this_directory(self, root_dir):
         records_to_add = []
         if not os.access(root_dir, os.R_OK):
             record = self.new_record(
-                values={
-                    "name": "You dont have permission to read this directory"
-                },
+                values={"name": "You dont have permission to read this directory"},
             )
             records_to_add.append(record)
         else:
@@ -96,7 +94,7 @@ class FileTreeData(TabularData):
                             "fullpath": fullpath,
                             "is_directory": is_directory,
                             "is_refreshed": False,
-                            "is_system_file": self.is_system_file(filename)
+                            "is_system_file": self.is_system_file(filename),
                         },
                     )
                     records_to_add.append(record)
@@ -114,9 +112,9 @@ class FileViewer(TableView):
                 "size": "Size",
                 "date_modified": "Date modified",
                 "fullpath": "Full path",
-                "is_system_file":"System file",
+                "is_system_file": "System file",
                 "is_directory": "Directory",
-                "is_refreshed":"Refreshed?"
+                "is_refreshed": "Refreshed?",
             }
 
         if custom_columns is not None:
@@ -137,11 +135,12 @@ class FileViewer(TableView):
 
     def source_data_changed(self, records):
         if self.hide_system_files:
-            trimmed_records = [ record for record in records if not record['is_system_file']]        
+            trimmed_records = [
+                record for record in records if not record["is_system_file"]
+            ]
             super().source_data_changed(trimmed_records)
         else:
             super().source_data_changed(records)
-        
 
     def create_widget(self, master):
         super().create_widget(master)
@@ -162,4 +161,4 @@ class FileViewer(TableView):
             self.data_source.update_record(item_id, values={"is_refreshed": True})
 
             for child in placeholder_childs:
-                self.data_source.remove_record(child['__uuid'])
+                self.data_source.remove_record(child["__uuid"])

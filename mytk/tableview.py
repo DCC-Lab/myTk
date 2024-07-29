@@ -223,12 +223,16 @@ class TabularData(Bindable):
 
     def sorted_records_uuids(self, field, only_uuids=None, reverse=False):
         if only_uuids is not None:
-            records = [ record for record in self.records if record['__uuid'] in only_uuids]
+            records = [
+                record for record in self.records if record["__uuid"] in only_uuids
+            ]
         else:
             records = self.records
 
-        sorted_records = list(sorted(records, key=lambda record: record[field], reverse=reverse))
-        return [ record['__uuid'] for record in sorted_records ]
+        sorted_records = list(
+            sorted(records, key=lambda record: record[field], reverse=reverse)
+        )
+        return [record["__uuid"] for record in sorted_records]
 
     def source_records_changed(self):
         if not self._disable_change_calls:
@@ -401,20 +405,18 @@ class TableView(Base):
             formatted_values = self.record_to_formatted_widget_values(record)
 
             item_id = record["__uuid"]
-            if self.widget.exists(item_id): #updated
+            if self.widget.exists(item_id):  # updated
                 for i, value in enumerate(formatted_values):
                     self.widget.set(item_id, column=i, value=value)
-            else: #added
+            else:  # added
                 parentid = ""
                 if record["__puuid"] is not None:
                     parentid = record["__puuid"]
-                self.widget.insert(
-                    parentid, END, iid=item_id, values=formatted_values
-                )
+                self.widget.insert(parentid, END, iid=item_id, values=formatted_values)
 
     def source_data_deleted(self, records):
 
-        uuids = [ str(record['__uuid']) for record in records]
+        uuids = [str(record["__uuid"]) for record in records]
         items_ids = self.items_ids()
 
         for item_id in items_ids:
@@ -537,11 +539,13 @@ class TableView(Base):
     def sort_column(self, column_id, reverse=False):
         if column_id == 0:
             return self.widget.get_children()
-        
-        clicked_name = self.displaycolumns[column_id-1]
+
+        clicked_name = self.displaycolumns[column_id - 1]
         # HACK We sort only what is actually in the widget (may be filtered)
         widget_items_ids = self.items_ids()
-        items_ids_sorted = self.data_source.sorted_records_uuids(only_uuids=widget_items_ids, field=clicked_name, reverse=reverse)
+        items_ids_sorted = self.data_source.sorted_records_uuids(
+            only_uuids=widget_items_ids, field=clicked_name, reverse=reverse
+        )
         return items_ids_sorted
 
     def click_header(self, column_id):
