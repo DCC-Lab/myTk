@@ -221,8 +221,11 @@ class TabularData(Bindable):
             record.pop(old_name, None)
         self.source_records_changed()
 
-    def sorted_records_uuids(self, records_uuids, field, reverse=False):
-        records = [ record for record in self.records if record['__uuid'] in records_uuids]
+    def sorted_records_uuids(self, field, only_uuids=None, reverse=False):
+        if only_uuids is not None:
+            records = [ record for record in self.records if record['__uuid'] in only_uuids]
+        else:
+            records = self.records
 
         sorted_records = list(sorted(records, key=lambda record: record[field], reverse=reverse))
         return [ record['__uuid'] for record in sorted_records ]
@@ -538,7 +541,7 @@ class TableView(Base):
         clicked_name = self.displaycolumns[column_id-1]
         # HACK We sort only what is actually in the widget (may be filtered)
         widget_items_ids = self.items_ids()
-        items_ids_sorted = self.data_source.sorted_records_uuids(records_uuids=widget_items_ids, field=clicked_name, reverse=reverse)
+        items_ids_sorted = self.data_source.sorted_records_uuids(only_uuids=widget_items_ids, field=clicked_name, reverse=reverse)
         return items_ids_sorted
 
     def click_header(self, column_id):

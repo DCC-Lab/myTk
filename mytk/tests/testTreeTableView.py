@@ -140,8 +140,8 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.assertEqual(set(sorted_items_ids), set(tableview_items_ids))
         # self.assertEqual(set(tableview_items_ids), set(datasource_items_ids))
 
-        self.tableview.after(1000, self.click_sort_by_name)
-        self.tableview.after(30000, self.app.quit)
+        self.tableview.after(100, self.click_sort_by_name)
+        self.tableview.after(300, self.app.quit)
 
         self.app.mainloop()
 
