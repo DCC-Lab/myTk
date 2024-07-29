@@ -11,7 +11,7 @@ class FileViewerApp(App):
         self.window.widget.grid_rowconfigure(1, weight=1)
         self.window.widget.grid_columnconfigure(0, weight=1)
 
-        self.current_dir = "."
+        self.current_dir = "/Applications"
 
         self.controls = Box()
         self.controls.grid_into(

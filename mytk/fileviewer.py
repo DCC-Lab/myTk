@@ -17,13 +17,16 @@ from .tableview import TableView
 from .tabulardata import TabularData, PostponeChangeCalls
 
 class FileTreeData(TabularData):
-    def __init__(self, root_dir, tableview, required_fields, depth_level=2):
+    def __init__(self, root_dir, tableview, required_fields):
         super().__init__(tableview=tableview, required_fields=required_fields)
         self.root_dir = root_dir
-        self.depth_level = depth_level
         self.date_format = "%c"
-        self.system_files_regex = [r"^\..+", r"\$RECYCLE\.BIN", r"desktop\.ini"]
-        self.insert_records_for_this_directory(self.root_dir)
+        self.system_files_regex = [r"^\..+", r"\$RECYCLE\.BIN", r"desktop\.ini", r"__.+?__"]
+        self.bundle_package_ext = ['.app','.kext','.bundle','.framework','.plugin']
+        self.filter_out_system_files = True
+        self.filter_out_directories = False
+
+        self.insert_child_records_for_directory(self.root_dir)
 
     def is_system_file(self, filename):
         is_system_file = False
@@ -39,25 +42,24 @@ class FileTreeData(TabularData):
                 return record["__uuid"]
         return None
 
-    def record_needs_children_refresh(self, index_or_uuid):
-        record = self.record(index_or_uuid)
-        if not record["is_refreshed"] and record["is_directory"]:
-            return True
-        else:
-            return False
+    def insert_child_records_for_directory(self, root_dir, pid=None):
+        records_to_add = self.records_directory_content(root_dir)
 
-    def insert_records_for_this_directory(self, root_dir):
-        pid = self.recordid_with_fullpath(root_dir)
-        records_to_add = self.records_for_this_directory(root_dir)
+        if self.filter_out_system_files:
+            records_to_add = [ record for record in records_to_add if not record['is_system_file']]
+
+        if self.filter_out_directories:
+            records_to_add = [ record for record in records_to_add if not record['is_directory']]
+        
         self.insert_child_records(index=None, records=records_to_add, pid=pid)
 
         for record in records_to_add:
-            if record["is_directory"]:
+            if record["is_directory"] and not record["is_directory_content_loaded"]:
                 placeholder = self.empty_record()
                 placeholder["name"] = "Placeholder"
                 self.insert_child_records(None, [placeholder], record["__uuid"])
 
-    def records_for_this_directory(self, root_dir):
+    def records_directory_content(self, root_dir):
         records_to_add = []
         if not os.access(root_dir, os.R_OK):
             record = self.new_record(
@@ -73,9 +75,14 @@ class FileTreeData(TabularData):
                 try:
                     fullpath = os.path.join(root_dir, filename)
 
+                    _, ext = os.path.splitext(filename)
                     is_directory = False
-                    if os.path.isdir(fullpath):
+                    if os.path.isdir(fullpath) and ext not in self.bundle_package_ext:
                         is_directory = True
+
+                    is_system_file = False
+                    if self.is_system_file(filename):
+                        is_system_file = True
 
                     size = os.path.getsize(fullpath)
                     mdate = os.path.getmtime(fullpath)
@@ -93,10 +100,11 @@ class FileTreeData(TabularData):
                             "date_modified": mdate,
                             "fullpath": fullpath,
                             "is_directory": is_directory,
-                            "is_refreshed": False,
-                            "is_system_file": self.is_system_file(filename),
+                            "is_directory_content_loaded": False,
+                            "is_system_file": is_system_file
                         },
                     )
+
                     records_to_add.append(record)
                 except FileNotFoundError:
                     pass
@@ -114,7 +122,7 @@ class FileViewer(TableView):
                 "fullpath": "Full path",
                 "is_system_file": "System file",
                 "is_directory": "Directory",
-                "is_refreshed": "Refreshed?",
+                "is_directory_content_loaded": "Content loaded",
             }
 
         if custom_columns is not None:
@@ -149,17 +157,20 @@ class FileViewer(TableView):
         self.widget.column("size", width=70, stretch=False)
 
         self.source_data_changed(self.data_source.records)
-        self.widget.bind("<<TreeviewSelect>>", self.refresh_child_if_needed)
 
-    def refresh_child_if_needed(self, event):
+    def selection_changed(self, event):
         item_id = self.widget.focus()
         if item_id != '':
-            if self.data_source.record_needs_children_refresh(item_id):
+            record = self.data_source.record(item_id)
+            if record['is_directory'] and not record['is_directory_content_loaded']:
                 parent = self.data_source.record(item_id)
                 placeholder_childs = self.data_source.record_childs(item_id)
 
-                self.data_source.insert_records_for_this_directory(parent["fullpath"])
-                self.data_source.update_record(item_id, values={"is_refreshed": True})
+                self.data_source.insert_child_records_for_directory(parent["fullpath"], item_id)
+                self.data_source.update_record(item_id, values={"is_directory_content_loaded": True})
 
                 for child in placeholder_childs:
                     self.data_source.remove_record(child["__uuid"])
+
+        super().selection_changed(event)
+
