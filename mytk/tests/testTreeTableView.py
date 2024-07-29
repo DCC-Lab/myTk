@@ -108,7 +108,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.widget.after(100000, self.app.quit)
+        self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
 
     def test_show_filesview_minimal(self):
@@ -122,6 +122,22 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.displaycolumns = ["name"]
         self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
+
+    def test_get_files_right_order(self):
+        self.tableview = FileViewer("/Users")
+        
+        seen_ids = [None]
+        for record in self.tableview.data_source.ordered_records():
+            self.assertTrue(record['__puuid'] in seen_ids)
+            seen_ids.append(record['__uuid'])
+
+    def test_get_files_right_order2(self):
+        self.tableview = FileViewer("/Applications")
+        
+        seen_ids = [None]
+        for record in self.tableview.data_source.ordered_records():
+            self.assertTrue(record['__puuid'] in seen_ids)
+            seen_ids.append(record['__uuid'])
 
     def test_show_filesview__click_sort(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)

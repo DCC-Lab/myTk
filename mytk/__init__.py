@@ -38,7 +38,8 @@ from .controls import Slider
 from .canvasview import CanvasView
 from .indicators import NumericIndicator, BooleanIndicator, Level
 from .images import Image, DynamicImage, ImageWithGrid
-from .tableview import TableView, TabularData, PostponeChangeCalls
+from .tabulardata import TabularData, PostponeChangeCalls
+from .tableview import TableView
 from .fileviewer import FileTreeData, FileViewer
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView

@@ -13,8 +13,8 @@ import uuid
 
 from .bindable import Bindable
 from .entries import CellEntry
-from .tableview import TableView, TabularData, PostponeChangeCalls
-
+from .tableview import TableView
+from .tabulardata import TabularData, PostponeChangeCalls
 
 class FileTreeData(TabularData):
     def __init__(self, root_dir, tableview, required_fields, depth_level=2):
@@ -153,12 +153,13 @@ class FileViewer(TableView):
 
     def refresh_child_if_needed(self, event):
         item_id = self.widget.focus()
-        if self.data_source.record_needs_children_refresh(item_id):
-            parent = self.data_source.record(item_id)
-            placeholder_childs = self.data_source.record_childs(item_id)
+        if item_id != '':
+            if self.data_source.record_needs_children_refresh(item_id):
+                parent = self.data_source.record(item_id)
+                placeholder_childs = self.data_source.record_childs(item_id)
 
-            self.data_source.insert_records_for_this_directory(parent["fullpath"])
-            self.data_source.update_record(item_id, values={"is_refreshed": True})
+                self.data_source.insert_records_for_this_directory(parent["fullpath"])
+                self.data_source.update_record(item_id, values={"is_refreshed": True})
 
-            for child in placeholder_childs:
-                self.data_source.remove_record(child["__uuid"])
+                for child in placeholder_childs:
+                    self.data_source.remove_record(child["__uuid"])
