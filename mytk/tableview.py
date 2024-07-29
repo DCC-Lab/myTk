@@ -79,7 +79,7 @@ class TabularData(Bindable):
 
     def remove_record(self, index_or_uuid):
         index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
+        if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
 
         record = self.records.pop(index)
@@ -91,19 +91,10 @@ class TabularData(Bindable):
 
     def _normalize_record(self, record):
         if record.get("__uuid") is None:
-            record["__uuid"] = uuid.uuid4()
+            record["__uuid"] = str(uuid.uuid4())
 
         if "__puuid" not in record.keys():
             record["__puuid"] = None
-
-        if not isinstance(record["__uuid"], uuid.UUID):
-            record["__uuid"] = uuid.UUID(record["__uuid"])
-
-        if (
-            not isinstance(record["__puuid"], uuid.UUID)
-            and record["__puuid"] is not None
-        ):
-            record["__puuid"] = uuid.UUID(record["__puuid"])
 
         if self.required_fields is not None:
             all_required_fields = self.required_fields
@@ -162,10 +153,10 @@ class TabularData(Bindable):
             raise RuntimeError("Pass dictionaries, not arrays")
 
         index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
+        if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
+            index = self.field("__uuid").index(index_or_uuid)
 
         if self.records[index] != values:
             self.records[index].update(values)
@@ -178,10 +169,10 @@ class TabularData(Bindable):
 
     def record(self, index_or_uuid):
         index = index_or_uuid
-        if isinstance(index_or_uuid, uuid.UUID):
+        if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(uuid.UUID(index_or_uuid))
+            index = self.field("__uuid").index(index_or_uuid)
 
         return self.records[index]
 
@@ -230,8 +221,10 @@ class TabularData(Bindable):
             record.pop(old_name, None)
         self.source_records_changed()
 
-    def sorted_records_uuids(self, field, reverse=False):
-        sorted_records = list(sorted(self.records, key=lambda record: record[field], reverse=reverse))
+    def sorted_records_uuids(self, records_uuids, field, reverse=False):
+        records = [ record for record in self.records if record['__uuid'] in records_uuids]
+
+        sorted_records = list(sorted(records, key=lambda record: record[field], reverse=reverse))
         return [ record['__uuid'] for record in sorted_records ]
 
     def source_records_changed(self):
@@ -388,38 +381,8 @@ class TableView(Base):
         self.widget.bind("<Double-Button>", self.doubleclick)
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
-    def source_data_changed2(self, records):
-        items_ids = self.clear_widget_content()
-
-        for record in records:
-            values = [record[column] for column in self.columns]
-            iid = record["__uuid"]
-
-            formatted_values = []
-            for i, value in enumerate(values):
-                try:
-                    formatted_values.append(self.default_format_string.format(value))
-                except Exception as err:
-                    formatted_values.append(value)
-
-            parentid = ""
-            if record["__puuid"] is not None:
-                parentid = record["__puuid"]
-            self.widget.insert(
-                parentid, END, iid=record["__uuid"], values=formatted_values
-            )
-
-        if self.delegate is not None:
-            try:
-                self.delegate.source_data_changed()
-            except:
-                raise NotImplementedError(
-                    "Delegate must implement source_data_changed()"
-                )
-
     def source_data_changed(self, records):
         self.source_data_added_or_updated(records)
-
         self.source_data_deleted(records)
 
         if self.delegate is not None:
@@ -573,40 +536,9 @@ class TableView(Base):
             return self.widget.get_children()
         
         clicked_name = self.displaycolumns[column_id-1]
-        items_ids_sorted = self.data_source.sorted_records_uuids(field=clicked_name, reverse=reverse)
-        return items_ids_sorted
-
-
-    def sort_column2(self, column_id, reverse=False):
-        items_ids = self.widget.get_children()
-
-        items_list = []
-        cast = float
-
-        if column_id == 0:
-            # trying to sort the displayed disclosure triangle
-            return items_ids
-        
-        clicked_name = self.displaycolumns[column_id-1]
-        column_id_for_values = self.columns.index(clicked_name)
-
-        for item_id in items_ids:
-            item_dict = self.widget.item(item_id)
-            items_list.append( {"item_id":item_id, "columns":item_dict["values"]} ) #ordered like self.columns
-
-            try:
-                cast(item_dict["values"][column_id_for_values])
-            except Exception as err:
-                cast = str
-
-        items_list_sorted = list(sorted(items_list, key=lambda e: cast(e["columns"][column_id_for_values])))
-        if reverse:
-            items_list_sorted = reversed(items_list_sorted)
-
-        items_ids_sorted = []
-        for item in items_list_sorted:
-            items_ids_sorted.append(item['item_id'])
-
+        # HACK We sort only what is actually in the widget (may be filtered)
+        widget_items_ids = self.items_ids()
+        items_ids_sorted = self.data_source.sorted_records_uuids(records_uuids=widget_items_ids, field=clicked_name, reverse=reverse)
         return items_ids_sorted
 
     def click_header(self, column_id):
@@ -624,8 +556,11 @@ class TableView(Base):
                 else:
                     items_ids_sorted = self.sort_column(column_id, reverse=False)
 
+                # print(self.items_ids())
+                # print(items_ids_sorted)
+
                 for i, item_id in enumerate(items_ids_sorted):
-                    self.widget.move(item_id, "", i)
+                    self.widget.move(str(item_id), "", i)
 
         return True
 

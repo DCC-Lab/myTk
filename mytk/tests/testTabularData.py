@@ -118,7 +118,7 @@ class TestTabularDataSource(unittest.TestCase):
         record = t.insert_record(0, {"a": 1, "b": 2})
         t.insert_record(1, {"a": 2, "b": 4})
         self.assertIsNotNone(record.get("__uuid"))
-        self.assertTrue(isinstance(record["__uuid"], uuid.UUID))
+        self.assertTrue(isinstance(record["__uuid"], str))
 
         self.assertTrue(self.delegate_function_called)
 
@@ -305,7 +305,7 @@ class TestTabularDataSource(unittest.TestCase):
         t.insert_record(1, {"a": 5, "b":5})
 
         uuids = t.sorted_records_uuids('b')
-        print([t.record(uuid) for uuid in uuids])
+        # print([t.record(uuid) for uuid in uuids])
         # print([record for record in records_sorted])
         # print([record for record in t.records])
 

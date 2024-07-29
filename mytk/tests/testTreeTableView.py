@@ -108,7 +108,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.widget.after(100000, self.app.quit)
+        self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
 
     def test_show_filesview_minimal(self):
@@ -122,6 +122,32 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.displaycolumns = ["name"]
         self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
+
+    def test_show_filesview__click_sort(self):
+        self.app.window.widget.grid_rowconfigure(0, weight=1)
+        self.app.window.widget.grid_columnconfigure(0, weight=1)
+        self.tableview = FileViewer("/Applications")
+
+        self.tableview.grid_into(
+            self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
+        )
+        self.tableview.displaycolumns = ["name"]
+        
+        sorted_items_ids = self.tableview.sort_column(column_id=1)
+        tableview_items_ids = self.tableview.items_ids()
+        datasource_items_ids = self.tableview.data_source.field('__uuid')
+
+        self.assertEqual(set(sorted_items_ids), set(tableview_items_ids))
+        # self.assertEqual(set(tableview_items_ids), set(datasource_items_ids))
+
+        self.tableview.after(1000, self.click_sort_by_name)
+        self.tableview.after(30000, self.app.quit)
+
+        self.app.mainloop()
+
+    def click_sort_by_name(self):
+        self.tableview.sort_column(column_id=1)
+        self.tableview.click_header(column_id=1)
 
     def test_show_filesview_custom_column(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)
