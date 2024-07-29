@@ -563,11 +563,13 @@ class TableView(Base):
                 else:
                     items_ids_sorted = self.sort_column(column_id, reverse=False)
 
-                # print(self.items_ids())
-                # print(items_ids_sorted)
-
                 for i, item_id in enumerate(items_ids_sorted):
-                    self.widget.move(str(item_id), "", i)
+                    record = self.data_source.record(item_id)
+                    parent_id = record['__puuid']
+                    if parent_id is None:
+                        parent_id = ""
+
+                    self.widget.move(record['__uuid'], parent_id , END)
 
         return True
 
