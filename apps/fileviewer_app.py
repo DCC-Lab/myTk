@@ -1,34 +1,43 @@
 import envapp
 from mytk import *
-import raytracing as rt
-import raytracing.thorlabs as thorlabs
-import raytracing.eo as eo
-from raytracing.figure import GraphicOf
-from contextlib import suppress
-
-class TreeData(TabularData):
-    class MissingField(Exception):
-        pass
-
-    class ExtraField(Exception):
-        pass
-
-    def __init__(self, tableview=None, delegate=None, required_fields=None):
-        super().__init__(tableview, delegate, required_fields)
-
-    
+from tkinter import filedialog
 
 class FileViewerApp(App):
     def __init__(self):
         App.__init__(self)
 
         self.window.widget.title("File Viewer")
-        self.window.is_resizable = False
-        self.fileviewer = TableView(columns_labels={"name":"Name","size":"Size","modification_date":"Date modified"})
-        self.fileviewer.grid_into(
-            self.window, column=0, row=0, pady=5, padx=5, sticky="nsew"
+        self.window.widget.grid_rowconfigure(0, weight=0)
+        self.window.widget.grid_rowconfigure(1, weight=1)
+        self.window.widget.grid_columnconfigure(0, weight=1)
+
+        self.current_dir = "."
+
+        self.controls = Box()
+        self.controls.grid_into(
+            self.window, column=0, row=0, pady=5, padx=15, sticky="nsew"
         )
-        self.fileviewer.displaycolumns = ['name','size','modification_date']
+        self.button = Button("Select directory…", user_event_callback=self.click_choose_directory)
+        self.button.grid_into(
+            self.controls, column=0, row=0, pady=5, padx=15, sticky="nsew"
+        )
+        self.label = Label()
+        self.bind_properties('current_dir', self.label, 'text')
+        self.label.grid_into(
+            self.controls, column=1, row=0, pady=5, padx=15, sticky="nsew"
+        )
+
+        self.fileviewer = FileViewer(self.current_dir)
+        self.fileviewer.grid_into(
+            self.window, column=0, row=1, pady=15, padx=15, sticky="nsew"
+        )
+        self.fileviewer.displaycolumns = ['name','size','date_modified']
+
+    def click_choose_directory(self, button, event):
+        self.current_dir = filedialog.askdirectory()
+        with PostponeChangeCalls(self.fileviewer.data_source):
+            self.fileviewer.data_source.records = []
+            self.fileviewer.data_source.insert_records_for_this_directory(self.current_dir)
 
 
 
