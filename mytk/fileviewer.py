@@ -23,7 +23,7 @@ class FileTreeData(TabularData):
         self.depth_level = depth_level
         self.date_format = "%c"
         self.system_files_regex = [r'^\..+', r'\$RECYCLE\.BIN', r'desktop\.ini']
-        self.refresh_directory_records(self.root_dir)
+        self.insert_records_for_this_directory(self.root_dir)
 
     def is_system_file(self, filename):
         is_system_file = False
@@ -37,6 +37,7 @@ class FileTreeData(TabularData):
         for record in self.records:
             if record["fullpath"] == fullpath:
                 return record["__uuid"]
+        return None
 
     def record_needs_children_refresh(self, index_or_uuid):
         record = self.record(index_or_uuid)
@@ -45,10 +46,16 @@ class FileTreeData(TabularData):
         else:
             return False
 
-    def refresh_directory_records(self, root_dir):
+    def insert_records_for_this_directory(self, root_dir):
         pid = self.recordid_with_fullpath(root_dir)
         records_to_add = self.records_for_this_directory(root_dir)
         self.insert_child_records(index=None, records=records_to_add, pid=pid)
+
+        for record in records_to_add:
+            if record['is_directory']:
+                placeholder = self.empty_record()
+                placeholder['name'] = 'Placeholder'
+                self.insert_child_records(None, [placeholder], record['__uuid'])
 
     def records_for_this_directory(self, root_dir):
         records_to_add = []
@@ -149,10 +156,10 @@ class FileViewer(TableView):
         item_id = self.widget.focus()
         if self.data_source.record_needs_children_refresh(item_id):
             parent = self.data_source.record(item_id)
-            records_to_add = self.data_source.records_for_this_directory(
-                parent["fullpath"]
-            )
-            self.data_source.insert_child_records(
-                index=None, records=records_to_add, pid=item_id
-            )
+            placeholder_childs = self.data_source.record_childs(item_id)
+
+            self.data_source.insert_records_for_this_directory(parent["fullpath"])
             self.data_source.update_record(item_id, values={"is_refreshed": True})
+
+            for child in placeholder_childs:
+                self.data_source.remove_record(child['__uuid'])

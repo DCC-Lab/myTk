@@ -108,7 +108,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
-        self.tableview.widget.after(100, self.app.quit)
+        self.tableview.widget.after(100000, self.app.quit)
         self.app.mainloop()
 
     def test_show_filesview_minimal(self):
