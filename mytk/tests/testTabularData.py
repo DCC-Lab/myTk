@@ -4,7 +4,8 @@ import os
 import tempfile
 import uuid
 from mytk import *
-
+# from mytk.tabulardata import Record
+import collections
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
@@ -309,6 +310,14 @@ class TestTabularDataSource(unittest.TestCase):
         # print([record for record in records_sorted])
         # print([record for record in t.records])
 
+    def test_namedtuple_Record(self):
+        t = TabularData(delegate=self, required_fields=['name','size'])
+        record = t.insert_record(0, {"name": 1, "size": 2})
+        Record = t.default_namedtuple_type()
+        print(Record._fields)
+        # Record = collections.namedtuple('Record', ['a','b'])
+
+        print(t.records_as_namedtuples())
 
 if __name__ == "__main__":
     unittest.main()

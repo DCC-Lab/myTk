@@ -6,7 +6,7 @@ import collections
 import random
 import time
 from mytk import *
-
+from mytk.fileviewer import FileRecord
 
 class TestTreeTableview(envtest.MyTkTestCase):
     def source_data_changed(self, records):
@@ -178,7 +178,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.displaycolumns = [
             "name",
             "size",
-            "date_modified",
+            "modification_date",
             "custom",
             "custom2",
         ]
@@ -206,6 +206,13 @@ class TestTreeTableview(envtest.MyTkTestCase):
         total_after = self.tableview.data_source.record_count
         self.assertEqual(total_before - 1, total_after)
 
+    def test_namedtuple_Record(self):
+        self.tableview = FileViewer("/Users")
+        t = self.tableview.data_source
+        try:
+            print(t.records_as_namedtuples(FileRecord))
+        except:
+            self.assertFail('Named tuple not working')
 
 if __name__ == "__main__":
     unittest.main()

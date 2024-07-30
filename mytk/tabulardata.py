@@ -19,6 +19,7 @@ class PostponeChangeCalls:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.data_source.enable_change_calls()
 
+Record = collections.namedtuple('Record', ['a'])
 
 class TabularData(Bindable):
     class MissingField(Exception):
@@ -52,6 +53,36 @@ class TabularData(Bindable):
     @property
     def record_count(self):
         return len(self.records)
+
+    def default_namedtuple_type(self):
+        modified_fields = []
+
+        for field in self.record_fields(internal=True):
+            dest_field = field
+            if dest_field.startswith('__'):
+                dest_field = dest_field[2:]
+
+            modified_fields.append(dest_field)
+
+        Record = collections.namedtuple('Record', modified_fields)
+        return Record
+
+    def records_as_namedtuples(self, NamedtupleType=None):
+        if NamedtupleType is None:
+            NamedtupleType = self.default_namedtuple_type()
+
+        tuple_records = []
+        for record in self.records:
+            modified_record = {}
+            for key, value in record.items():
+                dest_key = key
+                if dest_key.startswith('__'):
+                    dest_key = key[2:]
+
+                modified_record[dest_key] = value
+
+            tuple_records.append(NamedtupleType(**modified_record))
+        return tuple_records
 
     def ordered_records(self):
         ordered_records = []
@@ -140,7 +171,7 @@ class TabularData(Bindable):
     def insert_child_records(self, index, records, pid):
         depth_level = self.record_depth_level(pid)
         for record in records:
-            record["depth_level"] = depth_level
+            record["__depth_level"] = depth_level
             self.insert_record(index, record, pid)
 
     def insert_record(self, index, values, pid=None):

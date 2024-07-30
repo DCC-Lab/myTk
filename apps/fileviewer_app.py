@@ -11,7 +11,7 @@ class FileViewerApp(App):
         self.window.widget.grid_rowconfigure(1, weight=1)
         self.window.widget.grid_columnconfigure(0, weight=1)
 
-        self.current_dir = "/Applications"
+        self.current_dir = "."
 
         self.controls = Box()
         self.controls.grid_into(
@@ -31,13 +31,13 @@ class FileViewerApp(App):
         self.fileviewer.grid_into(
             self.window, column=0, row=1, pady=15, padx=15, sticky="nsew"
         )
-        self.fileviewer.displaycolumns = ['name','size','date_modified']
+        self.fileviewer.displaycolumns = ['name','size','modification_date']
 
     def click_choose_directory(self, button, event):
         self.current_dir = filedialog.askdirectory()
         with PostponeChangeCalls(self.fileviewer.data_source):
             self.fileviewer.data_source.records = []
-            self.fileviewer.data_source.insert_records_for_this_directory(self.current_dir)
+            self.fileviewer.data_source.insert_child_records_for_directory(self.current_dir)
 
 
 

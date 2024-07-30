@@ -29,9 +29,9 @@ class TableView(Base):
             )
         self._columns_labels = columns_labels  # keep until widget created
         self.is_treetable = is_treetable
+        self.column_formats = {} # Dict with column_name: 'format_string', 'multiplier', 'type','anchor' 
 
         self.delegate = None
-        self.default_format_string = "{0:.4f}"
         self.all_elements_are_editable = True
 
         if create_data_source:
@@ -120,17 +120,12 @@ class TableView(Base):
         self.source_data_deleted(records)
 
         if self.delegate is not None:
-            try:
+            with suppress(AttributeError):
                 self.delegate.source_data_changed()
-            except:
-                raise NotImplementedError(
-                    "Delegate must implement source_data_changed()"
-                )
 
     def source_data_added_or_updated(self, records):
         for record in records:
             formatted_values = self.record_to_formatted_widget_values(record)
-
             item_id = record["__uuid"]
             if self.widget.exists(item_id):  # updated
                 for i, value in enumerate(formatted_values):
@@ -155,16 +150,34 @@ class TableView(Base):
         formatted_values = []
         for i, value in enumerate(ordered_values):
             padding = ""
-            if self.columns[i] == self.displaycolumns[0]:
+            column_name = self.columns[i]
+            if column_name == self.displaycolumns[0]:
                 level = record.get("depth_level", 0)
                 padding = "   " * level
-            try:
-                formatted_values.append(
-                    padding + self.default_format_string.format(value)
-                )
-            except Exception as err:
-                formatted_values.append(padding + value)
+            
+            column_format = self.column_formats.get(column_name, None)
 
+            try:
+                if column_format is not None:
+                    format_string = column_format['format_string']
+                    multiplier = column_format['multiplier']
+                    if multiplier is not None:
+                        formatted_values.append(
+                            padding + format_string.format(value/multiplier)
+                        )
+                    else:
+                        formatted_values.append(
+                            padding + format_string.format(value)
+                        )                   
+                else:
+                    formatted_values.append(
+                                padding + str(value)
+                            )
+
+            except Exception as err:
+                formatted_values.append(
+                            padding + str(value)
+                        )
         return formatted_values
 
     def extract_record_from_formatted_widget_values(self):
@@ -202,12 +215,9 @@ class TableView(Base):
         self.clear_widget_content()
 
     def selection_changed(self, event):
-        keep_running = True
         if self.delegate is not None:
-            try:
-                keep_running = self.delegate.selection_changed(event, self)
-            except Exception as err:
-                raise TableView.DelegateError(err)
+            with suppress(AttributeError):
+                self.delegate.selection_changed(event, self)
 
     def click(self, event) -> bool:  # pragma: no cover
         keep_running = True
