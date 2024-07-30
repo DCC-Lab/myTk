@@ -60,6 +60,14 @@ class TestLabel(envtest.MyTkTestCase):
         self.assertEqual(controller.to_property, "Reverse")
 
     def test_binding_text(self):
+        self.assertEqual(self.ui_object.value_variable.get(), "Test")
+        self.ui_object.text = "bla"
+        self.assertEqual(self.ui_object.value_variable.get(), "bla")
+
+    def change_text_to_bla(self):
+        self.ui_object.text = "bla"
+
+    def test_change_bound_text(self):
         self.ui_object.grid_into(
             self.app.window, column=0, row=0, pady=5, padx=5, sticky=""
         )
@@ -67,9 +75,6 @@ class TestLabel(envtest.MyTkTestCase):
         self.start_timed_mainloop(function=self.change_text_to_bla, timeout=300)
         self.app.mainloop()
         self.assertEqual(self.ui_object.value_variable.get(), "bla")
-
-    def change_text_to_bla(self):
-        self.ui_object.text = "bla"
 
 
 if __name__ == "__main__":

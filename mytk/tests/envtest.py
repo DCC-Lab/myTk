@@ -8,7 +8,7 @@ sys.path.insert(
 
 import pathlib
 import unittest
-from mytk import App
+from mytk import App, View
 
 
 class MyTkTestCase(unittest.TestCase):
@@ -17,9 +17,13 @@ class MyTkTestCase(unittest.TestCase):
         self.app = App()
         testcase_id = self.id()
         self.app.window.widget.title(testcase_id)
+        empty_view = View(width=500, height=200)
+        empty_view.grid_into(self.app.window, row=0, column=0)
+
         self.callback_function_called = False
         self.delegate_function_called = False
         self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
+        self.widget_under_test = None
 
     def tearDown(self):
         self.kill_app_if_needed()

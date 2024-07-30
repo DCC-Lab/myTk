@@ -1,10 +1,11 @@
 import envtest
 import unittest
 import os
-from mytk import *
 import tempfile
 import uuid
-
+from mytk import *
+# from mytk.tabulardata import Record
+import collections
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
@@ -118,7 +119,7 @@ class TestTabularDataSource(unittest.TestCase):
         record = t.insert_record(0, {"a": 1, "b": 2})
         t.insert_record(1, {"a": 2, "b": 4})
         self.assertIsNotNone(record.get("__uuid"))
-        self.assertTrue(isinstance(record["__uuid"], uuid.UUID))
+        self.assertTrue(isinstance(record["__uuid"], str))
 
         self.assertTrue(self.delegate_function_called)
 
@@ -256,11 +257,13 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_missing_fields(self):
         t = TabularData(required_fields=["a", "b"])
+        t.error_on_missing_field = True
         with self.assertRaises(TabularData.MissingField):
             record = t.append_record({"a": 1})
 
     def test_too_many_fields(self):
         t = TabularData(required_fields=["a", "b"])
+        t.error_on_extra_field = True
         with self.assertRaises(TabularData.ExtraField):
             record = t.append_record({"a": 1, "b": 1, "c": 1})
 
@@ -290,6 +293,31 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertTrue(child2 in t.record_childs(parent["__uuid"]))
         self.assertTrue(child3 in t.record_childs(parent["__uuid"]))
 
+    def test_normalize_record(self):
+        t = TabularData(required_fields=["a", "b"])
+        # print(t._normalize_record({}))
+
+    def test_sort_records(self):
+        t = TabularData(delegate=self)
+        t.insert_record(0, {"a": 1, "b": 2})
+        t.insert_record(1, {"a": 2, "b": 4})
+        t.insert_record(1, {"a": 3, "b": 3})
+        t.insert_record(1, {"a": 4, "b": 1})
+        t.insert_record(1, {"a": 5, "b": 5})
+
+        uuids = t.sorted_records_uuids("b")
+        # print([t.record(uuid) for uuid in uuids])
+        # print([record for record in records_sorted])
+        # print([record for record in t.records])
+
+    def test_namedtuple_Record(self):
+        t = TabularData(delegate=self, required_fields=['name','size'])
+        record = t.insert_record(0, {"name": 1, "size": 2})
+        Record = t.default_namedtuple_type()
+        print(Record._fields)
+        # Record = collections.namedtuple('Record', ['a','b'])
+
+        print(t.records_as_namedtuples())
 
 if __name__ == "__main__":
     unittest.main()

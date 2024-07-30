@@ -7,7 +7,7 @@ class TestDialog(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
         label = Label("This window will remain empty")
-        label.grid_into(self.app.window)
+        label.grid_into(self.app.window, row=0, column=0)
         self.timeout = 50000
 
     def test_run_ok_cancel(self):

@@ -25,6 +25,22 @@ class B(Bindable):
         self.var_b = IntVar(value=b)
 
 
+class C(Bindable):
+    def __init__(self, c):
+        super().__init__()
+        self.py_c = c
+        self.var_c = IntVar(value=c)
+        self._dict = {}
+
+    @property
+    def foo(self):
+        return self._dict.get("foo", None)
+
+    @foo.setter
+    def foo(self, value):
+        self._dict["foo"] = value
+
+
 class Observer(Bindable):
     def __init__(self):
         super().__init__()
@@ -210,6 +226,21 @@ class TestBindings(envtest.MyTkTestCase):
         self.assertTrue(isinstance(b.var_b, Variable))
         self.assertFalse(isinstance(a.py_a, Variable))
         self.assertFalse(isinstance(b.py_b, Variable))
+
+    def test_variable_bound_to_defined_property(self):
+        c = C(c=1)
+        c.bind_properties("py_c", c, "foo")
+        self.assertEqual(c.py_c, 1)
+        self.assertEqual(c.foo, 1)
+
+    def test_defined_property_bound_to_variable(self):
+        c = C(c=1)
+        c.bind_properties("foo", c, "py_c")
+        self.assertEqual(c.foo, None)
+        self.assertEqual(c.py_c, None)
+        c.foo = 2
+        self.assertEqual(c.foo, 2)
+        self.assertEqual(c.py_c, 2)
 
 
 if __name__ == "__main__":

@@ -5,38 +5,76 @@ from .base import Base
 
 class Slider(Base):
     def __init__(
-        self, maximum=100, width=200, height=20, orient=HORIZONTAL, delegate=None
+        self,
+        value=0,
+        minimum=0,
+        maximum=100,
+        increment=1,
+        width=200,
+        height=20,
+        orient=HORIZONTAL,
+        delegate=None,
     ):
         super().__init__()
-        self.minimum = 0
-        self.maximum = maximum
-        self._width = width
+        self._widget_args = {
+            "length": width,
+            "from_": minimum,
+            "to": maximum,
+            "orient": orient,
+        }
+
+        self.value_variable = DoubleVar(value=value)
+
         self._height = height
         self.delegate = delegate
-        self.orient = orient
-        self.delegate = delegate
-        self._value = 0
+
         self.bind_properties("value", self, "value_variable")
         self.add_observer(self, "value")
 
+    def create_widget(self, master, **kwargs):
+        self.widget = ttk.Scale(master, **self._widget_args)
+        self.bind_variable(self.value_variable)
+
     @property
     def value(self):
-        return self._value
+        return self.value_variable.get()
 
     @value.setter
     def value(self, value):
         if value > self.maximum:
-            self._value = self.maximum
+            self.value_variable.set(value=self.maximum)
         elif value < self.minimum:
-            self._value = self.minimum
+            self.value_variable.set(value=self.minimum)
         else:
-            self._value = value
+            self.value_variable.set(value=value)
 
-    def create_widget(self, master, **kwargs):
-        self.widget = ttk.Scale(
-            master, from_=0, to=100, value=0, length=self._width, orient=self.orient
-        )
-        self.bind_variable(DoubleVar())
+    @property
+    def minimum(self):
+        if self.widget is None:
+            return self._widget_args.get("from_")
+        else:
+            return self.widget["from"]
+
+    @minimum.setter
+    def minimum(self, value):
+        if self.widget is None:
+            self._widget_args["from_"] = value
+        else:
+            self.widget["from"] = value
+
+    @property
+    def maximum(self):
+        if self.widget is None:
+            return self._widget_args.get("to")
+        else:
+            return self.widget["to"]
+
+    @maximum.setter
+    def maximum(self, value):
+        if self.widget is None:
+            self._widget_args["to"] = value
+        else:
+            self.widget["to"] = value
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context

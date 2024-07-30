@@ -9,17 +9,22 @@ class Label(Base):
     def __init__(self, text=None, wrapping=False, **kwargs):
         Base.__init__(self)
         self.wrapping = wrapping
-        self.kwargs = kwargs
-        self.text = ""
+        self._widget_args = kwargs
+
+        if text is None:
+            self.text = ""
+        else:
+            self.text = text
+
+        self.value_variable = StringVar()
         self.bind_properties(
             "text", self, "value_variable"
         )  # binding this way will set value_variable to 'text'
-        self.text = text
 
     def create_widget(self, master):
         self.parent = master
-        self.widget = ttk.Label(master, **self.kwargs, **self.debug_kwargs)
-        self.bind_textvariable(StringVar(value=self.text))
+        self.widget = ttk.Label(master, **self._widget_args, **self.debug_kwargs)
+        self.bind_textvariable(self.value_variable)
 
         if self.wrapping:
             self.widget.bind("<Configure>", self.set_label_wrap)
