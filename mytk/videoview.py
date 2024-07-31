@@ -8,48 +8,52 @@ from .popupmenu import PopupMenu
 import importlib
 import signal
 import cv2
+import PIL.Image as PILImage
+import PIL.ImageTk as PILImageTk
+import time
+from threading import Thread, RLock
+from functools import partial
+from contextlib import redirect_stdout, redirect_stderr
+import io
 
-
-class VideoView(Base):
-
-    def __init__(self, device=0, zoom_level=3, auto_start=True):
+class VideoCapture:
+    def __init__(self, device_id=0, delegate=None):
         super().__init__()
 
-        self.device = device
-        self.zoom_level = zoom_level
-        self.image = None
+        self.device_id = device_id
+        self.delegate = delegate
+
+        self.thread = None
+        self.camera_access_lock = RLock()
+
+        # These variables must be accessed with the RLock()
+        self.latest_frame = None
+        self._frame_counter = 0
         self.capture = None
         self.videowriter = None
-
-        self.abort = False
-        self.auto_start = auto_start
-
-        self.startstop_behaviour_button = None
-        self.save_behaviour_button = None
-        self.stream_behaviour_button = None
-
-        self.histogram_xyplot = None
-
-        self._displayed_tkimage = None
+        self.zoom_level = 1
+        self._must_abort = False
         self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
-        self.next_scheduled_update = None
-        self.next_scheduled_update_histogram = None
 
-    def is_environment_valid(self):
-        ModulesManager.install_and_import_modules_if_absent(
-            {"opencv-python": "cv2", "Pillow": "PIL"}
-        )
+    @property
+    def frame_counter(self):
+        with self.camera_access_lock:
+            return self._frame_counter
 
-        self.cv2 = ModulesManager.imported.get("opencv-python", None)
-        self.PIL = ModulesManager.imported.get("Pillow", None)
+    @property
+    def is_running(self):
+        with self.camera_access_lock:
+            return self.capture is not None
 
-        if self.PIL is not None:
-            self.PILImage = importlib.import_module("PIL.Image")
-            self.PILImageTk = importlib.import_module("PIL.ImageTk")
+    @property
+    def must_abort(self):
+        with self.camera_access_lock:
+            return self._must_abort
 
-        return all(
-            v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk]
-        )
+    @must_abort.setter
+    def must_abort(self, value):
+        with self.camera_access_lock:
+            self._must_abort = value
 
     def signal_handler(self, sig, frame):
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
@@ -65,17 +69,199 @@ class VideoView(Base):
         try:
             index = 0
             while True:
-                cap = self.cv2.VideoCapture(index)
-                if not cap.read()[0]:
-                    break
-                else:
-                    available_devices.append(index)
-                cap.release()
+                with redirect_stdout(io.StringIO()) as out, redirect_stderr(io.StringIO()) as err:
+                    cap = cv2.VideoCapture(index)
+                    time.sleep(0.3) # HACK? not always available immediately
+                    if not cap.read()[0]:
+                        break
+                    else:
+                        available_devices.append(index)
+                    cap.release()
                 index += 1
         except Exception as err:
+            print(err)
             pass
 
         return available_devices
+
+    def start_capturing(self, run_continuously = False):
+        with self.camera_access_lock:
+            if not self.is_running:
+                try:
+                    self._frame_counter = 0
+                    with redirect_stdout(io.StringIO()) as out, redirect_stderr(io.StringIO()) as err:
+                        self.capture = cv2.VideoCapture(self.device_id)
+
+                    if run_continuously:
+                        self.thread = Thread(target=self.background_thread_get_next_frame)
+                        self.thread.start()
+                except Exception as err:
+                    print(err)
+                    self.capture = None
+
+    def stop_capturing(self):
+        if self.thread is not None:
+            self.must_abort = True
+            self.thread.join()
+            self.thread = None
+
+        if self.is_running:
+            with self.camera_access_lock:
+                self.capture.release()
+                self.capture = None
+                
+
+    def start_streaming(self, filepath):
+        with self.camera_access_lock:
+            width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
+            height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
+            fourcc = cv2.VideoWriter_fourcc("I", "4", "2", "0")
+            self.videowriter = cv2.VideoWriter(
+                filepath, fourcc, 20.0, (int(width), int(height)), True
+            )
+
+    def stop_streaming(self):
+        with self.camera_access_lock:
+            if self.videowriter is not None:
+                self.videowriter.release()
+                self.videowriter = None
+
+    def background_thread_get_next_frame(self):
+        while not self.must_abort:
+            with self.camera_access_lock:
+                latest_frame = self.get_next_frame()
+                if latest_frame is not None:
+                    if self.delegate is not None:
+                        self.delegate.frame_ready(latest_frame)                        
+                else:
+                    break
+
+            time.sleep(0.005)
+
+    def get_next_frame(self):
+        with self.camera_access_lock:
+            if self.capture is None:
+                return None
+
+            ret, readonly_frame = self.capture.read() # blocking until frame is available
+
+            frame = None
+            if ret:
+                # The OpenCV documentation is clear: the returned frame from read() is read-only
+                # and must be copied to be used (I assume it can be overwritten internally)
+                # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
+                # Without this copy, the program crashes in a few seconds
+                frame = readonly_frame.copy()
+
+                if len(frame.shape) == 3:
+                    if frame.shape[2] == 3:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                self._frame_counter += 1
+
+            return frame
+
+
+    def prop_ids(self):
+        with self.camera_access_lock:
+            capture = self.capture
+            print(
+                "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
+                    capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+                )
+            )
+            print(
+                "CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(
+                    capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                )
+            )
+            print("CAP_PROP_FPS : '{}'".format(capture.get(cv2.CAP_PROP_FPS)))
+            print(
+                "CAP_PROP_POS_MSEC : '{}'".format(capture.get(cv2.CAP_PROP_POS_MSEC))
+            )
+            print(
+                "CAP_PROP_FRAME_COUNT  : '{}'".format(
+                    capture.get(cv2.CAP_PROP_FRAME_COUNT)
+                )
+            )
+            print(
+                "CAP_PROP_BRIGHTNESS : '{}'".format(
+                    capture.get(cv2.CAP_PROP_BRIGHTNESS)
+                )
+            )
+            print(
+                "CAP_PROP_CONTRAST : '{}'".format(capture.get(cv2.CAP_PROP_CONTRAST))
+            )
+            print(
+                "CAP_PROP_SATURATION : '{}'".format(
+                    capture.get(cv2.CAP_PROP_SATURATION)
+                )
+            )
+            print("CAP_PROP_HUE : '{}'".format(capture.get(cv2.CAP_PROP_HUE)))
+            print("CAP_PROP_GAIN  : '{}'".format(capture.get(cv2.CAP_PROP_GAIN)))
+            print(
+                "CAP_PROP_CONVERT_RGB : '{}'".format(
+                    capture.get(cv2.CAP_PROP_CONVERT_RGB)
+                )
+            )
+
+    def get_prop_id(self, prop_id):
+        """
+        Important prop_id:
+        CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
+        CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
+        CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
+        CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
+        CAP_PROP_FPS Frame rate.
+        CAP_PROP_FOURCC 4-character code of codec.
+        CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
+        CAP_PROP_MODE Backend-specific value indicating the current capture mode.
+        CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
+        """
+        with self.camera_access_lock:
+            if self.capture is not None:
+                return self.capture.get(prop_id)
+            return None
+
+class VideoView(Base):
+
+    def __init__(self, device=0, zoom_level=3, auto_start=True):
+        super().__init__()
+
+        self.new_frame = None
+        self.image = None
+
+        self.capture = VideoCapture(device_id=device)
+        self.zoom_level = zoom_level
+        self.auto_start = auto_start
+
+        self.startstop_behaviour_button = None
+        self.save_behaviour_button = None
+        self.stream_behaviour_button = None
+
+        self.histogram_xyplot = None
+
+        self._displayed_tkimage = None
+        self.next_scheduled_update = None
+        self.next_scheduled_update_histogram = None
+        self.bind_event('<<FrameReady>>', self.update_display)
+
+    def is_environment_valid(self):
+        ModulesManager.install_and_import_modules_if_absent(
+            {"opencv-python": "cv2", "Pillow": "PIL"}
+        )
+
+        cv2 = ModulesManager.imported.get("opencv-python", None)
+        self.PIL = ModulesManager.imported.get("Pillow", None)
+
+        if self.PIL is not None:
+            PILImage = importlib.import_module("PIL.Image")
+            PILImageTk = importlib.import_module("PIL.ImageTk")
+
+        return all(
+            v is not None for v in [cv2, self.PIL, PILImage, PILImageTk]
+        )
 
     def create_widget(self, master):
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
@@ -92,77 +278,30 @@ class VideoView(Base):
             return "Stop"
         return "Start"
 
-    def start_capturing(self):
-        if not self.is_running:
-            try:
-                self.capture = self.cv2.VideoCapture(self.device)
-                if self.capture.isOpened():
-                    self.update_display()
-            except Exception as err:
-                print(err)
-                self.capture = None
+    def frame_ready(self, frame):
+        self.new_frame = frame
+        self.generate_event("<<FrameReady>>")
 
-    def stop_capturing(self):
-        if self.is_running:
-            if self.next_scheduled_update is not None:
-                App.app.root.after_cancel(self.next_scheduled_update)
-            self.capture.release()
-            self.capture = None
-
-    def start_streaming(self, filepath):
-        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
-        fourcc = self.cv2.VideoWriter_fourcc("I", "4", "2", "0")
-        self.videowriter = self.cv2.VideoWriter(
-            filepath, fourcc, 20.0, (int(width), int(height)), True
-        )
-
-    def stop_streaming(self):
-        if self.videowriter is not None:
-            self.videowriter.release()
-            self.videowriter = None
 
     def update_display(self):
-        ret, readonly_frame = self.capture.read()
-        if ret:
-            # The OpenCV documentation is clear: the returned frame from read() is read-only
-            # and must be copied to be used (I assume it can be overwritten internally)
-            # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html#a473055e77dd7faa4d26d686226b292c1
-            # Without this copy, the program crashes in a few seconds
-            frame = readonly_frame.copy()
-            if self.videowriter is not None:
-                self.videowriter.write(frame)
+        img = PILImage.fromarray(self.new_frame)
+        resized_image = img.resize(
+            (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
+            PILImage.NEAREST,
+        )
+        self.image = resized_image
 
-            if len(frame.shape) == 3:
-                if frame.shape[2] == 3:
-                    frame = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2RGB)
-            # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # convert to Tkinter image
+        photo = PILImageTk.PhotoImage(image=self.image)
 
-            # convert to PIL image
-            img = self.PILImage.fromarray(frame)
-            resized_image = img.resize(
-                (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
-                self.PILImage.NEAREST,
-            )
-            self.image = resized_image
+        # solution for bug in `PhotoImage`
+        self._displayed_tkimage = photo
 
-            # convert to Tkinter image
-            photo = self.PILImageTk.PhotoImage(image=self.image)
+        # replace image in label
+        self.widget.configure(image=photo)
 
-            # solution for bug in `PhotoImage`
-            self._displayed_tkimage = photo
-
-            # replace image in label
-            self.widget.configure(image=photo)
-
-            if self.next_scheduled_update_histogram is None:
-                self.update_histogram()
-
-            self.next_scheduled_update = App.app.root.after(20, self.update_display)
-
-        if self.abort:
-            self.stop_capturing()
-            self.previous_handler(signal.SIGINT, 0)
+        if self.next_scheduled_update_histogram is None:
+            self.update_histogram()
 
     def update_histogram(self):
         if self.histogram_xyplot is not None:
@@ -218,15 +357,15 @@ class VideoView(Base):
 
     def click_start_stop_button(self, event, button):
         if self.is_running:
-            self.stop_capturing()
+            self.capture.stop_capturing()
         else:
-            self.start_capturing()
+            self.capture.start_capturing()
         button.widget.configure(text=self.startstop_button_label)
 
     def click_save_button(self, event, button):
-        exts = self.PILImage.registered_extensions()
+        exts = PILImage.registered_extensions()
         supported_extensions = [
-            (f, ex) for ex, f in exts.items() if f in self.PILImage.SAVE
+            (f, ex) for ex, f in exts.items() if f in PILImage.SAVE
         ]
 
         filepath = filedialog.asksaveasfilename(
@@ -251,61 +390,3 @@ class VideoView(Base):
         self.device = index
         self.start_capturing()
 
-    def prop_ids(self):
-        capture = self.capture
-        print(
-            "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
-                capture.get(self.cv2.CAP_PROP_FRAME_WIDTH)
-            )
-        )
-        print(
-            "CV_CAP_PROP_FRAME_HEIGHT : '{}'".format(
-                capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT)
-            )
-        )
-        print("CAP_PROP_FPS : '{}'".format(capture.get(self.cv2.CAP_PROP_FPS)))
-        print(
-            "CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC))
-        )
-        print(
-            "CAP_PROP_FRAME_COUNT  : '{}'".format(
-                capture.get(self.cv2.CAP_PROP_FRAME_COUNT)
-            )
-        )
-        print(
-            "CAP_PROP_BRIGHTNESS : '{}'".format(
-                capture.get(self.cv2.CAP_PROP_BRIGHTNESS)
-            )
-        )
-        print(
-            "CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST))
-        )
-        print(
-            "CAP_PROP_SATURATION : '{}'".format(
-                capture.get(self.cv2.CAP_PROP_SATURATION)
-            )
-        )
-        print("CAP_PROP_HUE : '{}'".format(capture.get(self.cv2.CAP_PROP_HUE)))
-        print("CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN)))
-        print(
-            "CAP_PROP_CONVERT_RGB : '{}'".format(
-                capture.get(self.cv2.CAP_PROP_CONVERT_RGB)
-            )
-        )
-
-    def get_prop_id(self, prop_id):
-        """
-        Important prop_id:
-        CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
-        CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
-        CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
-        CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
-        CAP_PROP_FPS Frame rate.
-        CAP_PROP_FOURCC 4-character code of codec.
-        CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
-        CAP_PROP_MODE Backend-specific value indicating the current capture mode.
-        CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
-        """
-        if self.capture is not None:
-            return self.capture.get(prop_id)
-        return None
