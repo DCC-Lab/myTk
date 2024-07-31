@@ -124,26 +124,34 @@ class TableView(Base):
                 self.delegate.source_data_changed()
 
     def source_data_added_or_updated(self, records):
-        for record in records:
-            formatted_values = self.record_to_formatted_widget_values(record)
-            item_id = record["__uuid"]
-            if self.widget.exists(item_id):  # updated
-                for i, value in enumerate(formatted_values):
-                    self.widget.set(item_id, column=i, value=value)
-            else:  # added
-                parentid = ""
-                if record["__puuid"] is not None:
-                    parentid = record["__puuid"]
-                self.widget.insert(parentid, END, iid=item_id, values=formatted_values)
+        if self.widget is not None: 
+            for record in records:
+                formatted_values = self.record_to_formatted_widget_values(record)
+                item_id = record["__uuid"]
+                if self.widget.exists(item_id):  # updated
+                    for i, value in enumerate(formatted_values):
+                        self.widget.set(item_id, column=i, value=value)
+                else:  # added
+                    parentid = ""
+                    if record["__puuid"] is not None:
+                        parentid = record["__puuid"]
+
+                    if self.widget.exists(parentid):
+                        self.widget.insert(parentid, END, iid=item_id, values=formatted_values)
+                    else:
+                        print(f'Skipping missing parent {parentid}')
 
     def source_data_deleted(self, records):
+        if self.widget is not None:
+            uuids = [str(record["__uuid"]) for record in records]
+            items_ids = self.items_ids()
 
-        uuids = [str(record["__uuid"]) for record in records]
-        items_ids = self.items_ids()
-
-        for item_id in items_ids:
-            if item_id not in uuids:
-                self.widget.delete(item_id)
+            for item_id in items_ids:
+                if item_id not in uuids:
+                    if self.widget.exists(item_id):
+                        self.widget.delete(item_id)
+                    else:
+                        print(f'Already deleted {item_id}')
 
     def record_to_formatted_widget_values(self, record):
         ordered_values = [record[column] for column in self.columns]

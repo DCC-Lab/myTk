@@ -77,7 +77,10 @@ class FileTreeData(TabularData):
                 return record["__uuid"]
         return None
 
-    def insert_child_records_for_directory(self, root_dir, pid=None):
+    def insert_child_records_for_directory(self, root_dir=None, pid=None):
+        if root_dir is None:
+            root_dir = self.root_dir
+
         records_to_add = self.records_directory_content(root_dir)
 
         if self.filter_out_system_files:
@@ -138,7 +141,7 @@ class FileTreeData(TabularData):
                 except FileNotFoundError:
                     pass
 
-        return records_to_add
+        return self.ordered_records(records_to_add)
 
 
 class FileViewer(TableView):
@@ -160,11 +163,6 @@ class FileViewer(TableView):
         super().__init__(
             columns_labels=columns_labels, is_treetable=True, create_data_source=False
         )
-        self.data_source = FileTreeData(
-            root_dir=root_dir,
-            tableview=self,
-            required_fields=list(columns_labels.keys()),
-        )
         self.column_formats = {
             "size": {
                 "format_string": r"{0:.1f}k",
@@ -177,6 +175,13 @@ class FileViewer(TableView):
         self.default_format_string = "{0}"
         self.all_elements_are_editable = False
         self.hide_system_files = True
+
+        self.data_source = FileTreeData(
+            root_dir=root_dir,
+            tableview=self,
+            required_fields=list(columns_labels.keys()),
+        )
+
 
     def source_data_changed(self, records):
         if self.hide_system_files:

@@ -84,12 +84,15 @@ class TabularData(Bindable):
             tuple_records.append(NamedtupleType(**modified_record))
         return tuple_records
 
-    def ordered_records(self):
+    def ordered_records(self, records=None):
+        if records is None:
+            records = self.records
+
         ordered_records = []
         inserted_uuids = [None]
 
-        while len(ordered_records) != len(self.records):
-            for record in self.records:
+        while len(ordered_records) != len(records):
+            for record in records:
                 pid = record['__puuid']
                 uid = record['__uuid'] 
                 if (pid is None or pid in inserted_uuids) and uid not in inserted_uuids:
@@ -278,7 +281,8 @@ class TabularData(Bindable):
     def source_records_changed(self):
         if not self._disable_change_calls:
             if self.delegate is not None:
-                with suppress(AttributeError):
+                if self.delegate() is not None:
+                # with suppress(AttributeError):
                     self.delegate().source_data_changed(self.ordered_records())
 
     def load(self, filepath, disable_change_calls=False):
