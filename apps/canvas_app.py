@@ -2,47 +2,38 @@ import envapp
 from tkinter import DoubleVar
 from tkinter import filedialog
 from mytk import *
+from mytk.canvasview import CanvasView, CanvasElement, Rectangle, Oval, Line,BezierCurve
+import time
 
-class CanvasElement:
-    def __init__(self, width, height, **kwargs):
-        self._element_args = {"width": width, "height": height}
-        self.position = None
-        self.canvas = None
-        self.anchor = None
+gLine = None
 
-    def place_in_canvas(self, canvas, x,y, anchor='w'):
-        self.canvas = canvas
-        self.position = (x,y)
-        self.anchor = anchor
-
-    def draw(self):
-        pass
-
-class Rectangle(CanvasElement):
-    def draw(self):
-        self.canvas.widget.create_rectangle(
-                4, 4, self.width, self.height, outline="black", fill="white", width=2
-            )
-
+def rotate_line():
+    gLine.angle += 10
+    canvas.draw()
 
 if __name__ == "__main__":
     app = App()
-    # You would typically put this into the__init__ of your subclass of App:
     app.window.widget.title("Application with a Canvas")
 
-    canvas = CanvasView(width=1000, height=900)
+    canvas = CanvasView(width=1000, height=900, background='white')
     canvas.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
-    canvas.widget.create_rectangle(
-            4, 4, 200, 200, outline="black", fill="white", width=2
-        )
-    # canvas.widget.create_rectangle(
-    #         10, 10, 30, 30, outline="black", fill="blue", width=2
-    #     )
-    canvas.widget.create_oval(
-            (140, 140, 140+40, 140+30), outline="green", fill="red", width=2
-        )
+    rect = Rectangle(width=100, height=200, fill='lightblue', outline='black', outline_width=5)
+    canvas.place(rect, position=(10,10))
+    oval = Oval(width=40, height=60, fill='green', outline='black', outline_width=2)
+    canvas.place(oval, position=(200,100))
+    line = Line(length=100, angle=45, width=2, arrow='both')
+    canvas.place(line, position=(400,400))
+    path = Line(points=((0,0),(100,100),(200,30),(300,100),(400,320)), width=2)
+    canvas.place(path, position=(300,100))
+    curve = BezierCurve(points=((0,0),(100,100), (150,100)), width=2)
+    canvas.place(curve, position=(400,400))
+    canvas.draw()
+
+    print(canvas.widget.itemconfigure(tagorid='123'))
+    # canvas.after(delay=1000, function=rotate_line)
 
     app.window.all_resize_weight(1)
     
     app.mainloop()
+
