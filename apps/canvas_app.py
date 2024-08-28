@@ -40,7 +40,7 @@ if __name__ == "__main__":
     canvas.place(axes, position=(600,600))
 
     axis = Axis( u=Vector(300,0), width=2)
-    canvas.place(axis, position=(600,600))
+    canvas.place(axis, position=(600,800))
 
     label = Label( text="Bonjour", font_size=20)
     canvas.place(label, position=(600,600))

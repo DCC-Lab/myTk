@@ -13,12 +13,16 @@ class Vector(tuple):
     def __add__(self, rhs):
         return Vector(self[0] + rhs[0], self[1] + rhs[1])
 
+    def __radd__(self, rhs):
+        return Vector(self[0] + rhs[0], self[1] + rhs[1])
+
     def __sub__(self, rhs):
         return Vector(self[0] - rhs[0], self[1] - rhs[1])
 
     def __mul__(self, scalar):
         return Vector(self[0]*scalar, self[1]*scalar)
 
+    @property
     def length(self):
         return sqrt(self[0]*self[0] + self[1]*self[1])
 
@@ -82,7 +86,10 @@ class CanvasElement:
         return self.canvas.widget.gettags(self.id)
 
     def add_tag(self, tag):
-        return self.canvas.widget.addtag_withtag(tag, self.id)        
+        self.canvas.widget.addtag_withtag(tag, self.id)        
+
+    def add_group_tag(self, tag):
+        self.add_tag(tag)
 
     def move_by(self, dx, dy):
         self.canvas.widget.move(self.id, dx, dy)
@@ -151,23 +158,57 @@ class Arrow(Line):
         super().__init__(points=(start, end), **kwargs)
 
 class Axis(CanvasElement):
-    def __init__(self, u, **kwargs):
+    def __init__(self, u, major=None, minor=None, **kwargs):
         super().__init__(**kwargs)
 
         self.u = Vector(u)
+        self.v = Vector(-u[1]/u.length, u[0]/u.length)
+        self.major = major
+        self.minor = minor
+        self.major_length = 2
+        self.minor_length = 1
+        self.tick_value_offset = 20
+        self.tick_text_size = 10
+
         self.axis = None
         self.origin = None
+
+    @property
+    def major_ticks(self):
+        delta = u.length()/self.major
+
+        positions = [ i * delta for i in range(self.major)]
+        return positions
 
     def create(self, canvas, position = None):
         self.canvas = canvas
         self.id = "my_axis"
+        if position is None:
+            position = Vector(0,0)
 
         width = self._element_kwargs.get('width',1)
 
-        self.origin = Oval(size=(1.5*width,1.5*width), fill='black', tag=(self.id), **self._element_kwargs)
+        self.origin = Oval(size=(1.5*width,1.5*width), fill='black', **self._element_kwargs)
         self.origin.create(canvas, position)
-        self.axis = Arrow(start=Vector(0,0), end=self.u, tag=(self.id,), **self._element_kwargs)
+        self.origin.add_group_tag(self.id)
+        self.axis = Arrow(start=Vector(0,0), end=self.u, **self._element_kwargs)
         self.axis.create(canvas, position)
+        self.axis.add_group_tag(self.id)
+
+        for fraction in [0.2,0.4,0.6,0.8]:
+            u_fraction = self.u*fraction
+            v_fraction = self.v*self.major_length*width
+
+            tick_position_on_axis = position + u_fraction
+            tick_position_start = tick_position_on_axis
+            tick_position_end = tick_position_start + v_fraction
+
+            tick = Line( points=(tick_position_start, tick_position_end), **self._element_kwargs)
+            tick.create(canvas)
+            tick.add_group_tag(self.id)
+            value = Label( text=f"{fraction:.1f}", font_size=self.tick_text_size*width)
+            value.create(canvas, position=tick_position_on_axis + self.v*self.tick_value_offset)
+            value.add_group_tag(self.id)
 
         return self.id
 
@@ -187,12 +228,16 @@ class Axes(CanvasElement):
 
         width = self._element_kwargs.get('width',1)
 
-        self.origin = Oval(size=(1.5*width,1.5*width), fill='black', tag=(self.id), **self._element_kwargs)
+        self.origin = Oval(size=(1.5*width,1.5*width), fill='black', **self._element_kwargs)
         self.origin.create(canvas, position)
-        self.x_axis = Arrow(start=Vector(0,0), end=self.u, tag=(self.id,), **self._element_kwargs)
+        self.origin.add_group_tag(self.id)
+        self.x_axis = Axis(self.u, **self._element_kwargs)
         self.x_axis.create(canvas, position)
-        self.y_axis = Arrow(start=Vector(0,0), end=self.v, tag=(self.id,), **self._element_kwargs)
+        self.x_axis.add_group_tag(self.id)
+        self.y_axis = Axis(self.v, **self._element_kwargs)
+        self.y_axis.v = self.y_axis.v*(-1)
         self.y_axis.create(canvas, position)
+        self.y_axis.add_group_tag(self.id)
 
         return self.id
 
