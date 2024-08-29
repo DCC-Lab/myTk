@@ -144,10 +144,10 @@ class Label(CanvasElement):
 
 
 class XYCoordinateSystemElement(CanvasElement):
-    def __init__(self, scale, axes_lengths, **kwargs):
+    def __init__(self, scale, axes_limits, **kwargs):
         super().__init__(**kwargs)
         self.reference_frame = ReferenceFrame(scale=scale, origin=None)
-        self.axes_lengths = axes_lengths
+        self.axes_limits = axes_limits
         self.major = 5
 
         # All lengths are relative to (line) width
@@ -163,13 +163,18 @@ class XYCoordinateSystemElement(CanvasElement):
         self.reference_frame.origin_in_canvas_coords = position
         xHat, yHat = self.reference_frame.unit_vectors
 
+        x_lims = self.axes_limits[0]
         self.x_axis = Arrow(
-            end=xHat * self.axes_lengths[0] * 1.2, **self._element_kwargs
+            start=xHat * x_lims[0] * 1.2,
+            end=xHat * x_lims[1] * 1.2, **self._element_kwargs
         )
         self.x_axis.create(canvas, position)
         self.x_axis.add_group_tag(self.id)
+
+        y_lims = self.axes_limits[1]
         self.y_axis = Arrow(
-            end=yHat * self.axes_lengths[1] * 1.2, **self._element_kwargs
+            start=yHat * y_lims[0] * 1.2,
+            end=yHat * y_lims[1] * 1.2, **self._element_kwargs
         )
         self.y_axis.create(canvas, position)
         self.y_axis.add_group_tag(self.id)
@@ -189,15 +194,23 @@ class XYCoordinateSystemElement(CanvasElement):
 
     @property
     def x_major_ticks(self):
-        delta = self.axes_lengths[0] / self.major
+        x_lims = self.axes_limits[0]
+        delta = x_lims[1] / self.major
 
-        return [i * delta for i in range(self.major + 1)]
+        positive = [i * delta for i in range(0,self.major + 1)]
+        # negative = [-i * delta for i in range(1, self.major + 1)]
+        # positive.extend(negative)
+        return positive
 
     @property
     def y_major_ticks(self):
-        delta = self.axes_lengths[1] / self.major
+        y_lims = self.axes_limits[1]
+        delta = y_lims[1] / self.major
 
-        return [i * delta for i in range(self.major + 1)]
+        positive = [i * delta for i in range(0, self.major + 1)]
+        # negative = [-i * delta for i in range(1, self.major + 1)]
+        # positive.extend(negative)
+        return positive
 
     def create_x_major_ticks(self, origin):
         xHat, yHat = self.reference_frame.unit_vectors
