@@ -70,7 +70,7 @@ class Rectangle(CanvasElement):
         super().__init__(**kwargs)
         self.size = Vector(size)
 
-    def create(self, canvas, position=Vector(0,0)):
+    def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
         top_left = Vector(position)
         bottom_right = top_left + self.size
@@ -86,7 +86,7 @@ class Oval(CanvasElement):
         super().__init__(**kwargs)
         self.size = Vector(size)
 
-    def create(self, canvas, position=Vector(0,0)):
+    def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
         top_left = Vector(position) - self.size * 0.5
         bottom_right = top_left + self.size
@@ -122,7 +122,7 @@ class Line(CanvasElement):
 
 
 class Arrow(Line):
-    def __init__(self, start=Vector(0,0), end=None, length=None, angle=None, **kwargs):
+    def __init__(self, start=Vector(0, 0), end=None, length=None, angle=None, **kwargs):
         kwargs["arrow"] = "last"
         if "width" not in kwargs:
             kwargs["width"] = 2
@@ -142,17 +142,20 @@ class Label(CanvasElement):
         self.id = canvas.widget.create_text(position, **self._element_kwargs, font=f)
         return self.id
 
+
 class XYCoordinateSystemElement(CanvasElement):
     def __init__(self, scale, axes_lengths, **kwargs):
         super().__init__(**kwargs)
         self.reference_frame = ReferenceFrame(scale=scale, origin=None)
         self.axes_lengths = axes_lengths
         self.major = 5
+
+        # All lengths are relative to (line) width
         self.major_length = 4
         self.tick_text_size = 10
         self.tick_value_offset = 4
 
-    def create(self, canvas, position=Vector(0,0)):
+    def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
         self.id = "my_coords"
         width = self._element_kwargs.get("width", 1)
@@ -160,10 +163,14 @@ class XYCoordinateSystemElement(CanvasElement):
         self.reference_frame.origin_in_canvas_coords = position
         xHat, yHat = self.reference_frame.unit_vectors
 
-        self.x_axis = Arrow(end = xHat * self.axes_lengths[0]*1.2, **self._element_kwargs)
+        self.x_axis = Arrow(
+            end=xHat * self.axes_lengths[0] * 1.2, **self._element_kwargs
+        )
         self.x_axis.create(canvas, position)
         self.x_axis.add_group_tag(self.id)
-        self.y_axis = Arrow(end = yHat * self.axes_lengths[1]*1.2, **self._element_kwargs)
+        self.y_axis = Arrow(
+            end=yHat * self.axes_lengths[1] * 1.2, **self._element_kwargs
+        )
         self.y_axis.create(canvas, position)
         self.y_axis.add_group_tag(self.id)
 
@@ -173,8 +180,10 @@ class XYCoordinateSystemElement(CanvasElement):
         self.origin.create(canvas, position)
         self.origin.add_group_tag(self.id)
 
-        self.create_x_major_ticks(position)
-        self.create_y_major_ticks(position)
+        self.create_x_major_ticks(origin=position)
+        self.create_x_major_ticks_labels(origin=position)
+        self.create_y_major_ticks(origin=position)
+        self.create_y_major_ticks_labels(origin=position)
 
         return self.id
 
@@ -182,49 +191,69 @@ class XYCoordinateSystemElement(CanvasElement):
     def x_major_ticks(self):
         delta = self.axes_lengths[0] / self.major
 
-        return [i * delta for i in range(self.major+1)]
+        return [i * delta for i in range(self.major + 1)]
 
     @property
     def y_major_ticks(self):
         delta = self.axes_lengths[1] / self.major
 
-        return [i * delta for i in range(self.major+1)]
+        return [i * delta for i in range(self.major + 1)]
 
-    def create_x_major_ticks(self, position):
+    def create_x_major_ticks(self, origin):
         xHat, yHat = self.reference_frame.unit_vectors
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.x_major_ticks:
-            tick_line = Vector(0,1) * self.major_length * width
+            tick_line = Vector(0, 1) * self.major_length * width
 
-            tick = Line(
-                points=((0,0), tick_line), **self._element_kwargs
-            )
-            tick.create(self.canvas, position=position + tick_value * xHat)
+            tick = Line(points=((0, 0), tick_line), **self._element_kwargs)
+            tick.create(self.canvas, position=origin + tick_value * xHat)
             tick.add_group_tag(self.id)
 
-            value = Label(text=f"{tick_value:.0f}", font_size=self.tick_text_size * width)
+    def create_x_major_ticks_labels(self, origin):
+        xHat, yHat = self.reference_frame.unit_vectors
+        width = self._element_kwargs.get("width", 1)
+
+        for tick_value in self.x_major_ticks:
+            tick_line = Vector(0, 1) * self.major_length * width
+
+            value = Label(
+                text=f"{tick_value:.0f}", font_size=self.tick_text_size * width
+            )
             value.create(
-                self.canvas, position=position + tick_value * xHat + tick_line * self.tick_value_offset
+                self.canvas,
+                position=origin
+                + tick_value * xHat
+                + tick_line * self.tick_value_offset,
             )
             value.add_group_tag(self.id)
 
-    def create_y_major_ticks(self, position):
+    def create_y_major_ticks(self, origin):
         xHat, yHat = self.reference_frame.unit_vectors
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.y_major_ticks:
-            tick_line = Vector(1,0) * self.major_length * width
+            tick_line = Vector(1, 0) * self.major_length * width
 
-            tick = Line(
-                points=((0,0), tick_line), **self._element_kwargs
-            )
-            tick.create(self.canvas, position=position + tick_value * yHat)
+            tick = Line(points=((0, 0), tick_line), **self._element_kwargs)
+            tick.create(self.canvas, position=origin + tick_value * yHat)
             tick.add_group_tag(self.id)
 
-            value = Label(text=f"{tick_value:.1f}", font_size=self.tick_text_size * width)
+    def create_y_major_ticks_labels(self, origin):
+        xHat, yHat = self.reference_frame.unit_vectors
+        width = self._element_kwargs.get("width", 1)
+
+        for tick_value in self.y_major_ticks:
+            tick_line = Vector(1, 0) * self.major_length * width
+
+            value = Label(
+                text=f"{tick_value:.1f}", font_size=self.tick_text_size * width
+            )
             value.create(
-                self.canvas, position=position + tick_value * yHat - tick_line * self.tick_value_offset
+                self.canvas,
+                position=origin
+                + tick_value * yHat
+                - tick_line * self.tick_value_offset,
             )
             value.add_group_tag(self.id)
 
