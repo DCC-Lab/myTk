@@ -1,8 +1,11 @@
 from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt
+import subprocess
 from .base import Base
 from .vectors import Vector, ReferenceFrame
+import os
+from pathlib import Path
 
 
 class CanvasView(Base):
@@ -29,7 +32,17 @@ class CanvasView(Base):
                 return element
         return None
 
-    # def convert_from_coord_system(self, name, space_coords):
+    def save_to_pdf(self, filepath, **kwargs):
+        self.widget.update()
+
+        filepath_eps = os.path.splitext(filepath)[0]+"-temp.eps"
+        self.widget.postscript(file=filepath_eps, colormode='color', **kwargs)
+
+        subprocess.run(['ps2pdf', '-dEPSCrop', filepath_eps, filepath], check=True)
+
+        # with PIL.Image.open("/tmp/file.eps") as im:
+        #     im.save(filepath)
+
 
 
 class CanvasElement:
@@ -136,8 +149,8 @@ class Label(CanvasElement):
 
     def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
-
-        f = font.nametofont("TkTextFont")
+        f = font.Font( family = "Helvetica",  
+                                 size = 20) 
         f["size"] = self.font_size
         self.id = canvas.widget.create_text(position, **self._element_kwargs, font=f)
         return self.id
