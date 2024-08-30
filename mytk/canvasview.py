@@ -32,17 +32,25 @@ class CanvasView(Base):
                 return element
         return None
 
-    def save_to_pdf(self, filepath, **kwargs):
+    def save_to_pdf(self, filepath, bbox=None, **kwargs):
         self.widget.update()
 
-        filepath_eps = os.path.splitext(filepath)[0]+"-temp.eps"
-        self.widget.postscript(file=filepath_eps, colormode='color', **kwargs)
+        if bbox is None:
+            all_tags = self.widget.find_all()
+            bbox = self.widget.bbox(*all_tags)
 
-        subprocess.run(['ps2pdf', '-dEPSCrop', filepath_eps, filepath], check=True)
+        x1, y1, x2, y2 = bbox
+        kwargs.update({"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1})
 
-        # with PIL.Image.open("/tmp/file.eps") as im:
-        #     im.save(filepath)
+        filepath_eps = os.path.splitext(filepath)[0] + ".eps"
+        self.widget.postscript(file=filepath_eps, colormode="color", **kwargs)
 
+        try:
+            subprocess.run(["ps2pdf", "-dEPSCrop", filepath_eps, filepath], check=True)
+        except FileNotFoundError:
+            raise RuntimeError(
+                "You must have ps2pdf installed and accessible to produce a PDF file. An .eps file was saved."
+            )
 
 
 class CanvasElement:
@@ -149,19 +157,23 @@ class Label(CanvasElement):
 
     def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
-        f = font.Font( family = "Helvetica",  
-                                 size = 20) 
+        f = font.Font(family="Helvetica", size=20)
         f["size"] = self.font_size
         self.id = canvas.widget.create_text(position, **self._element_kwargs, font=f)
         return self.id
+
+class DataPoint(Oval):
+    def __init__(self, size:int, **kwargs):
+        super().__init__(size=(size, size), **kwargs)
 
 
 class XYCoordinateSystemElement(CanvasElement):
     def __init__(self, scale, axes_limits, **kwargs):
         super().__init__(**kwargs)
-        self.reference_frame = ReferenceFrame(scale=scale, origin=None)
+        self.reference_frame = ReferenceFrame(scale=scale)
         self.axes_limits = axes_limits
         self.major = 5
+        self.is_clipping = True
 
         # All lengths are relative to (line) width
         self.major_length = 4
@@ -171,32 +183,36 @@ class XYCoordinateSystemElement(CanvasElement):
     def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
         self.id = "my_coords"
+        self.add_group_tag(f"group-{self.id}")
+
         width = self._element_kwargs.get("width", 1)
 
-        self.reference_frame.origin_in_canvas_coords = position
-        xHat, yHat = self.reference_frame.unit_vectors
+        self.reference_frame.origin = position
+        xHat, yHat = self.reference_frame.unit_vectors_scaled
 
         x_lims = self.axes_limits[0]
         self.x_axis = Arrow(
             start=xHat * x_lims[0] * 1.2,
-            end=xHat * x_lims[1] * 1.2, **self._element_kwargs
+            end=xHat * x_lims[1] * 1.2,
+            **self._element_kwargs,
         )
         self.x_axis.create(canvas, position)
-        self.x_axis.add_group_tag(self.id)
+        self.x_axis.add_group_tag(f"group-{self.id}")
 
         y_lims = self.axes_limits[1]
         self.y_axis = Arrow(
             start=yHat * y_lims[0] * 1.2,
-            end=yHat * y_lims[1] * 1.2, **self._element_kwargs
+            end=yHat * y_lims[1] * 1.2,
+            **self._element_kwargs,
         )
         self.y_axis.create(canvas, position)
-        self.y_axis.add_group_tag(self.id)
+        self.y_axis.add_group_tag(f"group-{self.id}")
 
         self.origin = Oval(
             size=(1.0 * width, 1.0 * width), fill="black", **self._element_kwargs
         )
         self.origin.create(canvas, position)
-        self.origin.add_group_tag(self.id)
+        self.origin.add_group_tag(f"group-{self.id}")
 
         self.create_x_major_ticks(origin=position)
         self.create_x_major_ticks_labels(origin=position)
@@ -210,7 +226,7 @@ class XYCoordinateSystemElement(CanvasElement):
         x_lims = self.axes_limits[0]
         delta = x_lims[1] / self.major
 
-        positive = [i * delta for i in range(0,self.major + 1)]
+        positive = [i * delta for i in range(0, self.major + 1)]
         # negative = [-i * delta for i in range(1, self.major + 1)]
         # positive.extend(negative)
         return positive
@@ -226,18 +242,18 @@ class XYCoordinateSystemElement(CanvasElement):
         return positive
 
     def create_x_major_ticks(self, origin):
-        xHat, yHat = self.reference_frame.unit_vectors
+        xHat, yHat = self.reference_frame.unit_vectors_scaled
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.x_major_ticks:
-            tick_line = Vector(0, 1) * self.major_length * width
+            tick_line = Vector(0, -1) * self.major_length * width
 
             tick = Line(points=((0, 0), tick_line), **self._element_kwargs)
             tick.create(self.canvas, position=origin + tick_value * xHat)
             tick.add_group_tag(self.id)
 
     def create_x_major_ticks_labels(self, origin):
-        xHat, yHat = self.reference_frame.unit_vectors
+        xHat, yHat = self.reference_frame.unit_vectors_scaled
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.x_major_ticks:
@@ -255,7 +271,7 @@ class XYCoordinateSystemElement(CanvasElement):
             value.add_group_tag(self.id)
 
     def create_y_major_ticks(self, origin):
-        xHat, yHat = self.reference_frame.unit_vectors
+        xHat, yHat = self.reference_frame.unit_vectors_scaled
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.y_major_ticks:
@@ -266,7 +282,7 @@ class XYCoordinateSystemElement(CanvasElement):
             tick.add_group_tag(self.id)
 
     def create_y_major_ticks_labels(self, origin):
-        xHat, yHat = self.reference_frame.unit_vectors
+        xHat, yHat = self.reference_frame.unit_vectors_scaled
         width = self._element_kwargs.get("width", 1)
 
         for tick_value in self.y_major_ticks:
@@ -283,6 +299,30 @@ class XYCoordinateSystemElement(CanvasElement):
             )
             value.add_group_tag(self.id)
 
-    def place(self, element, local_position):
-        position = self.reference_frame.convert_local_to_canvas(local_position)
-        self.canvas.place(element, position)
+    def place(self, element, position):
+
+        if self.is_clipping:
+            x_lims = self.axes_limits[0]
+            y_lims = self.axes_limits[1]
+
+            if position[0] < x_lims[0] or position[0] > x_lims[1]:
+                return 
+            if position[1] < y_lims[0] or position[1] > y_lims[1]:
+                return 
+
+        canvas_position = self.reference_frame.convert_to_canvas(position)
+        self.canvas.place(element, canvas_position)
+
+    def convert_to_canvas(self, position):
+        return self.reference_frame.convert_to_canvas(position)
+
+    def convert_to_local(self, position):
+        return self.reference_frame.convert_to_local(position)
+
+    def scale_to_local(self, size):
+        scale = self.reference_frame.scale
+        return (size[0]*abs(scale[0]), size[1]*abs(scale[1]))
+
+    def scale_to_canvas(self, size):
+        scale = self.reference_frame.scale
+        return (size[0]/abs(scale[0]), size[1]/abs(scale[1]))

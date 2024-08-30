@@ -2,7 +2,7 @@ import envapp
 from tkinter import DoubleVar
 from tkinter import filedialog
 from mytk import *
-from mytk.canvasview import CanvasView, CanvasElement, Rectangle, Oval, Line, Arrow, Vector, Label, XYCoordinateSystemElement
+from mytk.canvasview import *
 import time
 
 if __name__ == "__main__":
@@ -12,11 +12,13 @@ if __name__ == "__main__":
     canvas = CanvasView(width=700, height=300, background='white')
     canvas.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
 
-    coords = XYCoordinateSystemElement(scale=(50, -200), axes_limits=((0,10), (0,1)), width=2)
+    coords = XYCoordinateSystemElement(scale=(50, 2), axes_limits=((0,10), (0,100)), width=2)
     canvas.place(coords, position=Vector(70, 250))
 
-    coords.place( Oval(size=(50,50), fill='green', width=2), local_position=(1,1))
+    for x in range(100):
+        coords.place( DataPoint(size=10, fill='green', width=2), position=(x, x*x))
 
     canvas.save_to_pdf(filepath="/tmp/file.pdf")
+
     app.mainloop()
 
