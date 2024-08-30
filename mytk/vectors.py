@@ -9,6 +9,14 @@ class Vector(tuple):
         else:
             return tuple.__new__(cls, tuple(*args))
 
+    @property
+    def x(self):
+        return self[0]
+
+    @property
+    def y(self):
+        return self[1]
+
     def __add__(self, rhs):
         return Vector(self[0] + rhs[0], self[1] + rhs[1])
 
@@ -41,7 +49,7 @@ class Vector(tuple):
 
 class ReferenceFrame:
     def __init__(
-        self, scale: Vector, origin=None, xHat=Vector(1, 0), yHat=Vector(0, -1)
+        self, scale: Vector, origin=Vector(0,0), xHat=Vector(1, 0), yHat=Vector(0, -1)
     ):
         """
         Scale is the length of the x and y unit vectors in canvas units (or in original units)
