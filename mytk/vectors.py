@@ -3,10 +3,37 @@ from math import cos, sin, sqrt
 
 
 def same_basis(e1, e2):
+    if e1.basis is None and e2.basis is not None:
+        return e2.basis.is_standard_basis
+    elif e2.basis is None and e1.basis is not None:
+        return e1.basis.is_standard_basis
+
     return e1.basis == e2.basis
+
+def is_standard_basis(basis):
+    if basis is None:
+        return True
+
+    return basis.is_standard_basis
+
 
 def same_origin(e1, e2):
     return e1.origin == e2.origin
+
+
+class PointDefault:
+    def __init__(self, points, basis=None, reference_point=None):
+        self.points = points
+        self.basis = basis
+        self.reference_point = reference_point
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for point in self.points:
+            point.basis = self.basis
+            point.reference_point = self.reference_point
 
 
 class Vector:
@@ -28,9 +55,10 @@ class Vector:
     def __str__(self):
         basis_str = ""
         if self.basis is not None:
-            basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
+            if not self.basis.is_standard_basis:
+                basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
 
-        return f"({self.c0},{self.c1}){basis_str}"
+        return f"V({self.c0:.1f}, {self.c1:.1f}){basis_str}"
 
     def __add__(self, rhs: "Vector"):
         assert isinstance(rhs, Vector)
@@ -84,15 +112,20 @@ class Vector:
     def scaled(self, scale):
         return Vector(self.c0 * scale[0], self.c1 * scale[1], basis=self.basis)
 
-    def change_basis(self, new_basis):
+    def in_basis(self, new_basis):
         v = self.standard_coordinates()
         e0, e1 = (new_basis.e0, new_basis.e1)
 
         c0 = v.dot(e0) / (e0.length*e0.length)
         c1 = v.dot(e1) / (e1.length*e1.length)
 
-        self.components = (c0, c1)
-        self.basis = new_basis
+        return Vector(c0, c1, basis=new_basis)
+
+    def change_basis(self, new_basis):
+        v = self.in_basis(new_basis)
+
+        self.components = (v.c0, v.c1)
+        self.basis = v.basis
 
         return self
 
@@ -100,14 +133,24 @@ class Vector:
         if self.basis is None:
             return self
 
+        assert self.basis.e0.basis is None
+        assert same_basis(self.basis.e0, self.basis.e1)
+
         return self.c0 * self.basis.e0 + self.c1 * self.basis.e1
 
+x̂ = Vector(1,0, basis=None)
+ŷ = Vector(0,1, basis=None)
+
 class Point:
-    def __init__(self, *args, basis:'Basis'=None, origin:'Point'=None):
+    def __init__(self, *args, basis:'Basis'=None, reference_point:'Point' = None):
+        assert isinstance(args, tuple)
+        assert len(args) == 2
         self.components = args
+        if basis is None:
+            basis = Basis()
         self.basis = basis
-        # We cannot set origin to Point(0,0) by default because it would call __init__
-        self.origin = origin
+
+        self.reference_point = reference_point
 
     @property
     def x(self):
@@ -117,53 +160,88 @@ class Point:
     def y(self):
         return self.components[1]
 
+    def is_same_as(self, rhs):
+        assert isinstance(rhs, Point)
+        return self.__eq__(rhs)
+
+    def __eq__(self, rhs: "Point"):
+        assert isinstance(rhs, Point)
+
+        c0_equality = abs(self.components[0] - rhs.components[0]) < 1e-6
+        c1_equality = abs(self.components[1] - rhs.components[1]) < 1e-6
+
+        return c0_equality and c1_equality and self.basis == rhs.basis
+
     def __repr__(self):
         return str(self)
 
     def __str__(self):
         basis_str = ""
-        if self.basis is not None:
+        ref_str = ""
+        if not self.basis.is_standard_basis:
             basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
+        if self.reference_point is not None:
+            ref_str = f" ref=P({self.reference_point.x}, {self.reference_point.y})"
 
-        return f"({self.x},{self.y}){basis_str}"
+        return f"P({self.x:.1f}, {self.y:.1f}){basis_str}{ref_str}"
 
     def __sub__(self, rhs: "Point"):
         assert isinstance(rhs, Point)
         assert same_basis(self, rhs)
 
-        return Vector(self.x - rhs.x, self.y - rhs.y, basis=self.basis)
+        c0 = self.x - rhs.x
+        c1 = self.y - rhs.y
+        return Vector(c0, c1, basis=self.basis)
 
-    def change_origin(self, new_origin):
-        origin = self.origin
-        if origin is None:
-            origin = Point(0,0)
-        
-        diff = new_origin - origin
-        self.components = (self.x - diff.c0, self.y - diff.c1)
+    def __add__(self, rhs: "Vector"):
+        assert isinstance(rhs, Vector)
+        assert same_basis(self, rhs)
+
+        return Vector(self.x + rhs.c0, self.y + rhs.c1, basis=self.basis)
 
     def standard_coordinates(self):
-        if self.basis is None and self.origin is None:
+
+        if self.basis.is_standard_basis and self.reference_point is None:
             return self
 
-        if self.origin is None:
-            return self.x * self.basis.e0 + self.y * self.basis.e1
+        assert is_standard_basis(self.basis.e0.basis) # For now, hopefully anything later
+        assert is_standard_basis(self.basis.e1.basis)
 
-        return Point(self.x * self.basis.e0 + self.y * self.basis.e1 + origin, basis=self.basis.x.basis, origin=None)
+        reference_point = self.reference_point
+        if reference_point is None:
+            reference_point = Point(0,0)
+
+        reference_point = reference_point.standard_coordinates()
+
+        v = reference_point + self.x * self.basis.e0 + self.y * self.basis.e1
+        return Point(*v.components, basis=self.basis.e0.basis)
+
+    def in_reference_frame(self, basis, new_reference_point):
+        pt = self.standard_coordinates()
+        ref_point = new_reference_point.standard_coordinates()
+        vector_position = pt - ref_point
+
+        position_vector = vector_position.in_basis(basis)
+        return Point(*position_vector.components, basis=basis, reference_point=new_reference_point)
 
 
 class Basis:
+    defined = {}
+
     def __init__(self, e0: Vector = None, e1: Vector = None):
         """
         Defaults to standard basis
         """
         if e0 is None:
-            e0 = Vector(1, 0, basis=None)
+            e0 = x̂
         if e1 is None:
-            e1 = Vector(0, 1, basis=None)
+            e1 = ŷ
 
         assert e0.basis is None
         assert e1.basis is None
         assert e0.is_perpendicular(e1)
+        assert e0.length > 0
+        assert e1.length > 0
 
         self.e0 = e0
         self.e1 = e1
@@ -171,71 +249,109 @@ class Basis:
     def __eq__(self, rhs: "Basis"):
         assert isinstance(rhs, Basis)
 
-        return self.e0 == rhs.e0 and self.e1 == rhs.e1
+        e0_c0_equality = abs(self.e0.components[0] - rhs.e0.components[0]) < 1e-6
+        e0_c1_equality = abs(self.e0.components[1] - rhs.e0.components[1]) < 1e-6
 
+        e1_c0_equality = abs(self.e1.components[0] - rhs.e1.components[0]) < 1e-6
+        e1_c1_equality = abs(self.e1.components[1] - rhs.e1.components[1]) < 1e-6
 
-# class Vector(tuple):
-#     def __new__(cls, *args):
-#         if len(args) == 2:
-#             return tuple.__new__(cls, args)
-#         else:
-#             return tuple.__new__(cls, tuple(*args))
+        return e0_c0_equality and e0_c1_equality and e1_c0_equality and e1_c1_equality
 
-#     @property
-#     def x(self):
-#         return self[0]
+    def __repr__(self):
+        return str(self)
 
-#     @property
-#     def y(self):
-#         return self[1]
+    def __str__(self):
+        return f"[{self.e0}, {self.e1}]"
 
-#     def __add__(self, rhs):
-#         return Vector(self[0] + rhs[0], self[1] + rhs[1])
+    @property
+    def is_standard_basis(self):
+        if not self.e0.is_unitary:
+            return False
+        if self.e0.c1 != 0:
+            return False
+        if not self.e1.is_unitary:
+            return False
+        if self.e1.c0 != 0:
+            return False
 
-#     def __radd__(self, rhs):
-#         return self.__add__(rhs)
+        return True
 
-#     def __sub__(self, rhs):
-#         return Vector(self[0] - rhs[0], self[1] - rhs[1])
+    @property
+    def is_orthogonal(self):
+        return self.e0.is_perpendicular(self.e1)
 
-#     def __mul__(self, scalar):
-#         return Vector(self[0] * scalar, self[1] * scalar)
+    @property
+    def is_orthonormal(self):
+        if self.is_orthonormal:
+            return self.e0.is_unitary and self.e1.is_unitary
 
-#     def __rmul__(self, scalar):
-#         return self.__mul__(scalar)
+class Doublet(tuple):
+    def __new__(cls, *args):
+        if len(args) == 2:
+            return tuple.__new__(cls, args)
+        else:
+            return tuple.__new__(cls, tuple(*args))
 
-#     def __truediv__(self, scalr):
-#         return Vector(self[0] / scalar, self[1] / scalar)
+    @property
+    def x(self):
+        return self[0]
 
-#     @property
-#     def length(self):
-#         return sqrt(self[0] * self[0] + self[1] * self[1])
+    @property
+    def y(self):
+        return self[1]
 
-#     def dot(self, rhs):
-#         return self[0] * rhs[0] + self[1] * rhs[1]
+    def __add__(self, rhs):
+        return Doublet(self[0] + rhs[0], self[1] + rhs[1])
 
-#     def normalized(self):
-#         inv_l = 1.0 / self.length()
-#         return Vector(self[0] * inv_l, self[1] * inv_l)
+    def __radd__(self, rhs):
+        return self.__add__(rhs)
 
-#     def scaled(self, scale):
-#         return Vector(self[0] * scale[0], self[1] * scale[1])
+    def __sub__(self, rhs):
+        return Doublet(self[0] - rhs[0], self[1] - rhs[1])
+
+    def __mul__(self, scalar):
+        return Doublet(self[0] * scalar, self[1] * scalar)
+
+    def __rmul__(self, scalar):
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalr):
+        return Doublet(self[0] / scalar, self[1] / scalar)
+
+    @property
+    def length(self):
+        return sqrt(self[0] * self[0] + self[1] * self[1])
+
+    def dot(self, rhs):
+        return self[0] * rhs[0] + self[1] * rhs[1]
+
+    def normalized(self):
+        inv_l = 1.0 / self.length()
+        return Doublet(self[0] * inv_l, self[1] * inv_l)
+
+    def scaled(self, scale):
+        return Doublet(self[0] * scale[0], self[1] * scale[1])
 
 
 class ReferenceFrame:
     def __init__(
-        self, basis, origin:Point = None
+        self, basis=None, scale=None, reference_point:Point = None
     ):
-        self.basis = basis
-        self.origin = origin
+        assert basis is not None or scale is not None
+
+        if basis is not None:
+            self.basis = basis
+        else:
+            self.basis = Basis(Vector(scale[0], 0), Vector(0, scale[1]))
+        assert is_standard_basis(origin_position.basis) # We always provide origin in standard coordinates
+        self.reference_point = reference_point
 
     @property
     def scale(self):
         return (self.basis.e0.length, self.basis.e1.length)
 
     def convert_to_local(self, point:Point):
-        v = point + point.origin
-        v.change_to_basis(self.basis)
+        point.change_refence_frame(self.basis, self.origin_position)
         return self.origin + v
 
     def convert_to_canvas(self, local_point):
@@ -259,48 +375,136 @@ class ReferenceFrame:
 
 
 class TestCase(unittest.TestCase):
+
+    b1 = Basis()
+    b2 = Basis(e0=Vector(2,0), e1=Vector(0,2))
+    b3 = Basis(e0=Vector(1,-1), e1=Vector(1,1))
+
+
     def test_point(self):
         p = Point(1,2)
         print(p.standard_coordinates())
-        p.change_origin( Point(1,1))
+        p.move_origin( Point(1,1))
         print(p)
-        p.change_origin( Point(-10,-10))
+        p.move_origin( Point(-10,-10))
         print(p)
         # print(p.standard_coordinates())
+
+    def test_point_reference_frame_same_origin(self):
+        p0 = Point(1,2)
+        p1 = Point(1.0, 2.0)
+        self.assertTrue(p0.is_same_as(p1))
+
+        p2 = p0.in_reference_frame(self.b1, Point(0,0))
+        self.assertEqual(p2, Point(1,2))
+        self.assertEqual(p0.in_reference_frame(self.b3, Point(0,0)).standard_coordinates(), p0)
+        self.assertEqual(p0.in_reference_frame(self.b1, Point(0,0)).standard_coordinates(), p0)
+        self.assertEqual(p0.in_reference_frame(self.b1, Point(0,0)).standard_coordinates(), p0)
+
+    def test_point_reference_frame_new_origin(self):
+        p0 = Point(1,2, reference_point = Point(1,2))
+        self.assertEqual(p0.standard_coordinates(), Point(2,4))
+
+        p2 = Point(1,2, basis=self.b2, reference_point = Point(1,1))
+        self.assertEqual(p2.standard_coordinates(), Point(3,5))
+
+        p3 = Point(1,2, basis=self.b3, reference_point = Point(1,1))
+        self.assertEqual(p3.standard_coordinates(), Point(4, 2))
+
+    def test_point_reference_frame_new_origin_not_standard_coordinates(self):
+        p0 = Point(1,2, reference_point = Point(1,2, basis=self.b2))
+        self.assertEqual(p0.standard_coordinates(), Point(3,6))
+
+        p0 = Point(1,2, reference_point = Point(1,2, basis=self.b2, reference_point=Point(1,2)))
+        self.assertEqual(p0.standard_coordinates(), Point(4,8))
+
+    def test_define_default_basis(self):
+        b_local = Basis( e0=Vector(10,0), e1=Vector(0,30) )
+
+        points = []
+        with PointDefault(points, basis=b_local):
+            points.append(Point(0,0))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+
+        for point in points:
+            self.assertTrue(point.basis == b_local)
+
+    def test_define_default_reference(self):
+        ref = Point(1,2)
+
+        points = []
+        with PointDefault(points, reference_point=ref):
+            points.append(Point(0,0))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+
+        for point in points:
+            self.assertTrue(point.reference_point == ref)
+
+    def test_define_default(self):
+        ref = Point(1,2)
+        b_local = Basis( e0=Vector(10,0), e1=Vector(0,30) )
+
+        points = []
+        with PointDefault(points, basis=b_local, reference_point=ref):
+            points.append(Point(0,0))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+            points.append(Point(10,3))
+
+        for point in points:
+            self.assertTrue(point.reference_point == ref)
+
+    def test_get_line_in_canvas_coordinates(self):
+        b_local = Basis( e0=Vector(10,0), e1=Vector(0,-30) )
+
+        points = []
+        with PointDefault(points, basis=b_local, reference_point=Point(100,300)):
+            points.append(Point(0,0))
+            points.append(Point(10,3))
+            points.append(Point(20,-3))
+            points.append(Point(60,20))
+
+        for point in [point.standard_coordinates() for point in points]:
+            print(point)
+
     # def test_refrence_frame_origin(self):
     #     b1 = Basis(e0=Vector(1,0), e1=Vector(0,1))
 
-    #     ref = ReferenceFrame(basis=b1, origin=Point(0,0))
+    #     ref = ReferenceFrame(basis=b1, origin_position=Point(0,0))
 
     #     self.assertEqual(ref.convert_to_local(Point(0, 0)), (0, 0))
     #     self.assertEqual(ref.convert_to_local(Point(1, 1)), (1, -1))
 
-        # ref = ReferenceFrame(scale=(2, 2))
-        # self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
-        # self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.5, -0.5))
+    #     ref = ReferenceFrame(scale=(2, 2))
+    #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
+    #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.5, -0.5))
 
-        # ref = ReferenceFrame(scale=(10, 100))
-        # self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
-        # self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.1, -0.01))
+    #     ref = ReferenceFrame(scale=(10, 100))
+    #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
+    #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.1, -0.01))
 
     # def test_refrence_frame_new_origin(self):
-    #     ref = ReferenceFrame(scale=(1, 1), origin=Vector(1, 1))
+    #     ref = ReferenceFrame(basis=Basis(), origin_position=Vector(1, 1))
     #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (-1, 1))
     #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0, 0))
 
-    #     ref = ReferenceFrame(scale=(2, 2), origin=Vector(1, 1))
+    #     ref = ReferenceFrame(scale=(2, 2), origin_position=Vector(1, 1))
     #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (-0.5, 0.5))
     #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0, 0))
 
-    #     ref = ReferenceFrame(scale=(10, 100), origin=Vector(1, 1))
+    #     ref = ReferenceFrame(scale=(10, 100), origin_position=Vector(1, 1))
     #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0, 0))
     #     self.assertEqual(ref.convert_to_local(Vector(2, 2)), (0.1, -0.01))
 
-    # def test_point(self):
-    #     p1 = Point(1, 2)
-    #     p2 = Point(3, 4)
-    #     v = p2 - p1
-    #     self.assertTrue(isinstance(v, Vector))
+    def test_point(self):
+        p1 = Point(1, 2)
+        p2 = Point(3, 4)
+        v = p2 - p1
+        self.assertTrue(isinstance(v, Vector))
 
     def test_vector(self):
         v1 = Vector(1, 2)
@@ -323,10 +527,10 @@ class TestCase(unittest.TestCase):
         print(v1.length)
         print(v1.standard_coordinates().length)
 
-        print(v1.change_to_basis(b1).length)
+        print(v1.change_basis(b1).length)
 
-        # print(v1.change_to_basis(b1))
-        # print(v1.change_to_basis(b2))
+        # print(v1.change_basis(b1))
+        # print(v1.change_basis(b2))
 
     def test_basis_change2(self):
         b3 = Basis(e0=Vector(1,-1), e1=Vector(1,1))
@@ -334,24 +538,24 @@ class TestCase(unittest.TestCase):
         b1 = Basis()
         v1 = Vector(1, 3, basis=b1)
         print(v1)
-        print(v1.change_to_basis(b2))
+        print(v1.change_basis(b2))
         # print(v1.standard_coordinates())
         # v2 = Vector(0.5, 1, basis=b2)
 
 
         # print(v2)
         # print(v2.standard_coordinates())
-        # v2.change_to_basis(b1)
+        # v2.change_basis(b1)
         # print(v2)
         # print(v2.standard_coordinates())
 
-        # v2.change_to_basis(b3)
+        # v2.change_basis(b3)
         # print(v2)
         # print(v2.standard_coordinates())
 
-        # # print(v1.change_to_basis(b1))
-        # # print(v1.change_to_basis(b2))
+        # # print(v1.change_basis(b1))
+        # # print(v1.change_basis(b2))
 
 if __name__ == "__main__":
     # unittest.main()
-    unittest.main(defaultTest=["TestCase.test_point"])
+    unittest.main(defaultTest=["TestCase.test_get_line_in_canvas_coordinates"])

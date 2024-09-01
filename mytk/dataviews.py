@@ -1,7 +1,7 @@
 from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt
-from .vectors import Vector, ReferenceFrame
+from .vectors import Vector, Point, Basis
 from .canvasview import *
 
 class DataPoint(Oval):
@@ -50,7 +50,8 @@ class XYCoordinateSystemElement(CanvasElement):
         else:
             raise ValueError('You must provide one argument')
 
-        self.reference_frame = ReferenceFrame(scale=scale)
+        self.basis = Basis( Vector(scale[0], 0), Vector(0, scale[1])) 
+
         self.axes_limits = axes_limits
         self.major = 5
         self.is_clipping = True
@@ -66,31 +67,33 @@ class XYCoordinateSystemElement(CanvasElement):
     def origin(self):
         return self.reference_frame.origin
     
-    def create(self, canvas, position=Vector(0, 0)):
+    def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
-        self.reference_frame.origin = position
+        self.reference_point = position
+
         self.id = "my_coords"
         self.add_group_tag(f"group-{self.id}")
 
         width = self._element_kwargs.get("width", 1)
 
-        self.create_x_axis(origin=position)
-        self.create_x_major_ticks(origin=position)
-        self.create_x_major_ticks_labels(origin=position)
+        self.create_x_axis(origin=self.reference_point)
+        self.create_x_major_ticks(origin=self.reference_point)
+        self.create_x_major_ticks_labels(origin=self.reference_point)
 
-        self.create_y_axis(origin=position)
-        self.create_y_major_ticks(origin=position)
-        self.create_y_major_ticks_labels(origin=position)
+        self.create_y_axis(origin=self.reference_point)
+        self.create_y_major_ticks(origin=self.reference_point)
+        self.create_y_major_ticks_labels(origin=self.reference_point)
 
         return self.id
 
     def create_x_axis(self, origin):
         xHat, yHat = self.reference_frame.unit_vectors
-
         x_lims = self.axes_limits[0]
+
+
         self.x_axis_positive = Arrow(
-            start=(0,0),
-            end=xHat * x_lims[1] * 1.2,
+            start=Point(0,0, basis=self.basis),
+            end=Point(x_lims[1]*1.2,0, basis=self.basis),
             scale=self.reference_frame.scale,
             **self._element_kwargs,
         )

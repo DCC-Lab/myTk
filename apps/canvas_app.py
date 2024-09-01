@@ -4,6 +4,8 @@ from tkinter import filedialog
 from mytk import *
 from mytk.canvasview import *
 from mytk.dataviews import *
+from mytk.vectors import Point
+
 import time
 from numpy import linspace
 from raytracing import *
@@ -44,38 +46,38 @@ if __name__ == "__main__":
     canvas = CanvasView(width=1400, height=600, background='white')
     canvas.grid_into(app.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew")
 
-    coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=3)
-    canvas.place(coords, position=Vector(70, 300))
+    # coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=3)
+    # canvas.place(coords, position=Point(70, 300))
 
 
-    path = ImagingPath()
-    path.append(Space(d=20))
-    path.append(Lens(f=10))
-    path.append(Space(d=24))
-    path.append(Lens(f=5))
-    path.append(Space(d=40))
+    # path = ImagingPath()
+    # path.append(Space(d=20))
+    # path.append(Lens(f=10))
+    # path.append(Space(d=24))
+    # path.append(Lens(f=5))
+    # path.append(Space(d=40))
 
-    # rays = UniformRays(yMax=15, yMin=-15, M=20, N=20)
-    rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=200)
-    line_traces = raytrace_line_elements(path, rays)
+    # # rays = UniformRays(yMax=15, yMin=-15, M=20, N=20)
+    # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=200)
+    # line_traces = raytrace_line_elements(path, rays)
 
-    for line_trace in line_traces:
-        line_trace.scale_elements = coords.reference_frame.scale
-        line_trace.origin_elements = coords.reference_frame.origin 
-        coords.place( line_trace )
-        line_trace.add_tag('ray')
-        canvas.widget.tag_lower(line_trace.id)
+    # for line_trace in line_traces:
+    #     line_trace.scale_elements = coords.reference_frame.scale
+    #     line_trace.origin_elements = coords.reference_frame.origin 
+    #     coords.place( line_trace )
+    #     line_trace.add_tag('ray')
+    #     canvas.widget.tag_lower(line_trace.id)
 
-    canvas.widget.tag_raise(coords.id)
+    # canvas.widget.tag_raise(coords.id)
 
-    lens1 = Oval(size=(2,90), scale=coords.reference_frame.scale, fill='light blue', outline='black', width=2)
-    coords.place(lens1, local_position=Vector(20,0))
+    lens1 = Oval(size=(2,90), scale=(1,1), fill='light blue', outline='black', width=2)
+    canvas.place(lens1, position=Point(20,0))
 
-    lens2 = Oval(size=(2,90), scale=coords.reference_frame.scale, fill='light blue', outline='black', width=2)
-    coords.place(lens2, local_position=Vector(44,0))
+    # lens2 = Oval(size=(2,90), scale=coords.scale, fill='light blue', outline='black', width=2)
+    # coords.place(lens2, local_position=Position(44,0))
 
 
-    canvas.save_to_pdf(filepath="/tmp/file.pdf")
+    # canvas.save_to_pdf(filepath="/tmp/file.pdf")
 
     app.mainloop()
 

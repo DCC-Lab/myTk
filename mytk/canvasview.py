@@ -3,7 +3,7 @@ from tkinter import font
 from math import cos, sin, sqrt
 import subprocess
 from .base import Base
-from .vectors import Vector, ReferenceFrame
+from .vectors import Vector, Point, Basis
 import os
 from pathlib import Path
 
@@ -99,9 +99,9 @@ class Rectangle(CanvasElement):
     def size_canvas(self):
         return self.size.scaled(self.scale)
 
-    def create(self, canvas, position=Vector(0, 0)):
+    def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
-        top_left = Vector(position)
+        top_left = Point(position)
         bottom_right = top_left + self.size_canvas
 
         self.id = canvas.widget.create_rectangle(
@@ -119,9 +119,9 @@ class Oval(CanvasElement):
     def size_canvas(self):
         return self.size.scaled(self.scale_elements)
 
-    def create(self, canvas, position=Vector(0, 0)):
+    def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
-        top_left = Vector(position) - self.size_canvas * 0.5
+        top_left = position - self.size_canvas * 0.5
         bottom_right = top_left + self.size_canvas
 
         self.id = canvas.widget.create_oval(
@@ -134,7 +134,7 @@ class Oval(CanvasElement):
 class Line(CanvasElement):
     def __init__(self, points=None, scale=None, origin=None, **kwargs):
         super().__init__(scale=scale, origin=origin, **kwargs)
-        self.points = [Vector(point) for point in points]
+        self.points = [Point(point) for point in points]
 
     @property
     def points_canvas(self):
@@ -156,7 +156,7 @@ class Line(CanvasElement):
         self.canvas = canvas
 
         if position is None:
-            positon = Vector(0,0)
+            positon = Point(0,0)
         
         points_canvas = [ point_canvas + position for point_canvas in self.points_canvas]
 
@@ -168,7 +168,7 @@ class Line(CanvasElement):
 
 
 class Arrow(Line):
-    def __init__(self, start=Vector(0, 0), end=None, scale=None, origin=None, length=None, angle=None, **kwargs):
+    def __init__(self, start=Point(0, 0), end=None, scale=None, origin=None, length=None, angle=None, **kwargs):
         kwargs["arrow"] = "last"
         if "width" not in kwargs:
             kwargs["width"] = 2
@@ -180,7 +180,7 @@ class Label(CanvasElement):
         super().__init__(scale=scale, origin=None, **kwargs)
         self.font_size = font_size
 
-    def create(self, canvas, position=Vector(0, 0)):
+    def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
         f = font.Font(family="Helvetica", size=20)
         f["size"] = self.font_size
