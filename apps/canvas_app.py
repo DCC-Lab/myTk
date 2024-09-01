@@ -7,7 +7,7 @@ from mytk.dataviews import *
 from mytk.vectors import Point, PointDefault
 
 import time
-from numpy import linspace
+from numpy import linspace, isfinite
 from raytracing import *
 import colorsys
 
@@ -36,6 +36,24 @@ def raytrace_line_elements(path, rays, basis):
 
     return line_traces
 
+def create_optical_path(path, coords):
+    z = 0
+    for element in path:
+        if isinstance(element, Lens):
+            diameter = element.apertureDiameter
+            if not isfinite(diameter):
+                diameter = 90
+
+            lens = Oval(
+                size=(2, diameter),
+                basis=coords.basis,
+                position_is_center=True,
+                fill="light blue",
+                outline="black",
+                width=2,
+            )
+            coords.place(lens, position=Point(z, 0, basis=coords.basis))
+        z += element.L
 
 if __name__ == "__main__":
     app = App()
@@ -51,13 +69,13 @@ if __name__ == "__main__":
         }
     )
     tableview.grid_into(app.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
-    tableview.displaycolumns = [
-        "element",
-        "position",
-        "focal_length",
-        "diameter",
-        "label",
-    ]
+    # tableview.displaycolumns = [
+    #     "element",
+    #     "position",
+    #     "focal_length",
+    #     "diameter",
+    #     "label",
+    # ]
 
     tableview.data_source.append_record(
         {"element": "Lens", "focal_length": "100", "position": "20", "label": "L1"}
@@ -68,75 +86,35 @@ if __name__ == "__main__":
     tableview.data_source.append_record(
         {"element": "Lens", "focal_length": "100", "position": "90", "label": "L3"}
     )
-    canvas = CanvasView(width=1400, height=600, background="white")
+    canvas = CanvasView(width=1000, height=600, background="white")
     canvas.grid_into(
         app.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew"
     )
 
-    coords_origin = Point(100, 300)
+    coords_origin = Point(50, 300)
     optics_basis = Basis(Vector(10, 0), Vector(0, -4))
 
-    coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=2)
+    coords = XYCoordinateSystemElement(size=(700, 300), axes_limits=((0,64), (-40,40)), width=2)
     canvas.place(coords, position=coords_origin)
     optics_basis = coords.basis
 
-    lens1 = Oval(
-        size=(2, 50),
-        basis=optics_basis,
-        position_is_center=True,
-        fill="light blue",
-        outline="black",
-        width=2,
-    )
-    coords.place(lens1, position=Point(20, 0))
-
-    # path = ImagingPath()
-    # path.append(Space(d=20))
-    # path.append(Lens(f=10))
-    # path.append(Space(d=24))
-    # path.append(Lens(f=5))
-    # path.append(Space(d=20))
-
+    path = ImagingPath()
+    path.append(Space(d=20))
+    path.append(Lens(f=10))
+    path.append(Space(d=24))
+    path.append(Lens(f=5))
+    path.append(Space(d=20))
 
     # rays = UniformRays(yMax=10, yMin=-10, M=20, N=20)
-    # # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=40)
-    # line_traces = raytrace_line_elements(path, rays, optics_basis)
+    rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=400)
+    line_traces = raytrace_line_elements(path, rays, optics_basis)
 
-    # for line_trace in line_traces:
-    #     canvas.place(line_trace, position=optics_origin)
-    #     line_trace.add_tag('ray')
-    #     canvas.widget.tag_lower(line_trace.id)
+    for line_trace in line_traces:
+        canvas.place(line_trace, position=coords_origin)
+        line_trace.add_tag('ray')
+        canvas.widget.tag_lower(line_trace.id)
 
-
-
-    # lens1 = Oval(
-    #     size=(4, 100),
-    #     basis=optics_basis,
-    #     position_is_center=True,
-    #     fill="light blue",
-    #     outline="black",
-    #     width=2,
-    # )
-    # canvas.place(lens1, position=optics_origin + Vector(20, 0, basis=optics_basis))
-
-    # lens2 = Oval(
-    #     size=(2, 50),
-    #     basis=optics_basis,
-    #     position_is_center=True,
-    #     fill="light blue",
-    #     outline="black",
-    #     width=2,
-    # )
-    # canvas.place(lens2, position=optics_origin + Vector(44, 0, basis=optics_basis))
-
-    # fct = Function( fct=lambda x : x*x/100, xs=np.linspace(0,100,20), basis=optics_basis, width=2)
-    # canvas.place(fct, Point(100,400))
-
-    # arrow = Arrow(end=Point(3, 5, basis=optics_basis))
-    # canvas.place(arrow, position=optics_origin + Vector(20, 0, basis=optics_basis))
-
-    # label = Label(text="Daniel Côté")
-    # canvas.place(label, position=optics_origin)
+    create_optical_path(path, coords)
 
     canvas.save_to_pdf(filepath="/tmp/file.pdf")
 
