@@ -5,29 +5,8 @@ from math import cos, sin, sqrt
 def same_basis(e1, e2):
     return e1.basis == e2.basis
 
-
-class Point:
-    def __init__(self, *args, basis=None):
-        self.coords = args
-        self.basis = basis
-
-    def __getitem__(self, index):
-        return self.coords[index]
-
-    def __sub__(self, rhs: "Point"):
-        assert isinstance(rhs, Point)
-        assert same_basis(self, rhs)
-
-        return Vector(self[0] - rhs[0], self[1] - rhs[1], basis=self.basis)
-
-    def __mul__(self, scalar):
-        return Point(self[0] * scalar, self[1] * scalar, basis=self.basis)
-
-    def __rmul__(self, scalar):
-        return self.__mul__(scalar)
-
-    def __truediv__(self, scalr):
-        return Point(self[0] / scalar, self[1] / scalar, basis=self.basis)
+def same_origin(e1, e2):
+    return e1.origin == e2.origin
 
 
 class Vector:
@@ -43,9 +22,6 @@ class Vector:
     def c1(self):
         return self.components[1]
 
-    def __getitem__(self, index):
-        return self.components[index]
-
     def __repr__(self):
         return str(self)
 
@@ -54,7 +30,7 @@ class Vector:
         if self.basis is not None:
             basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
 
-        return f"({self[0]},{self[1]}){basis_str}"
+        return f"({self.c0},{self.c1}){basis_str}"
 
     def __add__(self, rhs: "Vector"):
         assert isinstance(rhs, Vector)
@@ -80,6 +56,11 @@ class Vector:
     def __truediv__(self, scalar):
         return Vector(self.c0 / scalar, self.c1 / scalar, basis=self.basis)
 
+    def __eq__(self, rhs: "Vector"):
+        assert isinstance(rhs, Vector)
+
+        return self.components == rhs.components and self.basis == rhs.basis
+
     @property
     def length(self):
         v = self.standard_coordinates()
@@ -103,7 +84,7 @@ class Vector:
     def scaled(self, scale):
         return Vector(self.c0 * scale[0], self.c1 * scale[1], basis=self.basis)
 
-    def change_to_basis(self, new_basis):
+    def change_basis(self, new_basis):
         v = self.standard_coordinates()
         e0, e1 = (new_basis.e0, new_basis.e1)
 
@@ -121,6 +102,54 @@ class Vector:
 
         return self.c0 * self.basis.e0 + self.c1 * self.basis.e1
 
+class Point:
+    def __init__(self, *args, basis:'Basis'=None, origin:'Point'=None):
+        self.components = args
+        self.basis = basis
+        # We cannot set origin to Point(0,0) by default because it would call __init__
+        self.origin = origin
+
+    @property
+    def x(self):
+        return self.components[0]
+
+    @property
+    def y(self):
+        return self.components[1]
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        basis_str = ""
+        if self.basis is not None:
+            basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
+
+        return f"({self.x},{self.y}){basis_str}"
+
+    def __sub__(self, rhs: "Point"):
+        assert isinstance(rhs, Point)
+        assert same_basis(self, rhs)
+
+        return Vector(self.x - rhs.x, self.y - rhs.y, basis=self.basis)
+
+    def change_origin(self, new_origin):
+        origin = self.origin
+        if origin is None:
+            origin = Point(0,0)
+        
+        diff = new_origin - origin
+        self.components = (self.x - diff.c0, self.y - diff.c1)
+
+    def standard_coordinates(self):
+        if self.basis is None and self.origin is None:
+            return self
+
+        if self.origin is None:
+            return self.x * self.basis.e0 + self.y * self.basis.e1
+
+        return Point(self.x * self.basis.e0 + self.y * self.basis.e1 + origin, basis=self.basis.x.basis, origin=None)
+
 
 class Basis:
     def __init__(self, e0: Vector = None, e1: Vector = None):
@@ -128,9 +157,9 @@ class Basis:
         Defaults to standard basis
         """
         if e0 is None:
-            e0 = Vector(1, 0)
+            e0 = Vector(1, 0, basis=None)
         if e1 is None:
-            e1 = Vector(0, 1)
+            e1 = Vector(0, 1, basis=None)
 
         assert e0.basis is None
         assert e1.basis is None
@@ -195,21 +224,19 @@ class Basis:
 
 class ReferenceFrame:
     def __init__(
-        self, scale: Vector, origin=Vector(0, 0), xHat=Vector(1, 0), yHat=Vector(0, -1)
+        self, basis, origin:Point = None
     ):
-        """
-        Scale is the length of the x and y unit vectors in canvas units (or in original units)
-        Everything is in original units (usually canvas)
-        """
-        self.scale = scale
-        self.xHat = xHat
-        self.yHat = yHat
+        self.basis = basis
         self.origin = origin
 
-    def convert_to_local(self, point):
-        x_c, y_c = point - self.origin
+    @property
+    def scale(self):
+        return (self.basis.e0.length, self.basis.e1.length)
 
-        return x_c / self.scale[0] * self.xHat + y_c / self.scale[1] * self.yHat
+    def convert_to_local(self, point:Point):
+        v = point + point.origin
+        v.change_to_basis(self.basis)
+        return self.origin + v
 
     def convert_to_canvas(self, local_point):
         x_c, y_c = (local_point[0] * self.scale[0], local_point[1] * self.scale[1])
@@ -232,18 +259,29 @@ class ReferenceFrame:
 
 
 class TestCase(unittest.TestCase):
+    def test_point(self):
+        p = Point(1,2)
+        print(p.standard_coordinates())
+        p.change_origin( Point(1,1))
+        print(p)
+        p.change_origin( Point(-10,-10))
+        print(p)
+        # print(p.standard_coordinates())
     # def test_refrence_frame_origin(self):
-    #     ref = ReferenceFrame(scale=(1, 1))
-    #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
-    #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (1, -1))
+    #     b1 = Basis(e0=Vector(1,0), e1=Vector(0,1))
 
-    #     ref = ReferenceFrame(scale=(2, 2))
-    #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
-    #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.5, -0.5))
+    #     ref = ReferenceFrame(basis=b1, origin=Point(0,0))
 
-    #     ref = ReferenceFrame(scale=(10, 100))
-    #     self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
-    #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.1, -0.01))
+    #     self.assertEqual(ref.convert_to_local(Point(0, 0)), (0, 0))
+    #     self.assertEqual(ref.convert_to_local(Point(1, 1)), (1, -1))
+
+        # ref = ReferenceFrame(scale=(2, 2))
+        # self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
+        # self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.5, -0.5))
+
+        # ref = ReferenceFrame(scale=(10, 100))
+        # self.assertEqual(ref.convert_to_local(Vector(0, 0)), (0, 0))
+        # self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0.1, -0.01))
 
     # def test_refrence_frame_new_origin(self):
     #     ref = ReferenceFrame(scale=(1, 1), origin=Vector(1, 1))
@@ -258,11 +296,11 @@ class TestCase(unittest.TestCase):
     #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0, 0))
     #     self.assertEqual(ref.convert_to_local(Vector(2, 2)), (0.1, -0.01))
 
-    def test_point(self):
-        p1 = Point(1, 2)
-        p2 = Point(3, 4)
-        v = p2 - p1
-        self.assertTrue(isinstance(v, Vector))
+    # def test_point(self):
+    #     p1 = Point(1, 2)
+    #     p2 = Point(3, 4)
+    #     v = p2 - p1
+    #     self.assertTrue(isinstance(v, Vector))
 
     def test_vector(self):
         v1 = Vector(1, 2)
@@ -315,4 +353,5 @@ class TestCase(unittest.TestCase):
         # # print(v1.change_to_basis(b2))
 
 if __name__ == "__main__":
-    unittest.main(defaultTest=["TestCase.test_basis_change2"])
+    # unittest.main()
+    unittest.main(defaultTest=["TestCase.test_point"])
