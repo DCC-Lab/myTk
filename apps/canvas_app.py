@@ -16,21 +16,24 @@ def fct(x):
     return x * x
 
 
-def raytrace_line_elements(path, rays):
+def raytrace_line_elements(path, rays, basis):
     line_traces = []
     raytraces = path.traceMany(rays)
-    for raytrace in raytraces:
-        points = [Vector(r.z, r.y) for r in raytrace]
-        max_y = 10
-        min_y = -10
-        r = points[0]
+    
+    with PointDefault(basis=basis):
+        for raytrace in raytraces:
+            points = [Point(r.z, r.y) for r in raytrace]
+            max_y = 10
+            min_y = -10
+            r = points[0]
 
-        hue = (r.y - min_y) / float(max_y - min_y)
-        rgb = colorsys.hsv_to_rgb(hue, 1, 1)
-        rgbi = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
-        color = "#{0:02x}{1:02x}{2:02x}".format(*rgbi)
-        line_trace = Line(points, fill=color, width=2)
-        line_traces.append(line_trace)
+            hue = (r.y - min_y) / float(max_y - min_y)
+            rgb = colorsys.hsv_to_rgb(hue, 1, 1)
+            rgbi = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+            color = "#{0:02x}{1:02x}{2:02x}".format(*rgbi)
+            line_trace = Line(points, fill=color, width=2)
+            line_traces.append(line_trace)
+
     return line_traces
 
 
@@ -73,60 +76,55 @@ if __name__ == "__main__":
     # coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=3)
     # canvas.place(coords, position=Point(70, 300))
 
-    # path = ImagingPath()
-    # path.append(Space(d=20))
-    # path.append(Lens(f=10))
-    # path.append(Space(d=24))
-    # path.append(Lens(f=5))
-    # path.append(Space(d=40))
+    path = ImagingPath()
+    path.append(Space(d=20))
+    path.append(Lens(f=10))
+    path.append(Space(d=24))
+    path.append(Lens(f=5))
+    path.append(Space(d=20))
 
-    # # rays = UniformRays(yMax=15, yMin=-15, M=20, N=20)
-    # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=200)
-    # line_traces = raytrace_line_elements(path, rays)
+    optics_origin = Point(100, 300)
+    optics_basis = Basis(Vector(10, 0), Vector(0, -4))
 
-    # for line_trace in line_traces:
-    #     line_trace.scale_elements = coords.reference_frame.scale
-    #     line_trace.origin_elements = coords.reference_frame.origin
-    #     coords.place( line_trace )
-    #     line_trace.add_tag('ray')
-    #     canvas.widget.tag_lower(line_trace.id)
+    rays = UniformRays(yMax=10, yMin=-10, M=20, N=20)
+    # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=40)
+    line_traces = raytrace_line_elements(path, rays, optics_basis)
 
-    # canvas.widget.tag_raise(coords.id)
+    for line_trace in line_traces:
+        canvas.place(line_trace, position=optics_origin)
+        line_trace.add_tag('ray')
+        canvas.widget.tag_lower(line_trace.id)
 
-    optics_origin = Point(100, 200)
-    optics_basis = Basis(Vector(10, 0), Vector(0, -30))
 
-    lens1 = Rectangle(
-        size=(4, 9),
+
+    lens1 = Oval(
+        size=(4, 100),
         basis=optics_basis,
         position_is_center=True,
         fill="light blue",
         outline="black",
         width=2,
     )
-    canvas.place(lens1, position=optics_origin)
+    canvas.place(lens1, position=optics_origin + Vector(20, 0, basis=optics_basis))
 
     lens2 = Oval(
-        size=(2, 9),
+        size=(2, 50),
         basis=optics_basis,
         position_is_center=True,
         fill="light blue",
         outline="black",
         width=2,
     )
-    canvas.place(lens2, position=optics_origin + Vector(10, 0, basis=optics_basis))
+    canvas.place(lens2, position=optics_origin + Vector(44, 0, basis=optics_basis))
 
-    with PointDefault(basis=optics_basis):
-        points = [Point(0, 0), Point(10, 2), Point(20, -3)]
+    # fct = Function( fct=lambda x : x*x/100, xs=np.linspace(0,100,20), basis=optics_basis, width=2)
+    # canvas.place(fct, Point(100,400))
 
-    line = Line(points, fill="blue", width=2)
-    canvas.place(line, position=optics_origin)
+    # arrow = Arrow(end=Point(3, 5, basis=optics_basis))
+    # canvas.place(arrow, position=optics_origin + Vector(20, 0, basis=optics_basis))
 
-    arrow = Arrow(end=Point(3, 5, basis=optics_basis))
-    canvas.place(arrow, position=optics_origin + Vector(20, 0, basis=optics_basis))
-
-    label = Label(text="Daniel Côté")
-    canvas.place(label, position=optics_origin)
+    # label = Label(text="Daniel Côté")
+    # canvas.place(label, position=optics_origin)
 
     canvas.save_to_pdf(filepath="/tmp/file.pdf")
 

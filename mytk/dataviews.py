@@ -1,7 +1,7 @@
 from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt
-from .vectors import Vector, Point, Basis
+from .vectors import Vector, Point, Basis, PointDefault
 from .canvasview import *
 
 
@@ -11,28 +11,25 @@ class DataPoint(Oval):
 
 
 class Function(CanvasElement):
-    def __init__(self, fct, xs, reference_frame, **kwarg):
+    def __init__(self, fct, xs, basis=None, **kwarg):
         super().__init__(**kwarg)
         self.fct = fct
         self.xs = xs
-        self.reference_frame = reference_frame
+        self.basis = basis
         self.line = None
 
-    def create(self, canvas, position=Vector(0, 0)):
+    def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
         self.id = "my_function"
         self.add_group_tag(f"group-{self.id}")
 
-        points = []
-        for x in self.xs:
-            points.append((x, self.fct(x)))
+        with PointDefault(basis=self.basis):
+            points = [ Point(x, self.fct(x)) for x in self.xs]
 
-        canvas_points = []
-        for point in points:
-            canvas_points.append(self.reference_frame.convert_to_canvas(point))
+        canvas_points = [ point.standard_coordinates() for point in points]
 
         self.line = Line(points=canvas_points, smooth=False, **self._element_kwargs)
-        self.line.create(canvas)
+        self.line.create(canvas, position.standard_coordinates())
         self.line.add_group_tag(f"group-{self.id}")
 
 
