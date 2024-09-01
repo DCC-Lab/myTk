@@ -78,14 +78,15 @@ if __name__ == "__main__":
     # ]
 
     tableview.data_source.append_record(
-        {"element": "Lens", "focal_length": "100", "position": "20", "label": "L1"}
+        {"element": "Lens", "focal_length": 10, "diameter":50,"position": 20, "label": "L1"}
     )
     tableview.data_source.append_record(
-        {"element": "Lens", "focal_length": "200", "position": "40", "label": "L2"}
+        {"element": "Lens", "focal_length": 5, "diameter":50, "position": 40, "label": "L2"}
     )
     tableview.data_source.append_record(
-        {"element": "Lens", "focal_length": "100", "position": "90", "label": "L3"}
+        {"element": "Lens", "focal_length": 100, "position": 50, "label": "L3"}
     )
+
     canvas = CanvasView(width=1000, height=600, background="white")
     canvas.grid_into(
         app.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew"
@@ -99,11 +100,21 @@ if __name__ == "__main__":
     optics_basis = coords.basis
 
     path = ImagingPath()
-    path.append(Space(d=20))
-    path.append(Lens(f=10))
-    path.append(Space(d=24))
-    path.append(Lens(f=5))
-    path.append(Space(d=20))
+
+    z = 0
+    for element in tableview.data_source.records:
+        next_z = float(element['position'])
+        delta = next_z-z
+        focal_length = float(element['focal_length'])
+        
+        diameter = float('+inf')
+        if element['diameter'] != '':
+            diameter = float(element['diameter'])
+
+        path.append(Space(d=delta))
+        path.append(Lens(f=focal_length, diameter=diameter))
+        z += delta
+    path.append(Space(d=10))
 
     # rays = UniformRays(yMax=10, yMin=-10, M=20, N=20)
     rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=400)
