@@ -114,7 +114,7 @@ class Vector:
         return self.c0 * rhs.c0 + self.c1 * rhs.c1
 
     def normalized(self):
-        inv_l = 1.0 / self.length()
+        inv_l = 1.0 / self.length
         return Vector(self.c0 * inv_l, self.c1 * inv_l, basis=self.basis)
 
     def scaled(self, scale):

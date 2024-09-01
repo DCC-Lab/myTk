@@ -73,41 +73,14 @@ if __name__ == "__main__":
         app.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew"
     )
 
-    # coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=3)
-    # canvas.place(coords, position=Point(70, 300))
-
-    path = ImagingPath()
-    path.append(Space(d=20))
-    path.append(Lens(f=10))
-    path.append(Space(d=24))
-    path.append(Lens(f=5))
-    path.append(Space(d=20))
-
-    optics_origin = Point(100, 300)
+    coords_origin = Point(100, 300)
     optics_basis = Basis(Vector(10, 0), Vector(0, -4))
 
-    rays = UniformRays(yMax=10, yMin=-10, M=20, N=20)
-    # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=40)
-    line_traces = raytrace_line_elements(path, rays, optics_basis)
-
-    for line_trace in line_traces:
-        canvas.place(line_trace, position=optics_origin)
-        line_trace.add_tag('ray')
-        canvas.widget.tag_lower(line_trace.id)
-
-
+    coords = XYCoordinateSystemElement(size=(800, 400), axes_limits=((0,50), (-40,40)), width=2)
+    canvas.place(coords, position=coords_origin)
+    optics_basis = coords.basis
 
     lens1 = Oval(
-        size=(4, 100),
-        basis=optics_basis,
-        position_is_center=True,
-        fill="light blue",
-        outline="black",
-        width=2,
-    )
-    canvas.place(lens1, position=optics_origin + Vector(20, 0, basis=optics_basis))
-
-    lens2 = Oval(
         size=(2, 50),
         basis=optics_basis,
         position_is_center=True,
@@ -115,7 +88,46 @@ if __name__ == "__main__":
         outline="black",
         width=2,
     )
-    canvas.place(lens2, position=optics_origin + Vector(44, 0, basis=optics_basis))
+    coords.place(lens1, position=Point(20, 0))
+
+    # path = ImagingPath()
+    # path.append(Space(d=20))
+    # path.append(Lens(f=10))
+    # path.append(Space(d=24))
+    # path.append(Lens(f=5))
+    # path.append(Space(d=20))
+
+
+    # rays = UniformRays(yMax=10, yMin=-10, M=20, N=20)
+    # # rays = RandomUniformRays(yMax=10, yMin=-10, maxCount=40)
+    # line_traces = raytrace_line_elements(path, rays, optics_basis)
+
+    # for line_trace in line_traces:
+    #     canvas.place(line_trace, position=optics_origin)
+    #     line_trace.add_tag('ray')
+    #     canvas.widget.tag_lower(line_trace.id)
+
+
+
+    # lens1 = Oval(
+    #     size=(4, 100),
+    #     basis=optics_basis,
+    #     position_is_center=True,
+    #     fill="light blue",
+    #     outline="black",
+    #     width=2,
+    # )
+    # canvas.place(lens1, position=optics_origin + Vector(20, 0, basis=optics_basis))
+
+    # lens2 = Oval(
+    #     size=(2, 50),
+    #     basis=optics_basis,
+    #     position_is_center=True,
+    #     fill="light blue",
+    #     outline="black",
+    #     width=2,
+    # )
+    # canvas.place(lens2, position=optics_origin + Vector(44, 0, basis=optics_basis))
 
     # fct = Function( fct=lambda x : x*x/100, xs=np.linspace(0,100,20), basis=optics_basis, width=2)
     # canvas.place(fct, Point(100,400))
