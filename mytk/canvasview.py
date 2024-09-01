@@ -54,9 +54,13 @@ class CanvasView(Base):
 
 
 class CanvasElement:
-    def __init__(self, **kwargs):
+    def __init__(self, scale=None, origin=None, **kwargs):
         self.id = None
         self._element_kwargs = kwargs
+        if scale is None:
+            scale = Vector(1,1)
+        self.scale_elements = scale
+        self.origin_elements = origin
 
     def itemconfigure(self, **kwargs):
         return self.canvas.itemconfigure(self.id, **kwargs)
@@ -87,14 +91,18 @@ class CanvasElement:
 
 
 class Rectangle(CanvasElement):
-    def __init__(self, size: (int, int), **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, size: (int, int), scale=None, **kwargs):
+        super().__init__(scale=scale, **kwargs)
         self.size = Vector(size)
+
+    @property
+    def size_canvas(self):
+        return self.size.scaled(self.scale)
 
     def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
         top_left = Vector(position)
-        bottom_right = top_left + self.size
+        bottom_right = top_left + self.size_canvas
 
         self.id = canvas.widget.create_rectangle(
             (top_left, bottom_right), **self._element_kwargs
@@ -103,14 +111,18 @@ class Rectangle(CanvasElement):
 
 
 class Oval(CanvasElement):
-    def __init__(self, size, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, size, scale=None, **kwargs):
+        super().__init__(scale=scale, **kwargs)
         self.size = Vector(size)
+
+    @property
+    def size_canvas(self):
+        return self.size.scaled(self.scale_elements)
 
     def create(self, canvas, position=Vector(0, 0)):
         self.canvas = canvas
-        top_left = Vector(position) - self.size * 0.5
-        bottom_right = top_left + self.size
+        top_left = Vector(position) - self.size_canvas * 0.5
+        bottom_right = top_left + self.size_canvas
 
         self.id = canvas.widget.create_oval(
             (top_left, bottom_right), **self._element_kwargs
@@ -120,40 +132,52 @@ class Oval(CanvasElement):
 
 
 class Line(CanvasElement):
-    def __init__(self, points=None, **kwargs):
-        super().__init__(**kwargs)
-        self.points = []
-        for point in points:
-            self.points.append( Vector(point))
+    def __init__(self, points=None, scale=None, origin=None, **kwargs):
+        super().__init__(scale=scale, origin=origin, **kwargs)
+        self.points = [Vector(point) for point in points]
+
+    @property
+    def points_canvas(self):
+        if self.origin_elements is None and self.scale_elements is not None:
+            points_canvas = []
+            for point in self.points:
+                points_canvas.append( point.scaled(self.scale_elements))
+            return points_canvas
+        elif self.origin_elements is not None and self.scale_elements is not None:
+            ref = ReferenceFrame(self.scale_elements, self.origin_elements)
+            points_canvas = []
+            for point in self.points:
+                points_canvas.append( ref.convert_to_canvas(point))
+            return points_canvas
+
+        return self.points
 
     def create(self, canvas, position=None):
         self.canvas = canvas
 
-        canvas_points = []
-        for point in self.points:
-            if position is not None:
-                canvas_points.append(Vector(position) + Vector(point))
-            else:
-                canvas_points.append(point)
+        if position is None:
+            positon = Vector(0,0)
+        
+        points_canvas = [ point_canvas + position for point_canvas in self.points_canvas]
 
         self.id = canvas.widget.create_line(
-            canvas_points,
+            points_canvas,
             **self._element_kwargs,
         )
         return self.id
 
 
 class Arrow(Line):
-    def __init__(self, start=Vector(0, 0), end=None, length=None, angle=None, **kwargs):
+    def __init__(self, start=Vector(0, 0), end=None, scale=None, origin=None, length=None, angle=None, **kwargs):
         kwargs["arrow"] = "last"
         if "width" not in kwargs:
             kwargs["width"] = 2
-        super().__init__(points=(start, end), **kwargs)
+        super().__init__(points=(start, end), scale=scale, origin=origin, **kwargs)
 
 
 class Label(CanvasElement):
-    def __init__(self, font_size=20, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, font_size=20, scale=None, **kwargs):
+        super().__init__(scale=scale, origin=None, **kwargs)
         self.font_size = font_size
 
     def create(self, canvas, position=Vector(0, 0)):
