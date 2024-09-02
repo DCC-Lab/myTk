@@ -15,14 +15,15 @@ import colorsys
 
 class CanvasApp(App):
     def __init__(self):
-        App.__init__(self, name="CanvasApp")
-        self.window.widget.title("Application with a Canvas")
+        App.__init__(self, name="Raytracing Application")
+        self.window.widget.title("Raytracing")
 
         self.number_of_heights = 5
         self.max_height = 5
         self.number_of_angles = 5
         self.max_fan_angle = 0.1
         self.dont_show_blocked_rays = True
+        self.show_raytraces = True
         self.show_apertures = True
         self.show_labels = True
         self.show_principal_rays = True
@@ -41,15 +42,19 @@ class CanvasApp(App):
             self.table_group, row=1, column=0, pady=5, padx=5, sticky="nsew"
         )
 
-        self.add_button = Button(
+        self.add_lens_button = Button(
             "Add Lens", user_event_callback=self.click_table_buttons
         )
-        self.add_button.grid_into(self.button_group, row=0, column=0, pady=5, padx=5)
+        self.add_lens_button.grid_into(self.button_group, row=0, column=0, pady=5, padx=5)
+        self.add_aperture_button = Button(
+            "Add Aperture", user_event_callback=self.click_table_buttons
+        )
+        self.add_aperture_button.grid_into(self.button_group, row=0, column=1, pady=5, padx=5)
 
         self.delete_button = Button(
-            "Delete Lens", user_event_callback=self.click_table_buttons
+            "Delete element", user_event_callback=self.click_table_buttons
         )
-        self.delete_button.grid_into(self.button_group, row=0, column=1, pady=5, padx=5)
+        self.delete_button.grid_into(self.button_group, row=0, column=2, pady=5, padx=5)
 
         self.tableview = TableView(
             columns_labels={
@@ -85,7 +90,7 @@ class CanvasApp(App):
                 "element": "Lens",
                 "focal_length": 100,
                 "diameter": 25.4,
-                "position": 200,
+                "position": 100,
                 "label": "L1",
             }
         )
@@ -158,12 +163,6 @@ class CanvasApp(App):
         self.fan_angles_entry.grid_into(
             self.control_input_rays, column=4, row=1, pady=5, padx=5, sticky="w"
         )
-
-        # self.maximum_x_label = Label(text="Maximum X:")
-        # self.maximum_x_label.grid_into(self.controls, column=0, row=5, pady=5, padx=5, sticky="w")
-
-        # self.maximum_x_entry = IntEntry(minimum=1, width=5)
-        # self.maximum_x_entry.grid_into(self.controls, column=1, row=5, pady=5, padx=5, sticky="w")
 
         self.show_conjugates_checkbox = Checkbox(label="Show object/image planes")
         self.show_conjugates_checkbox.grid_into(
@@ -280,11 +279,17 @@ class CanvasApp(App):
             for selected_item in self.tableview.widget.selection():
                 record = self.tableview.data_source.record(selected_item)
                 self.tableview.data_source.remove_record(selected_item)
-        elif button == self.add_button:
+        elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
             record["position"] = 50
             record["element"] = "Lens"
             record["focal_length"] = 50
+            record["diameter"] = 25.4
+            self.tableview.data_source.append_record(record)
+        elif button == self.add_aperture_button:
+            record = self.tableview.data_source.empty_record()
+            record["position"] = 50
+            record["element"] = "Aperture"
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
 
@@ -300,30 +305,8 @@ class CanvasApp(App):
 
             self.create_optical_path(path, self.coords)
 
-            if self.show_principal_rays:
-                principal_ray = path.principalRay()
-                if principal_ray is not None:
-                    principal_raytrace = path.trace(principal_ray)
-                    line_trace = self.create_line_from_raytrace(
-                        principal_raytrace, basis=self.coords.basis, color="blue"
-                    )
-                    self.coords.place(line_trace, position=Point(0, 0))
-
-                    axial_ray = path.axialRay()
-                    axial_raytrace = path.trace(axial_ray)
-                    line_trace = self.create_line_from_raytrace(
-                        axial_raytrace, basis=self.coords.basis, color="red"
-                    )
-                    self.coords.place(line_trace, position=Point(0, 0))
-
-            else:
-                M = int(self.number_of_heights)
-                N = int(self.number_of_angles)
-                yMax = float(self.max_height)
-                thetaMax = float(self.max_fan_angle)
-
-                rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
-                self.create_raytraces(path, rays)
+            if self.show_raytraces:
+                self.create_all_traces(path)
 
             if self.show_conjugates:
                 self.create_conjugate_planes(path)
@@ -336,15 +319,45 @@ class CanvasApp(App):
         except ValueError as err:
             print(err)
 
+    def create_all_traces(self, path):
+        if self.show_principal_rays:
+            principal_ray = path.principalRay()
+            if principal_ray is not None:
+                principal_raytrace = path.trace(principal_ray)
+                line_trace = self.create_line_from_raytrace(
+                    principal_raytrace, basis=self.coords.basis, color="green"
+                )
+                self.coords.place(line_trace, position=Point(0, 0))
+
+                axial_ray = path.axialRay()
+                axial_raytrace = path.trace(axial_ray)
+                line_trace = self.create_line_from_raytrace(
+                    axial_raytrace, basis=self.coords.basis, color="red"
+                )
+                self.coords.place(line_trace, position=Point(0, 0))
+
+        else:
+            M = int(self.number_of_heights)
+            N = int(self.number_of_angles)
+            yMax = float(self.max_height)
+            thetaMax = float(self.max_fan_angle)
+
+            rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
+            self.create_raytraces_lines(path, rays)
+
     def create_conjugate_planes(self, path):
+        arrow_width = 10
         object_z = 0
-        object_height = 20
+        object_height = float(self.max_height)*2
+        if self.show_principal_rays:
+            object_height = path.fieldOfView()
+
         basis = self.coords.basis
         canvas_object = Arrow(
             start=Point(object_z, -object_height / 2, basis=basis),
             end=Point(object_z, object_height / 2, basis=basis),
             fill="blue",
-            width=6,
+            width=arrow_width,
             tag=('conjugates')
         )
         self.coords.place(canvas_object, position=Point(0, 0))
@@ -357,7 +370,7 @@ class CanvasApp(App):
             start=Point(image_z, -image_height / 2, basis=basis),
             end=Point(image_z, image_height / 2, basis=basis),
             fill="red",
-            width=6,
+            width=arrow_width,
             tag=('conjugates')
         )
         self.coords.place(canvas_image, position=Point(0, 0))
@@ -389,7 +402,7 @@ class CanvasApp(App):
             self.coords.place(label, position=Point(z, label_position))
             z += element.L
 
-    def create_raytraces(self, path, rays):
+    def create_raytraces_lines(self, path, rays):
         raytraces = path.traceMany(rays)
 
         if self.dont_show_blocked_rays:
@@ -513,7 +526,18 @@ class CanvasApp(App):
             path.append(path_element)
             z += delta
 
-        path.append(Space(d=10))
+        if self.show_conjugates or self.show_principal_rays:
+            conjugate = path.forwardConjugate()
+            image_z = conjugate.transferMatrix.L
+            if image_z > z:
+                path.append(Space(d=image_z-z))
+        else:
+            max_x = self.coords.axes_limits[0][1]
+            if max_x > z:
+                path.append(Space(d=max_x-z))
+
+
+        # path.append(Space(d=10))
 
         return path
 
