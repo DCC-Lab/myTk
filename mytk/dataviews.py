@@ -86,11 +86,13 @@ class XYCoordinateSystemElement(CanvasElement):
         return self.id
 
     def create_x_axis(self, origin):
-        if self.x_axis_at_bottom:
-            origin = origin + Point(0, -50, basis=self.basis)
 
         xHat = self.basis.e0
         x_lims = self.axes_limits[0]
+        y_lims = self.axes_limits[1]
+
+        if self.x_axis_at_bottom:
+            origin = origin + Point(0, y_lims[0], basis=self.basis)
 
         with PointDefault(basis=self.basis):
             start = Point(0,0)
@@ -168,8 +170,10 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def create_x_major_ticks(self, origin):
         width = self._element_kwargs.get("width", 1)
+        y_lims = self.axes_limits[1]
+
         if self.x_axis_at_bottom:
-            origin = origin + Point(0, -50, basis=self.basis)
+            origin = origin + Point(0, y_lims[0], basis=self.basis)
 
         # In x, we use the local scale, but in y we use canvas units
         tick_basis = Basis(e0=self.basis.e0, e1=self.basis.e1.normalized())
@@ -184,8 +188,10 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def create_x_major_ticks_labels(self, origin):
         width = self._element_kwargs.get("width", 1)
+        y_lims = self.axes_limits[1]
+
         if self.x_axis_at_bottom:
-            origin = origin + Point(0, -50, basis=self.basis)
+            origin = origin + Point(0, y_lims[0], basis=self.basis)
 
         # In x, we use the local scale, but in y we use canvas units
         tick_basis = Basis(e0=self.basis.e0, e1=self.basis.e1.normalized())

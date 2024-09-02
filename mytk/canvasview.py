@@ -131,8 +131,8 @@ class Oval(CanvasElement):
 
 
 class Line(CanvasElement):
-    def __init__(self, points=None, **kwargs):
-        super().__init__(basis=None, **kwargs)
+    def __init__(self, points=None, basis=None, **kwargs):
+        super().__init__(basis=basis, **kwargs)
         self.points = points
 
     def create(self, canvas, position=Point(0, 0)):
