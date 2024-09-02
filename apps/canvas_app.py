@@ -24,6 +24,7 @@ class CanvasApp(App):
         self.show_apertures = True
         self.show_labels = True
         self.show_principal_rays = True
+        self.maximum_x = 50
 
         self.table_group = View(width=300, height=300)
         self.table_group.grid_into(self.window, row=0, column=1, pady=5, padx=5, sticky="nsew")
@@ -79,6 +80,12 @@ class CanvasApp(App):
         self.number_angles_entry = IntEntry(minimum=2, maximum=100, width=5)
         self.number_angles_entry.grid_into(self.controls, column=3, row=0, pady=5, padx=5, sticky="w")
 
+        # self.maximum_x_label = Label(text="Maximum X:")
+        # self.maximum_x_label.grid_into(self.controls, column=0, row=5, pady=5, padx=5, sticky="w")
+
+        # self.maximum_x_entry = IntEntry(minimum=1, width=5)
+        # self.maximum_x_entry.grid_into(self.controls, column=1, row=5, pady=5, padx=5, sticky="w")
+
         self.apertures_checkbox = Checkbox(label="Show Aperture stop (AS) and field stop (FS)")
         self.apertures_checkbox.grid_into(self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w")
 
@@ -99,13 +106,14 @@ class CanvasApp(App):
         self.window.column_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 200)
 
-        self.coords = XYCoordinateSystemElement(size=(700, -300), axes_limits=((0,50), (-50,50)), width=2)
+        self.coords = XYCoordinateSystemElement(size=(700, -300), axes_limits=((0,self.maximum_x), (-50,50)), width=2)
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
 
 
         self.bind_properties('number_of_heights', self.number_heights_entry, 'value_variable')
         self.bind_properties('number_of_angles', self.number_angles_entry, 'value_variable')
+        # self.bind_properties('maximum_x', self.maximum_x_entry, 'value_variable')
         self.bind_properties('dont_show_blocked_rays', self.blocked_rays_checkbox, 'value_variable')
         self.bind_properties('show_apertures', self.apertures_checkbox, 'value_variable')
         self.bind_properties('show_labels', self.show_labels_checkbox, 'value_variable')
@@ -115,6 +123,7 @@ class CanvasApp(App):
 
         self.add_observer(self, 'number_of_heights')
         self.add_observer(self, 'number_of_angles')
+        # self.add_observer(self, 'maximum_x', context='refresh_graph')
         self.add_observer(self, 'dont_show_blocked_rays')
         self.add_observer(self, 'show_apertures')
         self.add_observer(self, 'show_principal_rays')
@@ -124,6 +133,10 @@ class CanvasApp(App):
 
     def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
         super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+        if context == 'refresh_graph':
+            self.canvas.widget.delete(self.coords.id)
+            self.coords.axes_limits = ((0, float(self.maximum_x)), (-50,50))
+
         self.refresh()
 
     def save_to_pdf(self):
@@ -151,36 +164,44 @@ class CanvasApp(App):
         self.canvas.widget.delete('labels')
 
         path = self.get_path_from_ui()
+
         self.create_optical_path(path, self.coords)
 
         if self.show_principal_rays:
             principal_ray = path.principalRay()
             axial_ray = path.axialRay()
             rays = [principal_ray, axial_ray]
-            self.draw_raytracing(path, rays)            
         else:
             M = int(self.number_of_heights)
             N = int(self.number_of_angles)
             rays = UniformRays(yMax=10, yMin=-10, thetaMax=0.5, M=M, N=N)
-            self.draw_raytracing(path, rays)
+        self.create_raytraces(path, rays)
 
         if self.show_apertures:
-            position = path.apertureStop()
+            self.create_apertures_labels(path)
+
+        if self.show_labels:
+            self.create_object_labels(path)
+
+    def create_apertures_labels(self, path):
+        position = path.apertureStop()
+        if position.z is not None:
             apersture_stop_label = CanvasLabel(text="AS", tag=('apertures'))
             self.coords.place(apersture_stop_label, position = Point(position.z, 55))
 
-            position = path.fieldStop()
+        position = path.fieldStop()
+        if position.z is not None:
             field_stop_label = CanvasLabel(text="FS", tag=('apertures'))
             self.coords.place(field_stop_label, position = Point(position.z, 55))
 
-        if self.show_labels:
-            z = 0
-            for element in path:
-                label = CanvasLabel(text=element.label, tag=('labels'))
-                self.coords.place(label, position = Point(z, 45))
-                z += element.L
+    def create_object_labels(self, path):
+        z = 0
+        for element in path:
+            label = CanvasLabel(text=element.label, tag=('labels'))
+            self.coords.place(label, position = Point(z, 45))
+            z += element.L        
 
-    def draw_raytracing(self, path, rays):
+    def create_raytraces(self, path, rays):
         raytraces = path.traceMany(rays)
 
         if self.dont_show_blocked_rays:
@@ -247,18 +268,20 @@ class CanvasApp(App):
         ordered_records.sort(key = lambda e : float(e['position']))
 
         for element in ordered_records:
-            next_z = float(element['position'])
-            delta = next_z-z
-            focal_length = float(element['focal_length'])
-            label = element['label']
-            
-            diameter = float('+inf')
-            if element['diameter'] != '':
-                diameter = float(element['diameter'])
+            if element['element'] == 'Lens':
+                focal_length = float(element['focal_length'])
+                label = element['label']
+                next_z = float(element['position'])
+                diameter = float('+inf')
+                if element['diameter'] != '':
+                    diameter = float(element['diameter'])
 
-            path.append(Space(d=delta))
-            path.append(Lens(f=focal_length, diameter=diameter, label=label))
-            z += delta
+                delta = next_z-z
+                path.append(Space(d=delta))
+                path.append(Lens(f=focal_length, diameter=diameter, label=label))
+                z += delta
+            else:
+                print(f'Unable to include unknown element {element['element']}')
         path.append(Space(d=10))
 
         return path
