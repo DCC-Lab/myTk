@@ -251,7 +251,7 @@ class CanvasApp(App):
         self.coords_origin = Point(50, 200)
 
         self.coords = XYCoordinateSystemElement(
-            size=(700, -200), axes_limits=((0, 400), (-25, 25)), width=2
+            size=(900, -200), axes_limits=((0, 400), (-25, 25)), width=2
         )
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
@@ -365,7 +365,7 @@ class CanvasApp(App):
             path = self.get_path_from_ui()
 
             self.path_has_field_stop = path.hasFieldStop()
-            
+
             self.create_optical_path(path, self.coords)
 
             if self.show_raytraces:
