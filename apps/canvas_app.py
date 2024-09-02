@@ -26,19 +26,29 @@ class CanvasApp(App):
         self.show_apertures = True
         self.show_labels = True
         self.show_principal_rays = True
+        self.show_conjugates = True
+        self.show_intermediate_conjugates = False
         self.maximum_x = 60
 
         self.table_group = View(width=300, height=300)
-        self.table_group.grid_into(self.window, row=0, column=1, pady=5, padx=5, sticky="nsew")
+        self.table_group.grid_into(
+            self.window, row=0, column=1, pady=5, padx=5, sticky="nsew"
+        )
         self.table_group.column_resize_weight(index=0, weight=1)
 
         self.button_group = View(width=300, height=200)
-        self.button_group.grid_into(self.table_group, row=1, column=0, pady=5, padx=5, sticky="nsew")
+        self.button_group.grid_into(
+            self.table_group, row=1, column=0, pady=5, padx=5, sticky="nsew"
+        )
 
-        self.add_button = Button("Add Lens", user_event_callback=self.click_table_buttons)
+        self.add_button = Button(
+            "Add Lens", user_event_callback=self.click_table_buttons
+        )
         self.add_button.grid_into(self.button_group, row=0, column=0, pady=5, padx=5)
 
-        self.delete_button = Button("Delete Lens", user_event_callback=self.click_table_buttons)
+        self.delete_button = Button(
+            "Delete Lens", user_event_callback=self.click_table_buttons
+        )
         self.delete_button.grid_into(self.button_group, row=0, column=1, pady=5, padx=5)
 
         self.tableview = TableView(
@@ -51,51 +61,103 @@ class CanvasApp(App):
             }
         )
 
-        self.tableview.grid_into(self.table_group, column=0, row=0, columnspan=2, pady=5, padx=5, sticky="nsew")
-        self.tableview.displaycolumns = ['element','position','focal_length','diameter','label']
+        self.tableview.grid_into(
+            self.table_group,
+            column=0,
+            row=0,
+            columnspan=2,
+            pady=5,
+            padx=5,
+            sticky="nsew",
+        )
+        self.tableview.displaycolumns = [
+            "element",
+            "position",
+            "focal_length",
+            "diameter",
+            "label",
+        ]
         for column in self.tableview.displaycolumns:
             self.tableview.widget.column(column, width=50, anchor=W)
 
         self.tableview.data_source.append_record(
-            {"element": "Lens", "focal_length": 100, "diameter":25.4,"position": 200, "label": "L1"}
+            {
+                "element": "Lens",
+                "focal_length": 100,
+                "diameter": 25.4,
+                "position": 200,
+                "label": "L1",
+            }
         )
         self.tableview.data_source.append_record(
-            {"element": "Lens", "focal_length": 50, "diameter":25.4, "position": 300, "label": "L2"}
+            {
+                "element": "Lens",
+                "focal_length": 50,
+                "diameter": 25.4,
+                "position": 300,
+                "label": "L2",
+            }
         )
         self.tableview.data_source.append_record(
-            {"element": "Aperture", "focal_length": "", "diameter":30, "position": 400, "label": "Aperture"}
+            {
+                "element": "Aperture",
+                "focal_length": "",
+                "diameter": 30,
+                "position": 400,
+                "label": "Aperture",
+            }
         )
         self.tableview.delegate = self
 
         self.controls = Box(label="Display", width=200)
-        self.controls.grid_into(self.window, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew")
+        self.controls.grid_into(
+            self.window, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew"
+        )
 
         self.control_input_rays = Box(label="Input ray", width=200)
-        self.control_input_rays.grid_into(self.controls, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew")
+        self.control_input_rays.grid_into(
+            self.controls, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew"
+        )
 
         self.number_heights_label = Label(text="# ray heights:")
-        self.number_heights_label.grid_into(self.control_input_rays, column=0, row=0, pady=5, padx=5, sticky="w")
+        self.number_heights_label.grid_into(
+            self.control_input_rays, column=0, row=0, pady=5, padx=5, sticky="w"
+        )
 
         self.number_heights_entry = IntEntry(minimum=2, maximum=100, width=3)
-        self.number_heights_entry.grid_into(self.control_input_rays, column=1, row=0, pady=5, padx=5, sticky="w")
+        self.number_heights_entry.grid_into(
+            self.control_input_rays, column=1, row=0, pady=5, padx=5, sticky="w"
+        )
 
         self.number_angles_label = Label(text="# ray angles:")
-        self.number_angles_label.grid_into(self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="w")
+        self.number_angles_label.grid_into(
+            self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="w"
+        )
 
         self.number_angles_entry = IntEntry(minimum=2, maximum=100, width=3)
-        self.number_angles_entry.grid_into(self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w")
+        self.number_angles_entry.grid_into(
+            self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w"
+        )
 
         self.max_heights_label = Label(text="Max height:")
-        self.max_heights_label.grid_into(self.control_input_rays, column=3, row=0, pady=5, padx=5, sticky="w")
+        self.max_heights_label.grid_into(
+            self.control_input_rays, column=3, row=0, pady=5, padx=5, sticky="w"
+        )
 
         self.max_heights_entry = Entry(character_width=3)
-        self.max_heights_entry.grid_into(self.control_input_rays, column=4, row=0, pady=5, padx=5, sticky="w")
+        self.max_heights_entry.grid_into(
+            self.control_input_rays, column=4, row=0, pady=5, padx=5, sticky="w"
+        )
 
         self.fan_angles_label = Label(text="Max angle:")
-        self.fan_angles_label.grid_into(self.control_input_rays, column=3, row=1, pady=5, padx=5, sticky="w")
+        self.fan_angles_label.grid_into(
+            self.control_input_rays, column=3, row=1, pady=5, padx=5, sticky="w"
+        )
 
         self.fan_angles_entry = Entry(character_width=3)
-        self.fan_angles_entry.grid_into(self.control_input_rays, column=4, row=1, pady=5, padx=5, sticky="w")
+        self.fan_angles_entry.grid_into(
+            self.control_input_rays, column=4, row=1, pady=5, padx=5, sticky="w"
+        )
 
         # self.maximum_x_label = Label(text="Maximum X:")
         # self.maximum_x_label.grid_into(self.controls, column=0, row=5, pady=5, padx=5, sticky="w")
@@ -103,17 +165,34 @@ class CanvasApp(App):
         # self.maximum_x_entry = IntEntry(minimum=1, width=5)
         # self.maximum_x_entry.grid_into(self.controls, column=1, row=5, pady=5, padx=5, sticky="w")
 
-        self.apertures_checkbox = Checkbox(label="Show Aperture stop (AS) and field stop (FS)")
-        self.apertures_checkbox.grid_into(self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w")
+        self.show_conjugates_checkbox = Checkbox(label="Show object/image planes")
+        self.show_conjugates_checkbox.grid_into(
+            self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w"
+        )
 
-        self.principal_rays_checkbox = Checkbox(label="Show principal rays [blue: chief, red: axial]")
-        self.principal_rays_checkbox.grid_into(self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w")
+        self.principal_rays_checkbox = Checkbox(
+            label="Show principal rays [blue: chief, red: axial]"
+        )
+        self.principal_rays_checkbox.grid_into(
+            self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w"
+        )
+
+        self.apertures_checkbox = Checkbox(
+            label="Show Aperture stop (AS) and field stop (FS)"
+        )
+        self.apertures_checkbox.grid_into(
+            self.controls, column=0, row=3, columnspan=4, pady=5, padx=5, sticky="w"
+        )
 
         self.show_labels_checkbox = Checkbox(label="Show object labels")
-        self.show_labels_checkbox.grid_into(self.controls, column=0, row=3,  columnspan=4,pady=5, padx=5, sticky="w")
+        self.show_labels_checkbox.grid_into(
+            self.controls, column=0, row=4, columnspan=4, pady=5, padx=5, sticky="w"
+        )
 
         self.blocked_rays_checkbox = Checkbox(label="Do not show blocked rays")
-        self.blocked_rays_checkbox.grid_into(self.controls, column=0, row=4,  columnspan=4,pady=5, padx=5, sticky="w")
+        self.blocked_rays_checkbox.grid_into(
+            self.controls, column=0, row=5, columnspan=4, pady=5, padx=5, sticky="w"
+        )
 
         self.canvas = CanvasView(width=1000, height=400, background="white")
         self.canvas.grid_into(
@@ -123,43 +202,70 @@ class CanvasApp(App):
         self.window.column_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 200)
 
-        self.coords = XYCoordinateSystemElement(size=(700, -200), axes_limits=((0,400), (-25,25)), width=2)
+        self.coords = XYCoordinateSystemElement(
+            size=(700, -200), axes_limits=((0, 400), (-25, 25)), width=2
+        )
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
 
-
-        self.bind_properties('number_of_heights', self.number_heights_entry, 'value_variable')
-        self.bind_properties('number_of_angles', self.number_angles_entry, 'value_variable')
+        self.bind_properties(
+            "number_of_heights", self.number_heights_entry, "value_variable"
+        )
+        self.bind_properties(
+            "number_of_angles", self.number_angles_entry, "value_variable"
+        )
         # self.bind_properties('maximum_x', self.maximum_x_entry, 'value_variable')
-        self.bind_properties('dont_show_blocked_rays', self.blocked_rays_checkbox, 'value_variable')
-        self.bind_properties('show_apertures', self.apertures_checkbox, 'value_variable')
-        self.bind_properties('show_labels', self.show_labels_checkbox, 'value_variable')
-        self.bind_properties('show_principal_rays', self.principal_rays_checkbox, 'value_variable')
-        self.bind_properties('max_height', self.max_heights_entry, 'value_variable')
-        self.bind_properties('max_fan_angle', self.fan_angles_entry, 'value_variable')
-        self.number_heights_entry.bind_properties('is_disabled', self, 'show_principal_rays')
-        self.number_angles_entry.bind_properties('is_disabled', self, 'show_principal_rays')
-        self.max_heights_entry.bind_properties('is_disabled', self, 'show_principal_rays')
-        self.fan_angles_entry.bind_properties('is_disabled', self, 'show_principal_rays')
+        self.bind_properties(
+            "dont_show_blocked_rays", self.blocked_rays_checkbox, "value_variable"
+        )
+        self.bind_properties(
+            "show_apertures", self.apertures_checkbox, "value_variable"
+        )
+        self.bind_properties("show_labels", self.show_labels_checkbox, "value_variable")
+        self.bind_properties(
+            "show_principal_rays", self.principal_rays_checkbox, "value_variable"
+        )
+        self.bind_properties(
+            "show_conjugates", self.show_conjugates_checkbox, "value_variable"
+        )
+        self.bind_properties("max_height", self.max_heights_entry, "value_variable")
+        self.bind_properties("max_fan_angle", self.fan_angles_entry, "value_variable")
+        self.number_heights_entry.bind_properties(
+            "is_disabled", self, "show_principal_rays"
+        )
+        self.number_angles_entry.bind_properties(
+            "is_disabled", self, "show_principal_rays"
+        )
+        self.max_heights_entry.bind_properties(
+            "is_disabled", self, "show_principal_rays"
+        )
+        self.fan_angles_entry.bind_properties(
+            "is_disabled", self, "show_principal_rays"
+        )
 
-        self.add_observer(self, 'number_of_heights')
-        self.add_observer(self, 'number_of_angles')
+        self.add_observer(self, "number_of_heights")
+        self.add_observer(self, "number_of_angles")
         # self.add_observer(self, 'maximum_x', context='refresh_graph')
-        self.add_observer(self, 'dont_show_blocked_rays')
-        self.add_observer(self, 'show_apertures')
-        self.add_observer(self, 'show_principal_rays')
-        self.add_observer(self, 'show_labels')
+        self.add_observer(self, "dont_show_blocked_rays")
+        self.add_observer(self, "show_apertures")
+        self.add_observer(self, "show_principal_rays")
+        self.add_observer(self, "show_labels")
+        self.add_observer(self, "show_conjugates")
 
         # a = Arc(radius=100)
         # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
         self.refresh()
 
-    def observed_property_changed(self, observed_object, observed_property_name, new_value, context):
-        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
-        if context == 'refresh_graph':
+    def observed_property_changed(
+        self, observed_object, observed_property_name, new_value, context
+    ):
+        super().observed_property_changed(
+            observed_object, observed_property_name, new_value, context
+        )
+        if context == "refresh_graph":
             self.canvas.widget.delete(self.coords.id)
-            self.coords.axes_limits = ((0, float(self.maximum_x)), (-50,50))
+            self.coords.axes_limits = ((0, float(self.maximum_x)), (-50, 50))
 
         self.refresh()
 
@@ -176,18 +282,19 @@ class CanvasApp(App):
                 self.tableview.data_source.remove_record(selected_item)
         elif button == self.add_button:
             record = self.tableview.data_source.empty_record()
-            record['position'] = 50
-            record['element'] = 'Lens'
-            record['focal_length'] = 50
-            record['diameter'] = 25.4
+            record["position"] = 50
+            record["element"] = "Lens"
+            record["focal_length"] = 50
+            record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
 
     def refresh(self):
         try:
-            self.canvas.widget.delete('ray')
-            self.canvas.widget.delete('optics')
-            self.canvas.widget.delete('apertures')
-            self.canvas.widget.delete('labels')
+            self.canvas.widget.delete("ray")
+            self.canvas.widget.delete("optics")
+            self.canvas.widget.delete("apertures")
+            self.canvas.widget.delete("labels")
+            self.canvas.widget.delete("conjugates")
 
             path = self.get_path_from_ui()
 
@@ -197,14 +304,17 @@ class CanvasApp(App):
                 principal_ray = path.principalRay()
                 if principal_ray is not None:
                     principal_raytrace = path.trace(principal_ray)
-                    line_trace = self.create_line_from_raytrace(principal_raytrace, basis=self.coords.basis, color='blue')            
-                    self.coords.place(line_trace, position=Point(0,0))
+                    line_trace = self.create_line_from_raytrace(
+                        principal_raytrace, basis=self.coords.basis, color="blue"
+                    )
+                    self.coords.place(line_trace, position=Point(0, 0))
 
                     axial_ray = path.axialRay()
                     axial_raytrace = path.trace(axial_ray)
-                    line_trace = self.create_line_from_raytrace(axial_raytrace, basis=self.coords.basis, color='red')            
-                    self.coords.place(line_trace, position=Point(0,0))
-
+                    line_trace = self.create_line_from_raytrace(
+                        axial_raytrace, basis=self.coords.basis, color="red"
+                    )
+                    self.coords.place(line_trace, position=Point(0, 0))
 
             else:
                 M = int(self.number_of_heights)
@@ -215,6 +325,9 @@ class CanvasApp(App):
                 rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
                 self.create_raytraces(path, rays)
 
+            if self.show_conjugates:
+                self.create_conjugate_planes(path)
+
             if self.show_apertures:
                 self.create_apertures_labels(path)
 
@@ -223,35 +336,66 @@ class CanvasApp(App):
         except ValueError as err:
             print(err)
 
+    def create_conjugate_planes(self, path):
+        object_z = 0
+        object_height = 20
+        basis = self.coords.basis
+        canvas_object = Arrow(
+            start=Point(object_z, -object_height / 2, basis=basis),
+            end=Point(object_z, object_height / 2, basis=basis),
+            fill="blue",
+            width=6,
+            tag=('conjugates')
+        )
+        self.coords.place(canvas_object, position=Point(0, 0))
+
+        conjugate = path.forwardConjugate()
+        image_z = conjugate.transferMatrix.L
+        magnification = conjugate.transferMatrix.magnification().transverse
+        image_height = magnification * object_height
+        canvas_image = Arrow(
+            start=Point(image_z, -image_height / 2, basis=basis),
+            end=Point(image_z, image_height / 2, basis=basis),
+            fill="red",
+            width=6,
+            tag=('conjugates')
+        )
+        self.coords.place(canvas_image, position=Point(0, 0))
 
     def create_apertures_labels(self, path):
         position = path.apertureStop()
         y_lims = self.coords.axes_limits[1]
-        label_position = y_lims[1]*1.4
+        label_position = y_lims[1] * 1.4
 
         if position.z is not None:
-            apersture_stop_label = CanvasLabel(text="AS", tag=('apertures'))
-            self.coords.place(apersture_stop_label, position = Point(position.z, label_position))
+            aperture_stop_label = CanvasLabel(text="AS", tag=("apertures"))
+            self.coords.place(
+                aperture_stop_label, position=Point(position.z, label_position)
+            )
 
         position = path.fieldStop()
         if position.z is not None:
-            field_stop_label = CanvasLabel(text="FS", tag=('apertures'))
-            self.coords.place(field_stop_label, position = Point(position.z, label_position))
+            field_stop_label = CanvasLabel(text="FS", tag=("apertures"))
+            self.coords.place(
+                field_stop_label, position=Point(position.z, label_position)
+            )
 
     def create_object_labels(self, path):
         z = 0
         y_lims = self.coords.axes_limits[1]
-        label_position = y_lims[1]*1.1
+        label_position = y_lims[1] * 1.1
         for element in path:
-            label = CanvasLabel(text=element.label, tag=('labels'))
-            self.coords.place(label, position = Point(z, label_position))
-            z += element.L        
+            label = CanvasLabel(text=element.label, tag=("labels"))
+            self.coords.place(label, position=Point(z, label_position))
+            z += element.L
 
     def create_raytraces(self, path, rays):
         raytraces = path.traceMany(rays)
 
         if self.dont_show_blocked_rays:
-            raytraces_to_show = [ raytrace for raytrace in raytraces if not raytrace[-1].isBlocked ]
+            raytraces_to_show = [
+                raytrace for raytrace in raytraces if not raytrace[-1].isBlocked
+            ]
         else:
             raytraces_to_show = raytraces
 
@@ -276,7 +420,7 @@ class CanvasApp(App):
                     fill="light blue",
                     outline="black",
                     width=2,
-                    tag=("optics")
+                    tag=("optics"),
                 )
                 coords.place(lens, position=Point(z, 0, basis=coords.basis))
             elif isinstance(element, Aperture):
@@ -286,17 +430,23 @@ class CanvasApp(App):
 
                 thickness = 3
                 aperture_top = Line(
-                    points=( Point(-thickness, diameter/2, basis=coords.basis), Point(thickness, diameter/2, basis=coords.basis)),
+                    points=(
+                        Point(-thickness, diameter / 2, basis=coords.basis),
+                        Point(thickness, diameter / 2, basis=coords.basis),
+                    ),
                     fill="black",
                     width=4,
-                    tag=("optics")
+                    tag=("optics"),
                 )
                 coords.place(aperture_top, position=Point(z, 0, basis=coords.basis))
                 aperture_bottom = Line(
-                    points=( Point(-thickness, -diameter/2, basis=coords.basis), Point(thickness, -diameter/2, basis=coords.basis)),
+                    points=(
+                        Point(-thickness, -diameter / 2, basis=coords.basis),
+                        Point(thickness, -diameter / 2, basis=coords.basis),
+                    ),
                     fill="black",
                     width=4,
-                    tag=("optics")
+                    tag=("optics"),
                 )
                 coords.place(aperture_bottom, position=Point(z, 0, basis=coords.basis))
 
@@ -304,8 +454,8 @@ class CanvasApp(App):
 
     def raytraces_to_lines(self, raytraces, basis):
         line_traces = []
-        
-        all_initial_y = [ raytrace[0].y for raytrace in raytraces]
+
+        all_initial_y = [raytrace[0].y for raytrace in raytraces]
         max_y = max(all_initial_y)
         min_y = min(all_initial_y)
 
@@ -315,14 +465,16 @@ class CanvasApp(App):
                 hue = (initial_y - min_y) / float(max_y - min_y)
                 color = self.color_from_hue(hue)
 
-                line_trace = self.create_line_from_raytrace(raytrace, basis=basis, color=color)
+                line_trace = self.create_line_from_raytrace(
+                    raytrace, basis=basis, color=color
+                )
                 line_traces.append(line_trace)
 
         return line_traces
 
     def create_line_from_raytrace(self, raytrace, basis, color):
         points = [Point(r.z, r.y, basis=basis) for r in raytrace]
-        return Line(points, tag=('ray'), fill=color, width=2)
+        return Line(points, tag=("ray"), fill=color, width=2)
 
     def color_from_hue(self, hue):
         rgb = colorsys.hsv_to_rgb(hue, 1, 1)
@@ -334,29 +486,29 @@ class CanvasApp(App):
 
         z = 0
         ordered_records = self.tableview.data_source.records
-        ordered_records.sort(key = lambda e : float(e['position']))
+        ordered_records.sort(key=lambda e: float(e["position"]))
 
         for element in ordered_records:
-            if element['element'] == 'Lens':
-                focal_length = float(element['focal_length'])
-                label = element['label']
-                next_z = float(element['position'])
-                diameter = float('+inf')
-                if element['diameter'] != '':
-                    diameter = float(element['diameter'])
+            if element["element"] == "Lens":
+                focal_length = float(element["focal_length"])
+                label = element["label"]
+                next_z = float(element["position"])
+                diameter = float("+inf")
+                if element["diameter"] != "":
+                    diameter = float(element["diameter"])
 
                 path_element = Lens(f=focal_length, diameter=diameter, label=label)
-            elif element['element'] == 'Aperture':
-                label = element['label']
-                next_z = float(element['position'])
-                diameter = float('+inf')
-                if element['diameter'] != '':
-                    diameter = float(element['diameter'])
+            elif element["element"] == "Aperture":
+                label = element["label"]
+                next_z = float(element["position"])
+                diameter = float("+inf")
+                if element["diameter"] != "":
+                    diameter = float(element["diameter"])
                 path_element = Aperture(diameter=diameter, label=label)
             else:
-                print(f'Unable to include unknown element {element['element']}')
+                print(f"Unable to include unknown element {element['element']}")
 
-            delta = next_z-z
+            delta = next_z - z
             path.append(Space(d=delta))
             path.append(path_element)
             z += delta
@@ -364,6 +516,7 @@ class CanvasApp(App):
         path.append(Space(d=10))
 
         return path
+
 
 if __name__ == "__main__":
     app = CanvasApp()
