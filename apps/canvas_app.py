@@ -32,6 +32,7 @@ class CanvasApp(App):
         self.show_intermediate_conjugates = False
         self.maximum_x = 60
         self.initialization_completed = False
+        self.path_has_field_stop = True
 
         self.table_group = View(width=300, height=300)
         self.table_group.grid_into(
@@ -170,6 +171,8 @@ class CanvasApp(App):
             sticky="nsew",
         )
 
+        radio_principal.bind_properties('is_enabled', self, 'path_has_field_stop')
+
         self.number_heights_label = Label(text="# ray heights:")
         self.number_heights_label.grid_into(
             self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="e"
@@ -290,6 +293,7 @@ class CanvasApp(App):
             "is_disabled", self, "show_principal_rays"
         )
 
+
         self.add_observer(self, "number_of_heights")
         self.add_observer(self, "number_of_angles")
         # self.add_observer(self, 'maximum_x', context='refresh_graph')
@@ -360,6 +364,8 @@ class CanvasApp(App):
 
             path = self.get_path_from_ui()
 
+            self.path_has_field_stop = path.hasFieldStop()
+            
             self.create_optical_path(path, self.coords)
 
             if self.show_raytraces:
@@ -710,17 +716,22 @@ path.display(rays=rays)
             {"property": "Image position", "value": f"{path.L:.2f}"}
         )
 
-        aperture_stop = path.apertureStop()
-        if aperture_stop is not None:
+        if path.hasApertureStop():
+            aperture_stop = path.apertureStop()
             data_source.append_record(
                 {"property": "AS position", "value": f"{aperture_stop.z:.2f}"}
             )
             data_source.append_record(
                 {"property": "AS size", "value": f"{aperture_stop.diameter:.2f}"}
             )
+        else:
+            data_source.append_record(
+                {"property": "AS position", "value": f"Inexistent"}
+            )
+            data_source.append_record({"property": "AS size", "value": f"Inexistent"})
 
-        field_stop = path.fieldStop()
-        if field_stop.z is not None:
+        if path.hasFieldStop():
+            field_stop = path.fieldStop()
             data_source.append_record(
                 {"property": "FS position", "value": f"{field_stop.z:.2f}"}
             )
