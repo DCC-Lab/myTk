@@ -248,10 +248,10 @@ class CanvasApp(App):
         )
         self.window.column_resize_weight(index=0, weight=0)
         self.window.column_resize_weight(index=1, weight=1)
-        self.coords_origin = Point(50, 200)
+        self.coords_origin = Point(50, 230)
 
         self.coords = XYCoordinateSystemElement(
-            size=(900, -200), axes_limits=((0, 400), (-25, 25)), width=2
+            size=(900, -250), axes_limits=((0, 400), (-25, 25)), width=2
         )
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
@@ -687,9 +687,16 @@ path.display(rays=rays)
         path.append(Space(d=d))
 
         fov = path.fieldOfView()
+        data_source.append_record(
+            {"property": "Object position", "value": f"0.0 (always)"}
+        )
+
         if isfinite(fov):
             data_source.append_record(
                 {"property": "Field of view [FOV]", "value": f"{fov:.2f}"}
+            )
+            data_source.append_record(
+                {"property": "Object size [same as FOV]", "value": f"{fov:.2f}"}
             )
             data_source.append_record(
                 {"property": "Image size", "value": f"{path.imageSize():.2f}"}
@@ -697,6 +704,9 @@ path.display(rays=rays)
         else:
             data_source.append_record(
                 {"property": "Field of view [FOV]", "value": f"Infinite [no FS]"}
+            )
+            data_source.append_record(
+                {"property": "Object size [same as FOV]", "value": f"Infinite [no FS]"}
             )
             data_source.append_record(
                 {"property": "Image size", "value": f"Infinite [no FS]"}
@@ -766,6 +776,8 @@ path.display(rays=rays)
             data_source.append_record(
                 {"property": "Axial ray θ_max", "value": f"Inexistent [no AS]"}
             )
+
+        self.results_tableview.click_header(column_id=1)
 
 
 if __name__ == "__main__":
