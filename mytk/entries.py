@@ -81,18 +81,17 @@ class FormattedEntry(Entry):
 
 
 class CellEntry(Base):
-    def __init__(self, tableview, item_id, column_id, user_event_callback=None):
+    def __init__(self, tableview, item_id, column_name, user_event_callback=None):
         Base.__init__(self)
         self.tableview = tableview
         self.item_id = item_id
-        self.column_id = column_id
+        self.column_name = column_name
+        self.column_id = self.tableview.columns.index(self.column_name)
         self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
-        bbox = self.tableview.widget.bbox(self.item_id, self.column_id - 1)
-
         item_dict = self.tableview.widget.item(self.item_id)
-        selected_text = item_dict["values"][self.column_id - 1]
+        selected_text = item_dict["values"][self.column_id]
 
         self.parent = master
         self.value_variable = StringVar()
@@ -103,7 +102,7 @@ class CellEntry(Base):
 
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
-        values[self.column_id - 1] = self.value_variable.get()
+        values[self.column_id] = self.value_variable.get()
 
         self.tableview.item_modified(item_id=self.item_id, values=values)
         self.event_generate("<FocusOut>")
