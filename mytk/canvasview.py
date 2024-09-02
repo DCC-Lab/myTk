@@ -172,3 +172,26 @@ class CanvasLabel(CanvasElement):
             position.standard_tuple(), **self._element_kwargs, font=f
         )
         return self.id
+
+class Arc(CanvasElement):
+    def __init__(self, radius, basis=None, **kwargs):
+        super().__init__(basis=basis, **kwargs)
+        self.radius = radius
+        self.diagonal = Vector(self.radius*2, self.radius*2, basis=self.basis)
+        self.position_is_center = True
+
+    def create(self, canvas, position=Point(0, 0)):
+        self.canvas = canvas
+
+        if self.position_is_center:
+            position = position - self.diagonal / 2
+
+        start = position + Point(0,0, basis = self.basis)
+        end = start + self.diagonal
+        rect = (*start.standard_tuple(), *end.standard_tuple())
+        self.id = self.canvas.widget.create_arc(
+            rect, fill='light blue', outline='black', style='chord', start=135, extent=90, width=2, 
+        )
+        return self.id
+
+

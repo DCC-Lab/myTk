@@ -24,7 +24,7 @@ class CanvasApp(App):
         self.show_apertures = True
         self.show_labels = True
         self.show_principal_rays = True
-        self.maximum_x = 50
+        self.maximum_x = 300
 
         self.table_group = View(width=300, height=300)
         self.table_group.grid_into(self.window, row=0, column=1, pady=5, padx=5, sticky="nsew")
@@ -55,14 +55,14 @@ class CanvasApp(App):
             self.tableview.widget.column(column, width=50, anchor=W)
 
         self.tableview.data_source.append_record(
-            {"element": "Lens", "focal_length": 10, "diameter":50,"position": 20, "label": "L1"}
+            {"element": "Lens", "focal_length": 100, "diameter":25.4,"position": 200, "label": "L1"}
         )
-        self.tableview.data_source.append_record(
-            {"element": "Lens", "focal_length": 5, "diameter":50, "position": 40, "label": "L2"}
-        )
-        self.tableview.data_source.append_record(
-            {"element": "Lens", "focal_length": 100, "position": 50, "label": "L3"}
-        )
+        # self.tableview.data_source.append_record(
+        #     {"element": "Lens", "focal_length": 5, "diameter":50, "position": 40, "label": "L2"}
+        # )
+        # self.tableview.data_source.append_record(
+        #     {"element": "Lens", "focal_length": 100, "position": 50, "label": "L3"}
+        # )
         self.tableview.delegate = self
 
         self.controls = Box(label="Display", width=200)
@@ -71,7 +71,7 @@ class CanvasApp(App):
         self.number_heights_label = Label(text="Number of heights:")
         self.number_heights_label.grid_into(self.controls, column=0, row=0, pady=5, padx=5, sticky="w")
 
-        self.number_heights_entry = IntEntry(minimum=1, maximum=100, width=5)
+        self.number_heights_entry = IntEntry(minimum=2, maximum=100, width=5)
         self.number_heights_entry.grid_into(self.controls, column=1, row=0, pady=5, padx=5, sticky="w")
 
         self.number_angles_label = Label(text="Number of angles:")
@@ -89,7 +89,7 @@ class CanvasApp(App):
         self.apertures_checkbox = Checkbox(label="Show Aperture stop (AS) and field stop (FS)")
         self.apertures_checkbox.grid_into(self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w")
 
-        self.principal_rays_checkbox = Checkbox(label="Show principal rays")
+        self.principal_rays_checkbox = Checkbox(label="Show principal rays [blue: chief, red: axial]")
         self.principal_rays_checkbox.grid_into(self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w")
 
         self.show_labels_checkbox = Checkbox(label="Show object labels")
@@ -106,7 +106,7 @@ class CanvasApp(App):
         self.window.column_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 200)
 
-        self.coords = XYCoordinateSystemElement(size=(700, -300), axes_limits=((0,self.maximum_x), (-50,50)), width=2)
+        self.coords = XYCoordinateSystemElement(size=(700, -300), axes_limits=((0,self.maximum_x), (-25,25)), width=2)
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
 
@@ -128,6 +128,9 @@ class CanvasApp(App):
         self.add_observer(self, 'show_apertures')
         self.add_observer(self, 'show_principal_rays')
         self.add_observer(self, 'show_labels')
+
+        # a = Arc(radius=100)
+        # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
         self.refresh()
 
@@ -169,13 +172,19 @@ class CanvasApp(App):
 
         if self.show_principal_rays:
             principal_ray = path.principalRay()
+            principal_raytrace = path.trace(principal_ray)
+            line_trace = self.create_line_from_raytrace(principal_raytrace, basis=self.coords.basis, color='blue')            
+            self.coords.place(line_trace, position=Point(0,0))
+
             axial_ray = path.axialRay()
-            rays = [principal_ray, axial_ray]
+            axial_raytrace = path.trace(axial_ray)
+            line_trace = self.create_line_from_raytrace(axial_raytrace, basis=self.coords.basis, color='red')            
+            self.coords.place(line_trace, position=Point(0,0))
         else:
             M = int(self.number_of_heights)
             N = int(self.number_of_angles)
             rays = UniformRays(yMax=10, yMin=-10, thetaMax=0.5, M=M, N=N)
-        self.create_raytraces(path, rays)
+            self.create_raytraces(path, rays)
 
         if self.show_apertures:
             self.create_apertures_labels(path)
@@ -224,7 +233,7 @@ class CanvasApp(App):
                     diameter = 90
 
                 lens = Oval(
-                    size=(1, diameter),
+                    size=(5, diameter),
                     basis=coords.basis,
                     position_is_center=True,
                     fill="light blue",
@@ -244,16 +253,20 @@ class CanvasApp(App):
 
         with PointDefault(basis=basis):
             for raytrace in raytraces:
-                points = [Point(r.z, r.y) for r in raytrace]
-                initial_y = points[0].y
-
+                initial_y = raytrace[0].y
                 hue = (initial_y - min_y) / float(max_y - min_y)
                 color = self.color_from_hue(hue)
 
-                line_trace = Line(points, tag=('ray'), fill=color, width=2)
+                line_trace = self.create_line_from_raytrace(raytrace, basis=basis, color=color)
                 line_traces.append(line_trace)
 
         return line_traces
+
+    def create_line_from_raytrace(self, raytrace, basis, color):
+        points = [Point(r.z, r.y, basis=basis) for r in raytrace]
+        
+        return Line(points, tag=('ray'), fill=color, width=2)
+
 
     def color_from_hue(self, hue):
         rgb = colorsys.hsv_to_rgb(hue, 1, 1)
