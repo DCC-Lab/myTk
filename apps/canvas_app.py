@@ -25,6 +25,18 @@ class CanvasApp(App):
         self.show_labels = True
         self.show_principal_rays = True
 
+        self.table_group = View(width=300, height=300)
+        self.table_group.grid_into(self.window, row=0, column=1, pady=5, padx=5, sticky="nsew")
+        self.table_group.column_resize_weight(index=0, weight=1)
+
+        self.button_group = View(width=300, height=200)
+        self.button_group.grid_into(self.table_group, row=1, column=0, pady=5, padx=5, sticky="nsew")
+
+        self.add_button = Button("Add Lens", user_event_callback=self.click_table_buttons)
+        self.add_button.grid_into(self.button_group, row=0, column=0, pady=5, padx=5)
+
+        self.delete_button = Button("Delete Lens", user_event_callback=self.click_table_buttons)
+        self.delete_button.grid_into(self.button_group, row=0, column=1, pady=5, padx=5)
 
         self.tableview = TableView(
             columns_labels={
@@ -36,7 +48,7 @@ class CanvasApp(App):
             }
         )
 
-        self.tableview.grid_into(self.window, column=1, row=0, pady=5, padx=5, sticky="nsew")
+        self.tableview.grid_into(self.table_group, column=0, row=0, columnspan=2, pady=5, padx=5, sticky="nsew")
         self.tableview.displaycolumns = ['element','position','focal_length','diameter','label']
         for column in self.tableview.displaycolumns:
             self.tableview.widget.column(column, width=50, anchor=W)
@@ -52,8 +64,8 @@ class CanvasApp(App):
         )
         self.tableview.delegate = self
 
-        self.controls = Box(label="Ray tracing display")
-        self.controls.grid_into(self.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+        self.controls = Box(label="Ray tracing display", width=200)
+        self.controls.grid_into(self.window, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew")
 
         self.number_heights_label = Label(text="Number of heights:")
         self.number_heights_label.grid_into(self.controls, column=0, row=0, pady=5, padx=5, sticky="w")
@@ -83,7 +95,8 @@ class CanvasApp(App):
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew"
         )
-
+        self.window.column_resize_weight(index=0, weight=0)
+        self.window.column_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 200)
 
         self.coords = XYCoordinateSystemElement(size=(700, -300), axes_limits=((0,50), (-50,50)), width=2)
@@ -118,6 +131,18 @@ class CanvasApp(App):
 
     def source_data_changed(self):
         self.refresh()
+
+    def click_table_buttons(self, event, button):
+        if button == self.delete_button:
+            for selected_item in self.tableview.widget.selection():
+                record = self.tableview.data_source.record(selected_item)
+                self.tableview.data_source.remove_record(selected_item)
+        elif button == self.add_button:
+            record = self.tableview.data_source.empty_record()
+            record['position'] = 50
+            record['element'] = 'Lens'
+            record['focal_length'] = 50
+            self.tableview.data_source.append_record(record)
 
     def refresh(self):
         self.canvas.widget.delete('ray')
