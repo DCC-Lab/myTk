@@ -14,7 +14,7 @@ import colorsys
 
 class CanvasApp(App):
     def __init__(self):
-        App.__init__(self, geometry="800x800", name="CanvasApp")
+        App.__init__(self, name="CanvasApp")
         self.window.widget.title("Application with a Canvas")
 
         self.tableview = TableView(
@@ -26,7 +26,9 @@ class CanvasApp(App):
                 "label": "Label",
             }
         )
+
         self.tableview.grid_into(self.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
+        self.tableview.displaycolumns = ['element','position','focal_length','diameter']
 
         self.tableview.data_source.append_record(
             {"element": "Lens", "focal_length": 10, "diameter":50,"position": 20, "label": "L1"}
@@ -52,6 +54,8 @@ class CanvasApp(App):
         optics_basis = self.coords.basis
 
         self.refresh()
+
+    def save_to_pdf(self):
         self.canvas.save_to_pdf(filepath="/tmp/file.pdf")
 
     def source_data_changed(self):
@@ -76,8 +80,6 @@ class CanvasApp(App):
 
         for line_trace in line_traces:
             self.canvas.place(line_trace, position=self.coords_origin)
-
-            line_trace.add_tag('ray')
             self.canvas.widget.tag_lower(line_trace.id)
 
     def create_optical_path(self, path, coords):
@@ -103,25 +105,27 @@ class CanvasApp(App):
     def raytraces_to_line(self, raytraces, basis):
         line_traces = []
         
-        start_y = [ raytrace[0].y for raytrace in raytraces]
-        max_y = max(start_y)
-        min_y = min(start_y)
+        all_initial_y = [ raytrace[0].y for raytrace in raytraces]
+        max_y = max(all_initial_y)
+        min_y = min(all_initial_y)
 
         with PointDefault(basis=basis):
             for raytrace in raytraces:
                 points = [Point(r.z, r.y) for r in raytrace]
-                r = points[0]
+                initial_y = points[0].y
 
-                hue = (r.y - min_y) / float(max_y - min_y)
-                rgb = colorsys.hsv_to_rgb(hue, 1, 1)
-                rgbi = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
-                color = "#{0:02x}{1:02x}{2:02x}".format(*rgbi)
-                line_trace = Line(points, fill=color, width=2)
+                hue = (initial_y - min_y) / float(max_y - min_y)
+                color = self.color_from_hue(hue)
+
+                line_trace = Line(points, tag=('ray'), fill=color, width=2)
                 line_traces.append(line_trace)
 
         return line_traces
 
-
+    def color_from_hue(self, hue):
+        rgb = colorsys.hsv_to_rgb(hue, 1, 1)
+        rgbi = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+        return "#{0:02x}{1:02x}{2:02x}".format(*rgbi)
 
     def get_path_from_ui(self):
         path = ImagingPath()
@@ -143,14 +147,7 @@ class CanvasApp(App):
 
         return path
 
-
-def fct(x):
-    return x * x
-
-
-
 if __name__ == "__main__":
     app = CanvasApp()
-    app.window.widget.title("Application with a Canvas")
 
     app.mainloop()
