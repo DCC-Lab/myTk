@@ -30,6 +30,7 @@ class CanvasApp(App):
         self.show_conjugates = True
         self.show_intermediate_conjugates = False
         self.maximum_x = 60
+        self.initialization_completed = False
 
         self.table_group = View(width=300, height=300)
         self.table_group.grid_into(
@@ -114,6 +115,20 @@ class CanvasApp(App):
         )
         self.tableview.delegate = self
 
+        self.results_tableview = TableView(
+            columns_labels={
+                "property": "Property",
+                "value": "Value",
+            }
+        )
+        self.results_tableview.all_elements_are_editable = False
+        self.results_tableview.grid_into(self.window,
+            column=2,
+            row=0,
+            pady=5,
+            padx=5,
+            sticky="nsew")
+
         self.controls = Box(label="Display", width=200)
         self.controls.grid_into(
             self.window, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew"
@@ -195,7 +210,7 @@ class CanvasApp(App):
 
         self.canvas = CanvasView(width=1000, height=400, background="white")
         self.canvas.grid_into(
-            self.window, column=0, row=1, columnspan=2, pady=5, padx=5, sticky="nsew"
+            self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
         )
         self.window.column_resize_weight(index=0, weight=0)
         self.window.column_resize_weight(index=1, weight=1)
@@ -254,6 +269,7 @@ class CanvasApp(App):
         # a = Arc(radius=100)
         # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
+        self.initialization_completed = True
         self.refresh()
 
     def observed_property_changed(
@@ -294,6 +310,9 @@ class CanvasApp(App):
             self.tableview.data_source.append_record(record)
 
     def refresh(self):
+        if not self.initialization_completed:
+            return
+
         try:
             self.canvas.widget.delete("ray")
             self.canvas.widget.delete("optics")
@@ -316,6 +335,8 @@ class CanvasApp(App):
 
             if self.show_labels:
                 self.create_object_labels(path)
+
+            self.refresh_results(path)
         except ValueError as err:
             print(err)
 
@@ -536,10 +557,47 @@ class CanvasApp(App):
             if max_x > z:
                 path.append(Space(d=max_x-z))
 
-
-        # path.append(Space(d=10))
-
         return path
+
+    def refresh_results(self, path):
+        data_source = self.results_tableview.data_source
+
+        uuids = data_source.sorted_records_uuids(field='__uuid')
+        for uid in uuids:
+            data_source.remove_record(uid)
+
+
+        d, _ = path.forwardConjugate()
+        path.append(Space(d=d))
+
+        data_source.append_record({'property':"Field of view [FOV]", 'value':f'{path.fieldOfView():.2f}'})
+        data_source.append_record({'property':"Image size", 'value':f'{path.imageSize():.2f}'})
+        
+        mag_tran, mag_angle = path.magnification()
+        if mag_tran is None:
+            mag_tran = "Inexistent"
+            mag_angle = "Inexistent"
+        data_source.append_record({'property':"Magnification [Transverse]", 'value':f'{mag_tran}'})
+        data_source.append_record({'property':"Magnification [Angular]", 'value':f'{mag_angle}'})
+        data_source.append_record({'property':"Image position", 'value':f'{path.L:.2f}'})
+
+        aperture_stop = path.apertureStop()
+        if aperture_stop is not None:
+            data_source.append_record({'property':"AS position", 'value':f'{aperture_stop.z:.2f}'})
+            data_source.append_record({'property':"AS size", 'value':f'{aperture_stop.diameter:.2f}'})
+
+        field_stop = path.fieldStop()
+        if field_stop.z is not None:
+            data_source.append_record({'property':"FS position", 'value':f'{field_stop.z:.2f}'})
+            data_source.append_record({'property':"FS size", 'value':f'{field_stop.diameter:.2f}'})
+        else:
+            data_source.append_record({'property':"FS position", 'value':f'Non-existent'})
+            data_source.append_record({'property':"FS size", 'value':f'Non-existent'})
+
+        if path.principalRay() is not None:
+            data_source.append_record({'property':"Has principal ray", 'value':f'True'})
+        if path.axialRay() is not None:
+            data_source.append_record({'property':"Has axial ray", 'value':f'True'})
 
 
 if __name__ == "__main__":
