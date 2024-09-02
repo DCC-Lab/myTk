@@ -159,7 +159,7 @@ class Arrow(Line):
         super().__init__(points=(start, end), **kwargs)
 
 
-class Label(CanvasElement):
+class CanvasLabel(CanvasElement):
     def __init__(self, font_size=20, basis=None, **kwargs):
         super().__init__(basis=basis, **kwargs)
         self.font_size = font_size

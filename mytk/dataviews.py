@@ -57,6 +57,7 @@ class XYCoordinateSystemElement(CanvasElement):
         self.axes_limits = axes_limits
         self.major = 5
         self.is_clipping = True
+        self.x_axis_at_bottom = True
 
         # All lengths are relative to (line) width
         self.major_length = 4
@@ -85,6 +86,9 @@ class XYCoordinateSystemElement(CanvasElement):
         return self.id
 
     def create_x_axis(self, origin):
+        if self.x_axis_at_bottom:
+            origin = origin + Point(0, -50, basis=self.basis)
+
         xHat = self.basis.e0
         x_lims = self.axes_limits[0]
 
@@ -130,11 +134,13 @@ class XYCoordinateSystemElement(CanvasElement):
 
         with PointDefault(basis=self.basis):
             start = Point(0,0)
-            end = Point(0, y_lims[0] * 1.2)
+            if self.x_axis_at_bottom:
+                end = Point(0, y_lims[0])
+            else:
+                end = Point(0, y_lims[0] * 1.2)
 
-        self.y_axis_negative = Arrow(
-            start=start,
-            end=end,
+        self.y_axis_negative = Line(
+            points=(start,end),
             **self._element_kwargs,
         )
         self.y_axis_negative.create(self.canvas, origin)
@@ -162,6 +168,8 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def create_x_major_ticks(self, origin):
         width = self._element_kwargs.get("width", 1)
+        if self.x_axis_at_bottom:
+            origin = origin + Point(0, -50, basis=self.basis)
 
         # In x, we use the local scale, but in y we use canvas units
         tick_basis = Basis(e0=self.basis.e0, e1=self.basis.e1.normalized())
@@ -176,6 +184,8 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def create_x_major_ticks_labels(self, origin):
         width = self._element_kwargs.get("width", 1)
+        if self.x_axis_at_bottom:
+            origin = origin + Point(0, -50, basis=self.basis)
 
         # In x, we use the local scale, but in y we use canvas units
         tick_basis = Basis(e0=self.basis.e0, e1=self.basis.e1.normalized())
@@ -184,7 +194,7 @@ class XYCoordinateSystemElement(CanvasElement):
             tick_start = Point(tick_value, 0, basis=tick_basis)
             tick_start = tick_start + Vector(0, self.major_length*width*self.tick_value_offset, tick_basis)
 
-            value = Label(
+            value = CanvasLabel(
                 text=self.x_format.format(tick_value),
                 font_size=self.tick_text_size * width,
                 anchor="center",
@@ -219,7 +229,7 @@ class XYCoordinateSystemElement(CanvasElement):
             tick_start = Point(0,tick_value, basis=tick_basis)
             tick_start = tick_start + Vector(self.major_length*width*self.tick_value_offset*(-1), 0, tick_basis)
 
-            value = Label(
+            value = CanvasLabel(
                 text=self.y_format.format(tick_value),
                 font_size=self.tick_text_size * width,
                 anchor="center",
