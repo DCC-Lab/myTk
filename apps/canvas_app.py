@@ -134,10 +134,12 @@ class CanvasApp(App):
                 "value": "Value",
             }
         )
-        self.results_tableview.all_elements_are_editable = False
         self.results_tableview.grid_into(
             self.window, column=2, row=0, pady=5, padx=5, sticky="nsew"
         )
+        self.results_tableview.all_elements_are_editable = False
+        self.results_tableview.widget.column('property',width=250)
+        self.results_tableview.widget.column('value',width=150)
 
         self.controls = Box(label="Display", width=200)
         self.controls.grid_into(
@@ -485,11 +487,35 @@ class CanvasApp(App):
 
     def create_optical_path(self, path, coords):
         z = 0
+        thickness = 3
         for element in path:
             if isinstance(element, Lens):
                 diameter = element.apertureDiameter
                 if not isfinite(diameter):
-                    diameter = 90
+                    y_lims = self.coords.axes_limits[1]
+                    diameter = 0.98*(y_lims[1]-y_lims[0])
+                else:
+                    aperture_top = Line(
+                        points=(
+                            Point(-thickness, diameter / 2, basis=coords.basis),
+                            Point(thickness, diameter / 2, basis=coords.basis),
+                        ),
+                        fill="black",
+                        width=4,
+                        tag=("optics"),
+                    )
+                    coords.place(aperture_top, position=Point(z, 0, basis=coords.basis))
+                    aperture_bottom = Line(
+                        points=(
+                            Point(-thickness, -diameter / 2, basis=coords.basis),
+                            Point(thickness, -diameter / 2, basis=coords.basis),
+                        ),
+                        fill="black",
+                        width=4,
+                        tag=("optics"),
+                    )
+                    coords.place(aperture_bottom, position=Point(z, 0, basis=coords.basis))
+
 
                 lens = Oval(
                     size=(5, diameter),
@@ -501,12 +527,13 @@ class CanvasApp(App):
                     tag=("optics"),
                 )
                 coords.place(lens, position=Point(z, 0, basis=coords.basis))
+
+
             elif isinstance(element, Aperture):
                 diameter = element.apertureDiameter
                 if not isfinite(diameter):
                     diameter = 90
 
-                thickness = 3
                 aperture_top = Line(
                     points=(
                         Point(-thickness, diameter / 2, basis=coords.basis),
@@ -748,6 +775,17 @@ path.display(rays=rays)
             data_source.append_record(
                 {"property": "FS size", "value": f"{field_stop.diameter:.2f}"}
             )
+            if field_stop.z >= path.L:
+                data_source.append_record(
+                    {"property": "Has vignetting [FS before image]", "value": f"False"}
+                )
+            else:
+                data_source.append_record(
+                    {"property": "Has vignetting [FS before image]", "value": f"True"}
+                )
+
+
+
         else:
             data_source.append_record(
                 {"property": "FS position", "value": f"Inexistent"}
