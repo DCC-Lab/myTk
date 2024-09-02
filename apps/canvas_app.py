@@ -26,7 +26,7 @@ class CanvasApp(App):
         self.show_raytraces = True
         self.show_apertures = True
         self.show_labels = True
-        self.show_principal_rays = True
+        self.show_principal_rays = 1
         self.show_conjugates = True
         self.show_intermediate_conjugates = False
         self.maximum_x = 60
@@ -139,44 +139,48 @@ class CanvasApp(App):
             self.controls, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew"
         )
 
+        radio_principal, radio_custom = RadioButton.linked_group(labels_values={'Principal rays':1, 'Custom rays':0})
+        radio_custom.grid_into(self.control_input_rays, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew")
+        radio_principal.grid_into(self.control_input_rays, column=0, row=4, columnspan=1, pady=5, padx=5, sticky="nsew")
+
         self.number_heights_label = Label(text="# ray heights:")
         self.number_heights_label.grid_into(
-            self.control_input_rays, column=0, row=0, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="e"
         )
 
         self.number_heights_entry = IntEntry(minimum=2, maximum=100, width=3)
         self.number_heights_entry.grid_into(
-            self.control_input_rays, column=1, row=0, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w"
         )
 
         self.number_angles_label = Label(text="# ray angles:")
         self.number_angles_label.grid_into(
-            self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=0, row=2, pady=5, padx=5, sticky="e"
         )
 
         self.number_angles_entry = IntEntry(minimum=2, maximum=100, width=3)
         self.number_angles_entry.grid_into(
-            self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=1, row=2, pady=5, padx=5, sticky="w"
         )
 
         self.max_heights_label = Label(text="Max height:")
         self.max_heights_label.grid_into(
-            self.control_input_rays, column=3, row=0, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=3, row=1, pady=5, padx=5, sticky="w"
         )
 
         self.max_heights_entry = Entry(character_width=3)
         self.max_heights_entry.grid_into(
-            self.control_input_rays, column=4, row=0, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=4, row=1, pady=5, padx=5, sticky="w"
         )
 
         self.fan_angles_label = Label(text="Max angle:")
         self.fan_angles_label.grid_into(
-            self.control_input_rays, column=3, row=1, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=3, row=2, pady=5, padx=5, sticky="w"
         )
 
         self.fan_angles_entry = Entry(character_width=3)
         self.fan_angles_entry.grid_into(
-            self.control_input_rays, column=4, row=1, pady=5, padx=5, sticky="w"
+            self.control_input_rays, column=4, row=2, pady=5, padx=5, sticky="w"
         )
 
         self.show_conjugates_checkbox = Checkbox(label="Show object/image planes")
@@ -187,9 +191,9 @@ class CanvasApp(App):
         self.principal_rays_checkbox = Checkbox(
             label="Show principal rays [blue: chief, red: axial]"
         )
-        self.principal_rays_checkbox.grid_into(
-            self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w"
-        )
+        # self.principal_rays_checkbox.grid_into(
+        #     self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w"
+        # )
 
         self.apertures_checkbox = Checkbox(
             label="Show Aperture stop (AS) and field stop (FS)"
@@ -237,8 +241,9 @@ class CanvasApp(App):
         )
         self.bind_properties("show_labels", self.show_labels_checkbox, "value_variable")
         self.bind_properties(
-            "show_principal_rays", self.principal_rays_checkbox, "value_variable"
+            "show_principal_rays", radio_principal, "value_variable"
         )
+
         self.bind_properties(
             "show_conjugates", self.show_conjugates_checkbox, "value_variable"
         )
@@ -256,6 +261,7 @@ class CanvasApp(App):
         self.fan_angles_entry.bind_properties(
             "is_disabled", self, "show_principal_rays"
         )
+        self.blocked_rays_checkbox.bind_properties('is_disabled', self, "show_principal_rays")
 
         self.add_observer(self, "number_of_heights")
         self.add_observer(self, "number_of_angles")
@@ -594,10 +600,17 @@ class CanvasApp(App):
             data_source.append_record({'property':"FS position", 'value':f'Non-existent'})
             data_source.append_record({'property':"FS size", 'value':f'Non-existent'})
 
-        if path.principalRay() is not None:
-            data_source.append_record({'property':"Has principal ray", 'value':f'True'})
-        if path.axialRay() is not None:
-            data_source.append_record({'property':"Has axial ray", 'value':f'True'})
+        principal_ray = path.principalRay()
+        if principal_ray is not None:
+            data_source.append_record({'property':"Principal ray y_max", 'value':f'{principal_ray.y:.2f}'})
+        else:
+            data_source.append_record({'property':"Principal ray y_max", 'value':f'Inexistent'})
+
+        axial_ray = path.axialRay()
+        if axial_ray is not None:
+            data_source.append_record({'property':"Axial ray θ_max", 'value':f'{axial_ray.theta:.2f} rad / {axial_ray.theta*180/3.1416:.2f}°'})
+        else:
+            data_source.append_record({'property':"Axial ray θ_max", 'value':f'Inexistent'})
 
 
 if __name__ == "__main__":
