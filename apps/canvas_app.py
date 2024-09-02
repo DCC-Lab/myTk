@@ -28,7 +28,7 @@ class CanvasApp(App):
         )
 
         self.tableview.grid_into(self.window, column=0, row=0, pady=5, padx=5, sticky="nsew")
-        self.tableview.displaycolumns = ['element','position','focal_length','diameter']
+        self.tableview.displaycolumns = ['element','position','focal_length','diameter','label']
 
         self.tableview.data_source.append_record(
             {"element": "Lens", "focal_length": 10, "diameter":50,"position": 20, "label": "L1"}
@@ -131,7 +131,10 @@ class CanvasApp(App):
         path = ImagingPath()
 
         z = 0
-        for element in self.tableview.data_source.records:
+        ordered_records = self.tableview.data_source.records
+        ordered_records.sort(key = lambda e : float(e['position']))
+
+        for element in ordered_records:
             next_z = float(element['position'])
             delta = next_z-z
             focal_length = float(element['focal_length'])
