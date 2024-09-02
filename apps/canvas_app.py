@@ -65,7 +65,7 @@ class CanvasApp(App):
         )
         self.tableview.delegate = self
 
-        self.controls = Box(label="Ray tracing display", width=200)
+        self.controls = Box(label="Display", width=200)
         self.controls.grid_into(self.window, column=0, row=0, columnspan=1, pady=5, padx=5, sticky="nsew")
 
         self.number_heights_label = Label(text="Number of heights:")
@@ -209,7 +209,7 @@ class CanvasApp(App):
         else:
             raytraces_to_show = raytraces
 
-        line_traces = self.raytraces_to_line(raytraces_to_show, self.coords.basis)
+        line_traces = self.raytraces_to_lines(raytraces_to_show, self.coords.basis)
 
         for line_trace in line_traces:
             self.canvas.place(line_trace, position=self.coords_origin)
@@ -235,7 +235,7 @@ class CanvasApp(App):
                 coords.place(lens, position=Point(z, 0, basis=coords.basis))
             z += element.L
 
-    def raytraces_to_line(self, raytraces, basis):
+    def raytraces_to_lines(self, raytraces, basis):
         line_traces = []
         
         all_initial_y = [ raytrace[0].y for raytrace in raytraces]
