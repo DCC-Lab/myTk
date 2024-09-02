@@ -34,6 +34,10 @@ class CanvasApp(App):
         self.initialization_completed = False
         self.path_has_field_stop = True
 
+        self.create_window_widgets()
+        self.refresh()
+
+    def create_window_widgets(self):
         self.table_group = View(width=300, height=300)
         self.table_group.grid_into(
             self.window, row=0, column=1, pady=5, padx=5, sticky="nsew"
@@ -138,8 +142,8 @@ class CanvasApp(App):
             self.window, column=2, row=0, pady=5, padx=5, sticky="nsew"
         )
         self.results_tableview.all_elements_are_editable = False
-        self.results_tableview.widget.column('property',width=250)
-        self.results_tableview.widget.column('value',width=150)
+        self.results_tableview.widget.column("property", width=250)
+        self.results_tableview.widget.column("value", width=150)
 
         self.controls = Box(label="Display", width=200)
         self.controls.grid_into(
@@ -173,7 +177,7 @@ class CanvasApp(App):
             sticky="nsew",
         )
 
-        radio_principal.bind_properties('is_enabled', self, 'path_has_field_stop')
+        radio_principal.bind_properties("is_enabled", self, "path_has_field_stop")
 
         self.number_heights_label = Label(text="# ray heights:")
         self.number_heights_label.grid_into(
@@ -295,7 +299,6 @@ class CanvasApp(App):
             "is_disabled", self, "show_principal_rays"
         )
 
-
         self.add_observer(self, "number_of_heights")
         self.add_observer(self, "number_of_angles")
         # self.add_observer(self, 'maximum_x', context='refresh_graph')
@@ -309,7 +312,6 @@ class CanvasApp(App):
         # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
         self.initialization_completed = True
-        self.refresh()
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -493,7 +495,7 @@ class CanvasApp(App):
                 diameter = element.apertureDiameter
                 if not isfinite(diameter):
                     y_lims = self.coords.axes_limits[1]
-                    diameter = 0.98*(y_lims[1]-y_lims[0])
+                    diameter = 0.98 * (y_lims[1] - y_lims[0])
                 else:
                     aperture_top = Line(
                         points=(
@@ -514,8 +516,9 @@ class CanvasApp(App):
                         width=4,
                         tag=("optics"),
                     )
-                    coords.place(aperture_bottom, position=Point(z, 0, basis=coords.basis))
-
+                    coords.place(
+                        aperture_bottom, position=Point(z, 0, basis=coords.basis)
+                    )
 
                 lens = Oval(
                     size=(5, diameter),
@@ -527,7 +530,6 @@ class CanvasApp(App):
                     tag=("optics"),
                 )
                 coords.place(lens, position=Point(z, 0, basis=coords.basis))
-
 
             elif isinstance(element, Aperture):
                 diameter = element.apertureDiameter
@@ -664,7 +666,7 @@ class CanvasApp(App):
             script += script_line
             z += delta
 
-        script += "\n"    
+        script += "\n"
 
         display_help = '''"""
 There are many options for display:
@@ -694,7 +696,7 @@ path.display(rays=rays)
 
         script += display_help
 
-        script += "\n"    
+        script += "\n"
         if self.show_principal_rays == 0:
             script += f"rays = UniformRays(yMax={self.max_height}, thetaMax={self.max_fan_angle}, M={self.number_of_heights}, N={self.number_of_angles})\n"
             script += f"path.display(rays=rays, onlyPrincipalAndAxialRays=False, removeBlocked={self.dont_show_blocked_rays})\n"
@@ -783,8 +785,6 @@ path.display(rays=rays)
                 data_source.append_record(
                     {"property": "Has vignetting [FS before image]", "value": f"True"}
                 )
-
-
 
         else:
             data_source.append_record(
