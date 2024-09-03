@@ -325,9 +325,6 @@ class CanvasApp(App):
 
         self.refresh()
 
-    def save_to_pdf(self):
-        self.canvas.save_to_pdf(filepath="/tmp/file.pdf")
-
     def source_data_changed(self):
         self.refresh()
 
@@ -368,7 +365,10 @@ class CanvasApp(App):
 
             path = self.get_path_from_ui()
 
-            self.path_has_field_stop = path.hasFieldStop()
+            try:
+                self.path_has_field_stop = path.hasFieldStop()
+            except TypeError:
+                self.path_has_field_stop = False
 
             self.create_optical_path(path, self.coords)
 
@@ -715,7 +715,11 @@ path.display(rays=rays)
         d, _ = path.forwardConjugate()
         path.append(Space(d=d))
 
-        fov = path.fieldOfView()
+        if self.path_has_field_stop: # bug workaround
+            fov = path.fieldOfView()
+        else:
+            fov = float("+inf")
+
         data_source.append_record(
             {"property": "Object position", "value": f"0.0 (always)"}
         )
@@ -769,7 +773,8 @@ path.display(rays=rays)
             )
             data_source.append_record({"property": "AS size", "value": f"Inexistent"})
 
-        if path.hasFieldStop():
+
+        if self.path_has_field_stop:
             field_stop = path.fieldStop()
             data_source.append_record(
                 {"property": "FS position", "value": f"{field_stop.z:.2f}"}
@@ -785,15 +790,14 @@ path.display(rays=rays)
                 data_source.append_record(
                     {"property": "Has vignetting [FS before image]", "value": f"True"}
                 )
-
         else:
             data_source.append_record(
                 {"property": "FS position", "value": f"Inexistent"}
             )
             data_source.append_record({"property": "FS size", "value": f"Inexistent"})
 
-        principal_ray = path.principalRay()
-        if principal_ray is not None:
+        if self.path_has_field_stop: # bug workaround
+            principal_ray = path.principalRay()
             data_source.append_record(
                 {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
             )
@@ -816,6 +820,10 @@ path.display(rays=rays)
             )
 
         self.results_tableview.click_header(column_id=1)
+
+    def save(self):
+        filepath = filedialog.asksaveasfilename()
+        self.canvas.save_to_pdf(filepath=filepath)
 
 
 if __name__ == "__main__":
