@@ -14,8 +14,8 @@ description = "A wrapper for Tkinter for busy scientists"
 readme = "README.md"
 license = {file = "LICENSE"}
 
+dynamic = ["dependencies"]
 
-dependencies = []
 
 authors = [
   {name = "Daniel Côté", email = "dccote@cervo.ulaval.ca"}
@@ -25,7 +25,7 @@ maintainers = [
 ]
 
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 3 - Alpha",
 
   "Topic :: Software Development :: Build Tools",
 
@@ -33,3 +33,6 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
 ]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}

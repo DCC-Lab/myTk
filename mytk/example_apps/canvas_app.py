@@ -126,7 +126,7 @@ class CanvasApp(App):
                 "focal_length": "",
                 "diameter": 10,
                 "position": 400,
-                "label": "Aperture",
+                "label": "Camera",
             }
         )
         self.tableview.delegate = self
