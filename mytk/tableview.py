@@ -358,8 +358,15 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
     def focus_edit_cell(self, item_id, column_id):
-        bbox = self.widget.bbox(item_id, column_id - 1)
-        entry_box = CellEntry(tableview=self, item_id=item_id, column_id=column_id)
+        # values_column_id = column_id 
+        # column_name = self.displaycolumns[values_column_id-1]
+
+        # column_id = self.displaycolumns.index(column_name)
+        column_name = self.displaycolumns[column_id-1]
+        column_id = self.columns.index(column_name)
+
+        bbox = self.widget.bbox(item_id, column=column_name)
+        entry_box = CellEntry(tableview=self, item_id=item_id, column_name=column_name)
         entry_box.place_into(
             parent=self,
             x=bbox[0] - 2,
