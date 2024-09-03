@@ -620,16 +620,17 @@ class CanvasApp(App):
             path.append(path_element)
             z += delta
 
+
+        max_x = self.coords.axes_limits[0][1]
+        if max_x > z:
+            path.append(Space(d=max_x - z))
+
         if self.show_conjugates or self.show_principal_rays:
             conjugate = path.forwardConjugate()
-            image_z = conjugate.d
-            if image_z > z:
-                path.append(Space(d=image_z - z))
-        else:
-            max_x = self.coords.axes_limits[0][1]
-            if max_x > z:
-                path.append(Space(d=max_x - z))
-
+            image_z = path.L + conjugate.d
+            if image_z > z and isfinite(image_z):
+                path.append(Space(d=conjugate.d))
+            
         return path
 
     def get_path_script(self):
