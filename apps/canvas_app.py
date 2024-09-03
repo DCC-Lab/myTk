@@ -107,25 +107,25 @@ class CanvasApp(App):
             {
                 "element": "Lens",
                 "focal_length": 100,
-                "diameter": 25.4,
-                "position": 100,
+                "diameter": 45,
+                "position": 200,
                 "label": "L1",
             }
         )
-        self.tableview.data_source.append_record(
-            {
-                "element": "Lens",
-                "focal_length": 50,
-                "diameter": 25.4,
-                "position": 300,
-                "label": "L2",
-            }
-        )
+        # self.tableview.data_source.append_record(
+        #     {
+        #         "element": "Lens",
+        #         "focal_length": 50,
+        #         "diameter": 25.4,
+        #         "position": 300,
+        #         "label": "L2",
+        #     }
+        # )
         self.tableview.data_source.append_record(
             {
                 "element": "Aperture",
                 "focal_length": "",
-                "diameter": 30,
+                "diameter": 10,
                 "position": 400,
                 "label": "Aperture",
             }
