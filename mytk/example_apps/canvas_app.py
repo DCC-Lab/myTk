@@ -1,4 +1,3 @@
-import envapp
 from tkinter import DoubleVar
 from tkinter import filedialog
 from mytk import *

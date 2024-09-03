@@ -1,0 +1,35 @@
+
+py_modules=["mytk"]
+
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "mytk"
+version="0.9.1"
+description = "A wrapper for Tkinter for busy scientists"
+readme = "README.md"
+license = {file = "LICENSE"}
+
+
+dependencies = []
+
+authors = [
+  {name = "Daniel Côté", email = "dccote@cervo.ulaval.ca"}
+]
+maintainers = [
+  {name = "Daniel Côté", email = "dccote@cervo.ulaval.ca"}
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+
+  "Topic :: Software Development :: Build Tools",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+]
