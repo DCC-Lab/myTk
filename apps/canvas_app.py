@@ -432,17 +432,18 @@ class CanvasApp(App):
         self.coords.place(canvas_object, position=Point(0, 0))
 
         conjugate = path.forwardConjugate()
-        image_z = conjugate.transferMatrix.L
-        magnification = conjugate.transferMatrix.magnification().transverse
-        image_height = magnification * object_height
-        canvas_image = Arrow(
-            start=Point(image_z, -image_height / 2, basis=basis),
-            end=Point(image_z, image_height / 2, basis=basis),
-            fill="red",
-            width=arrow_width,
-            tag=("conjugates"),
-        )
-        self.coords.place(canvas_image, position=Point(0, 0))
+        if conjugate.transferMatrix is not None:
+            image_z = conjugate.transferMatrix.L
+            magnification = conjugate.transferMatrix.magnification().transverse
+            image_height = magnification * object_height
+            canvas_image = Arrow(
+                start=Point(image_z, -image_height / 2, basis=basis),
+                end=Point(image_z, image_height / 2, basis=basis),
+                fill="red",
+                width=arrow_width,
+                tag=("conjugates"),
+            )
+            self.coords.place(canvas_image, position=Point(0, 0))
 
     def create_apertures_labels(self, path):
         position = path.apertureStop()
