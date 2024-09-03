@@ -7,6 +7,7 @@ from .dialog import Dialog
 from contextlib import redirect_stdout
 import io
 from tkinter import TclError
+import pyperclip
 
 
 class App(Bindable):
