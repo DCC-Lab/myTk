@@ -82,9 +82,12 @@ class CanvasApp(App):
                 "label": "Label",
             }
         )
-        self.tableview.column_formats['focal_length'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
-        self.tableview.column_formats['diameter'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
-        self.tableview.column_formats['position'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
+        self.tableview.column_formats['focal_length'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.column_formats['diameter'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.column_formats['position'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.data_source.field_properties['focal_length'] = {'type':float}
+        self.tableview.data_source.field_properties['diameter'] = {'type':float}
+        self.tableview.data_source.field_properties['position'] = {'type':float}
 
         self.tableview.grid_into(
             self.table_group,
@@ -732,14 +735,15 @@ path.display(rays=rays)
         field_stop = Stop(None, None)
         with suppress(TypeError):
             field_stop = path.fieldStop()
-            bug_path_has_field_stop = False
+            if field_stop.z is not None:
+                bug_path_has_field_stop = False
 
         fov = float("+inf")
         if bug_path_has_field_stop: # bug workaround
             with suppress(TypeError):
                 fov = path.fieldOfView()
         ## End Workaround
-        
+
         data_source.append_record(
             {"property": "Object position", "value": f"0.0 (always)"}
         )
@@ -779,8 +783,8 @@ path.display(rays=rays)
             {"property": "Image position", "value": f"{path.L:.2f}"}
         )
 
-        if path.hasApertureStop():
-            aperture_stop = path.apertureStop()
+        aperture_stop = path.apertureStop()
+        if aperture_stop.z is not None:
             data_source.append_record(
                 {"property": "AS position", "value": f"{aperture_stop.z:.2f}"}
             )
@@ -794,7 +798,7 @@ path.display(rays=rays)
             data_source.append_record({"property": "AS size", "value": f"Inexistent"})
 
 
-        if bug_path_has_field_stop:
+        if bug_path_has_field_stop and field_stop.z is not None:
             data_source.append_record(
                 {"property": "FS position", "value": f"{field_stop.z:.2f}"}
             )
@@ -809,18 +813,17 @@ path.display(rays=rays)
                 data_source.append_record(
                     {"property": "Has vignetting [FS before image]", "value": f"True"}
                 )
+
+            principal_ray = path.principalRay()
+            data_source.append_record(
+                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
+            )
         else:
             data_source.append_record(
                 {"property": "FS position", "value": f"Inexistent"}
             )
             data_source.append_record({"property": "FS size", "value": f"Inexistent"})
 
-        if bug_path_has_field_stop: # bug workaround
-            principal_ray = path.principalRay()
-            data_source.append_record(
-                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
-            )
-        else:
             data_source.append_record(
                 {"property": "Principal ray y_max", "value": f"Inexistent [no FS]"}
             )

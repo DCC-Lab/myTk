@@ -158,6 +158,9 @@ class TableView(Base):
             column_format = self.column_formats.get(column_name, None)
 
             try:
+                if value is None:
+                    value = ""
+                    
                 if column_format is not None:
                     format_string = column_format['format_string']
                     multiplier = column_format['multiplier']

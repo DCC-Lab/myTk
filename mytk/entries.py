@@ -103,9 +103,11 @@ class CellEntry(Base):
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
 
-        format_entries = self.tableview.column_formats[self.column_name]
+        value_type = str # default
 
-        value_type = format_entries['type']
+        field_properties = self.tableview.data_source.field_properties.get(self.column_name, None)
+        if field_properties is not None:
+            value_type = field_properties.get('type', str)
 
         try:
             values[self.column_id] = value_type(self.value_variable.get())
