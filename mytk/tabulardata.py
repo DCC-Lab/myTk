@@ -165,7 +165,7 @@ class TabularData(Bindable):
 
             try:
                 record[field_name] = field_type(record[field_name])
-            except ValueError:
+            except (ValueError, TypeError):
                 record[field_name] = None
 
         return record

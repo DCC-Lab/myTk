@@ -345,16 +345,17 @@ class CanvasApp(App):
                 self.tableview.data_source.remove_record(selected_item)
         elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
-            record["position"] = 50
             record["element"] = "Lens"
+            record["position"] = 50
             record["focal_length"] = 50
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
         elif button == self.add_aperture_button:
             record = self.tableview.data_source.empty_record()
-            record["position"] = 50
             record["element"] = "Aperture"
+            record["position"] = 50
             record["diameter"] = 25.4
+            record["focal_length"] = None
             self.tableview.data_source.append_record(record)
 
     def refresh(self):
@@ -367,6 +368,14 @@ class CanvasApp(App):
             self.canvas.widget.delete("apertures")
             self.canvas.widget.delete("labels")
             self.canvas.widget.delete("conjugates")
+            # self.canvas.widget.delete("tick")
+            # self.canvas.widget.delete("tick-label")
+
+            # self.coords.axes_limits = ((0, 800), (-50, 50))
+            # self.coords.create_x_major_ticks()
+            # self.coords.create_x_major_ticks_labels()
+            # self.coords.create_y_major_ticks()
+            # self.coords.create_y_major_ticks_labels()
 
             path = self.get_path_from_ui()
 
