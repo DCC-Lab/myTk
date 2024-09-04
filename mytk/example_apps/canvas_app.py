@@ -257,8 +257,8 @@ class CanvasApp(App):
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
         )
-        self.window.column_resize_weight(index=0, weight=0)
         self.window.column_resize_weight(index=1, weight=1)
+        self.window.row_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 230)
 
         self.coords = XYCoordinateSystemElement(
