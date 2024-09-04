@@ -1,4 +1,4 @@
-from tkinter import END
+from tkinter import END, DoubleVar
 import tkinter.ttk as ttk
 from .base import Base
 import json

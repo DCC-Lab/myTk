@@ -102,7 +102,15 @@ class CellEntry(Base):
 
     def event_return_callback(self, event):
         values = self.tableview.widget.item(self.item_id).get("values")
-        values[self.column_id] = self.value_variable.get()
+
+        format_entries = self.tableview.column_formats[self.column_name]
+
+        value_type = format_entries['type']
+
+        try:
+            values[self.column_id] = value_type(self.value_variable.get())
+        except ValueError:
+            values[self.column_id] = ''
 
         self.tableview.item_modified(item_id=self.item_id, values=values)
         self.event_generate("<FocusOut>")

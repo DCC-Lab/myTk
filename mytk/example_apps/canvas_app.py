@@ -11,7 +11,7 @@ from numpy import linspace, isfinite
 from raytracing import *
 import colorsys
 import pyperclip
-
+from contextlib import suppress
 
 class CanvasApp(App):
     def __init__(self):
@@ -82,6 +82,9 @@ class CanvasApp(App):
                 "label": "Label",
             }
         )
+        self.tableview.column_formats['focal_length'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
+        self.tableview.column_formats['diameter'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
+        self.tableview.column_formats['position'] = {'format_string':"{0:g}", 'multiplier':1, 'type':float,'anchor':''}
 
         self.tableview.grid_into(
             self.table_group,
@@ -183,7 +186,7 @@ class CanvasApp(App):
             self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="e"
         )
 
-        self.number_heights_entry = IntEntry(minimum=2, maximum=100, width=3)
+        self.number_heights_entry = IntEntry(minimum=1, maximum=100, width=3)
         self.number_heights_entry.grid_into(
             self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w"
         )
@@ -193,7 +196,7 @@ class CanvasApp(App):
             self.control_input_rays, column=0, row=2, pady=5, padx=5, sticky="e"
         )
 
-        self.number_angles_entry = IntEntry(minimum=2, maximum=100, width=3)
+        self.number_angles_entry = IntEntry(minimum=1, maximum=100, width=3)
         self.number_angles_entry.grid_into(
             self.control_input_rays, column=1, row=2, pady=5, padx=5, sticky="w"
         )
@@ -410,6 +413,10 @@ class CanvasApp(App):
             yMax = float(self.max_height)
             thetaMax = float(self.max_fan_angle)
 
+            if M == 1:
+                yMax = 0
+            if N == 1:
+                thetaMax = 0
             rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
             self.create_raytraces_lines(path, rays)
 
@@ -569,7 +576,10 @@ class CanvasApp(App):
         with PointDefault(basis=basis):
             for raytrace in raytraces:
                 initial_y = raytrace[0].y
-                hue = (initial_y - min_y) / float(max_y - min_y)
+                if float(max_y - min_y) != 0:
+                    hue = (initial_y - min_y) / float(max_y - min_y)
+                else:
+                    hue = 1.0
                 color = self.color_from_hue(hue)
 
                 line_trace = self.create_line_from_raytrace(
@@ -714,13 +724,22 @@ path.display(rays=rays)
             data_source.remove_record(uid)
 
         d, _ = path.forwardConjugate()
-        path.append(Space(d=d))
+        if isfinite(d):
+            path.append(Space(d=d))
 
-        if self.path_has_field_stop: # bug workaround
-            fov = path.fieldOfView()
-        else:
-            fov = float("+inf")
+        ## Begin workaround: fieldStop() sometimes crashes
+        bug_path_has_field_stop = self.path_has_field_stop
+        field_stop = Stop(None, None)
+        with suppress(TypeError):
+            field_stop = path.fieldStop()
+            bug_path_has_field_stop = False
 
+        fov = float("+inf")
+        if bug_path_has_field_stop: # bug workaround
+            with suppress(TypeError):
+                fov = path.fieldOfView()
+        ## End Workaround
+        
         data_source.append_record(
             {"property": "Object position", "value": f"0.0 (always)"}
         )
@@ -775,8 +794,7 @@ path.display(rays=rays)
             data_source.append_record({"property": "AS size", "value": f"Inexistent"})
 
 
-        if self.path_has_field_stop:
-            field_stop = path.fieldStop()
+        if bug_path_has_field_stop:
             data_source.append_record(
                 {"property": "FS position", "value": f"{field_stop.z:.2f}"}
             )
@@ -797,7 +815,7 @@ path.display(rays=rays)
             )
             data_source.append_record({"property": "FS size", "value": f"Inexistent"})
 
-        if self.path_has_field_stop: # bug workaround
+        if bug_path_has_field_stop: # bug workaround
             principal_ray = path.principalRay()
             data_source.append_record(
                 {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
@@ -813,6 +831,12 @@ path.display(rays=rays)
                 {
                     "property": "Axial ray θ_max",
                     "value": f"{axial_ray.theta:.2f} rad / {axial_ray.theta*180/3.1416:.2f}°",
+                }
+            )
+            data_source.append_record(
+                {
+                    "property": "NA",
+                    "value": f"{path.NA():.1f}",
                 }
             )
         else:
