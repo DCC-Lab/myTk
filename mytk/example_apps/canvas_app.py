@@ -1,18 +1,19 @@
-import envapp
 from tkinter import DoubleVar
 from tkinter import filedialog
 from mytk import *
+from mytk.base import BaseNotification
 from mytk.canvasview import *
 from mytk.dataviews import *
-from mytk.vectors import Point, PointDefault
+from mytk.vectors import Point, PointDefault, DynamicBasis
 from mytk.labels import Label
+from mytk.notificationcenter import NotificationCenter
 
 import time
 from numpy import linspace, isfinite
 from raytracing import *
 import colorsys
 import pyperclip
-
+from contextlib import suppress
 
 class CanvasApp(App):
     def __init__(self):
@@ -83,6 +84,12 @@ class CanvasApp(App):
                 "label": "Label",
             }
         )
+        self.tableview.column_formats['focal_length'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.column_formats['diameter'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.column_formats['position'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.tableview.data_source.field_properties['focal_length'] = {'type':float}
+        self.tableview.data_source.field_properties['diameter'] = {'type':float}
+        self.tableview.data_source.field_properties['position'] = {'type':float}
 
         self.tableview.grid_into(
             self.table_group,
@@ -127,7 +134,7 @@ class CanvasApp(App):
                 "focal_length": "",
                 "diameter": 10,
                 "position": 400,
-                "label": "Aperture",
+                "label": "Camera",
             }
         )
         self.tableview.delegate = self
@@ -184,7 +191,7 @@ class CanvasApp(App):
             self.control_input_rays, column=0, row=1, pady=5, padx=5, sticky="e"
         )
 
-        self.number_heights_entry = IntEntry(minimum=2, maximum=100, width=3)
+        self.number_heights_entry = IntEntry(minimum=1, maximum=100, width=3)
         self.number_heights_entry.grid_into(
             self.control_input_rays, column=1, row=1, pady=5, padx=5, sticky="w"
         )
@@ -194,7 +201,7 @@ class CanvasApp(App):
             self.control_input_rays, column=0, row=2, pady=5, padx=5, sticky="e"
         )
 
-        self.number_angles_entry = IntEntry(minimum=2, maximum=100, width=3)
+        self.number_angles_entry = IntEntry(minimum=1, maximum=100, width=3)
         self.number_angles_entry.grid_into(
             self.control_input_rays, column=1, row=2, pady=5, padx=5, sticky="w"
         )
@@ -252,15 +259,21 @@ class CanvasApp(App):
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
         )
-        self.window.column_resize_weight(index=0, weight=0)
-        self.window.column_resize_weight(index=1, weight=1)
-        self.coords_origin = Point(50, 230)
 
+        NotificationCenter().add_observer(self, self.canvas_did_resize, BaseNotification.did_resize)
+
+        self.window.column_resize_weight(index=1, weight=1)
+        self.window.row_resize_weight(index=1, weight=1)
+
+        self.coords_origin = Point(0.05, 0.5, basis=DynamicBasis(self.canvas, "relative_basis"))
+
+        size = (Vector(0.75,0, basis=DynamicBasis(self.canvas, "relative_basis")), Vector(0,-0.6, basis=DynamicBasis(self.canvas, "relative_basis")))
+        # size = (Vector(1000,0), Vector(0,-250))
         self.coords = XYCoordinateSystemElement(
-            size=(900, -250), axes_limits=((0, 400), (-25, 25)), width=2
+            size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
-        self.canvas.place(self.coords, position=self.coords_origin)
-        optics_basis = self.coords.basis
+        self.canvas.place(self.coords, position=Point(0.05, 0.5, basis=self.canvas.relative_basis))
+        optics_basis = DynamicBasis(self.coords, "basis")
 
         self.bind_properties(
             "number_of_heights", self.number_heights_entry, "value_variable"
@@ -313,6 +326,9 @@ class CanvasApp(App):
 
         self.initialization_completed = True
 
+    def canvas_did_resize(self, notification):
+        self.refresh()
+
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
@@ -340,16 +356,17 @@ class CanvasApp(App):
                 self.tableview.data_source.remove_record(selected_item)
         elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
-            record["position"] = 50
             record["element"] = "Lens"
+            record["position"] = 50
             record["focal_length"] = 50
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
         elif button == self.add_aperture_button:
             record = self.tableview.data_source.empty_record()
-            record["position"] = 50
             record["element"] = "Aperture"
+            record["position"] = 50
             record["diameter"] = 25.4
+            record["focal_length"] = None
             self.tableview.data_source.append_record(record)
 
     def refresh(self):
@@ -362,6 +379,18 @@ class CanvasApp(App):
             self.canvas.widget.delete("apertures")
             self.canvas.widget.delete("labels")
             self.canvas.widget.delete("conjugates")
+            self.canvas.widget.delete("x-axis")
+            self.canvas.widget.delete("y-axis")
+            self.canvas.widget.delete("tick")
+            self.canvas.widget.delete("tick-label")
+
+            # self.coords.axes_limits = ((0, 800), (-50, 50))
+            self.coords.create_x_axis()
+            self.coords.create_x_major_ticks()
+            self.coords.create_x_major_ticks_labels()
+            self.coords.create_y_axis()
+            self.coords.create_y_major_ticks()
+            self.coords.create_y_major_ticks_labels()
 
             path = self.get_path_from_ui()
 
@@ -394,14 +423,14 @@ class CanvasApp(App):
             if principal_ray is not None:
                 principal_raytrace = path.trace(principal_ray)
                 line_trace = self.create_line_from_raytrace(
-                    principal_raytrace, basis=self.coords.basis, color="green"
+                    principal_raytrace, basis=DynamicBasis(self.coords, "basis"), color="green"
                 )
                 self.coords.place(line_trace, position=Point(0, 0))
 
                 axial_ray = path.axialRay()
                 axial_raytrace = path.trace(axial_ray)
                 line_trace = self.create_line_from_raytrace(
-                    axial_raytrace, basis=self.coords.basis, color="red"
+                    axial_raytrace, basis=DynamicBasis(self.coords, "basis"), color="red"
                 )
                 self.coords.place(line_trace, position=Point(0, 0))
 
@@ -411,6 +440,10 @@ class CanvasApp(App):
             yMax = float(self.max_height)
             thetaMax = float(self.max_fan_angle)
 
+            if M == 1:
+                yMax = 0
+            if N == 1:
+                thetaMax = 0
             rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
             self.create_raytraces_lines(path, rays)
 
@@ -421,7 +454,7 @@ class CanvasApp(App):
         if self.show_principal_rays:
             object_height = path.fieldOfView()
 
-        basis = self.coords.basis
+        basis = DynamicBasis(self.coords, "basis")
         canvas_object = Arrow(
             start=Point(object_z, -object_height / 2, basis=basis),
             end=Point(object_z, object_height / 2, basis=basis),
@@ -482,7 +515,7 @@ class CanvasApp(App):
         else:
             raytraces_to_show = raytraces
 
-        line_traces = self.raytraces_to_lines(raytraces_to_show, self.coords.basis)
+        line_traces = self.raytraces_to_lines(raytraces_to_show, DynamicBasis(self.coords, "basis"))
 
         for line_trace in line_traces:
             self.canvas.place(line_trace, position=self.coords_origin)
@@ -570,7 +603,10 @@ class CanvasApp(App):
         with PointDefault(basis=basis):
             for raytrace in raytraces:
                 initial_y = raytrace[0].y
-                hue = (initial_y - min_y) / float(max_y - min_y)
+                if float(max_y - min_y) != 0:
+                    hue = (initial_y - min_y) / float(max_y - min_y)
+                else:
+                    hue = 1.0
                 color = self.color_from_hue(hue)
 
                 line_trace = self.create_line_from_raytrace(
@@ -715,12 +751,22 @@ path.display(rays=rays)
             data_source.remove_record(uid)
 
         d, _ = path.forwardConjugate()
-        path.append(Space(d=d))
+        if isfinite(d):
+            path.append(Space(d=d))
 
-        if self.path_has_field_stop: # bug workaround
-            fov = path.fieldOfView()
-        else:
-            fov = float("+inf")
+        ## Begin workaround: fieldStop() sometimes crashes
+        bug_path_has_field_stop = self.path_has_field_stop
+        field_stop = Stop(None, None)
+        with suppress(TypeError):
+            field_stop = path.fieldStop()
+            if field_stop.z is not None:
+                bug_path_has_field_stop = False
+
+        fov = float("+inf")
+        if bug_path_has_field_stop: # bug workaround
+            with suppress(TypeError):
+                fov = path.fieldOfView()
+        ## End Workaround
 
         data_source.append_record(
             {"property": "Object position", "value": f"0.0 (always)"}
@@ -761,8 +807,8 @@ path.display(rays=rays)
             {"property": "Image position", "value": f"{path.L:.2f}"}
         )
 
-        if path.hasApertureStop():
-            aperture_stop = path.apertureStop()
+        aperture_stop = path.apertureStop()
+        if aperture_stop.z is not None:
             data_source.append_record(
                 {"property": "AS position", "value": f"{aperture_stop.z:.2f}"}
             )
@@ -776,8 +822,7 @@ path.display(rays=rays)
             data_source.append_record({"property": "AS size", "value": f"Inexistent"})
 
 
-        if self.path_has_field_stop:
-            field_stop = path.fieldStop()
+        if bug_path_has_field_stop and field_stop.z is not None:
             data_source.append_record(
                 {"property": "FS position", "value": f"{field_stop.z:.2f}"}
             )
@@ -792,18 +837,17 @@ path.display(rays=rays)
                 data_source.append_record(
                     {"property": "Has vignetting [FS before image]", "value": f"True"}
                 )
+
+            principal_ray = path.principalRay()
+            data_source.append_record(
+                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
+            )
         else:
             data_source.append_record(
                 {"property": "FS position", "value": f"Inexistent"}
             )
             data_source.append_record({"property": "FS size", "value": f"Inexistent"})
 
-        if self.path_has_field_stop: # bug workaround
-            principal_ray = path.principalRay()
-            data_source.append_record(
-                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
-            )
-        else:
             data_source.append_record(
                 {"property": "Principal ray y_max", "value": f"Inexistent [no FS]"}
             )
@@ -814,6 +858,12 @@ path.display(rays=rays)
                 {
                     "property": "Axial ray θ_max",
                     "value": f"{axial_ray.theta:.2f} rad / {axial_ray.theta*180/3.1416:.2f}°",
+                }
+            )
+            data_source.append_record(
+                {
+                    "property": "NA",
+                    "value": f"{path.NA():.1f}",
                 }
             )
         else:

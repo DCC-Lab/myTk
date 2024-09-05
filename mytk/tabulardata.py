@@ -157,6 +157,16 @@ class TabularData(Bindable):
                         raise TabularData.ExtraField(
                             f"record has extra field: {field_name}"
                         )
+        for field_name in self.record_fields():
+            field_properties = self.field_properties.get(field_name,None)
+            field_type = str
+            if field_properties is not None:
+                field_type = field_properties.get('type', str)
+
+            try:
+                record[field_name] = field_type(record[field_name])
+            except (ValueError, TypeError):
+                record[field_name] = None
 
         return record
 
@@ -271,7 +281,7 @@ class TabularData(Bindable):
             records = self.records
 
         sorted_records = list(
-            sorted(records, key=lambda record: record[field], reverse=reverse)
+            sorted(records, key=lambda record: (record[field] is None, record[field]), reverse=reverse)
         )
         return [record["__uuid"] for record in sorted_records]
 

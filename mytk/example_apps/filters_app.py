@@ -1,4 +1,3 @@
-import envapp
 from mytk import *
 
 import os
