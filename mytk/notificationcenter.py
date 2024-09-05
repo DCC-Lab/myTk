@@ -1,11 +1,71 @@
-from threading import Thread, RLock
+"""
+    This implements a "one-to-many" notification system, when one class needs
+    to simply notify other objects (possibly many) that something has
+    happened. You use this strategy when the notifier does not really need to
+    know who does what, but it knows that other objects may need to adjust in
+    response to a change. An example is a window that will notify "I was just
+    resized" or a computation section that may notify "I am done calculating"
+    so that the interface can react and display the result, or even a
+    physical device(such as a translation stage) that will notify "I just
+    finished moving".
+
+    At the center of this mechanism is the NotificationCenter(): a singleton class (that is
+    a class with a single instance in the code, never two) that will manage 
+    the observers and will post the notifications.
+
+    You define notifications names in your code, and post them when
+    appropriate. You *must* define notification names as Enum (because if you
+    don't it makes it impossible to know if a notification is actually
+    acceptaable and error management is nearly impossible. For instance, a
+    translation stage could define the following notifications:
+
+    class DeviceNotification(Enum):
+        will_move        = "will_move"
+        did_move         = "did_move"
+        did_get_position = "did_get_position"
+
+    When appropriate, the stage would call, for example:
+
+    notification = Notification(name = DeviceNotification.did_move, 
+                                object = self, 
+                                user_info = {"position":(x,y,z)})
+    NotificationCenter().post_notification(notification)
+
+    In the notification, the object can be self, but also any object that is
+    relevant. You can provide any information that may be relevant to the
+    observers in user_info. For instance, with the previous example, we may
+    want to provide the actual position of the stage. It is totally up to you
+    to decide what you include, because you will be the one acting on the
+    information you receive. To be notified, an object needs to register for the
+    notification. It does so with the following:
+
+    NotificationCenter().add_observer(observer, method, notification_name,
+    observed_object)
+
+    The "method" is defined in "observer" and will receive the notification with
+    all its information and will be called by the notification center like:
+
+    observer.method(notification)
+
+    therefore it must have the following signature:
+
+    def method(self, notification:Notification)
+
+    The minimum to provide when registering is observer, method and
+    notification_name.  The observer will be notified (via the method
+    callback observer.method()) when notification_name is posted. If you
+    provided "observed_object", then it will be notified only when the
+    notification has the same "object". This is useful, for instance, when
+    you have several objects that will post identical notifications. An
+    example would be a class representing windows that post a "did_resize"
+    notification after they have resized: you may want to react to the resize
+    notification of a given window, not "all" windows.
+
+    The NotificationCenter is thread-safe.
+"""
+from threading import RLock
 from enum import Enum
 
-# You *must* define notification names like this:
-# class DeviceNotification(Enum):
-#    willMove       = "willMove"
-#    didMove        = "didMove"
-#    didGetPosition = "didGetPosition"
 
 class Notification:
     def __init__(self, name, object=None, user_info=None):

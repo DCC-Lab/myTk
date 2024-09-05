@@ -11,7 +11,10 @@ class Bindable:
     """
     A class to 1) observe changes in variables, and possibly 2) bind variables together.
 
-    This is called a Property-Value-Observer pattern, identical to the Key-Value-Observer pattern on macOS.
+    In general, this is called a "one-to-one" pattern because an observer registeres specifically 
+    for a change in a specific object.  To notify one-to-many, use the NotificationCenter.
+
+    It is also called a Property-Value-Observer pattern, identical to the Key-Value-Observer pattern on macOS.
 
     It implements two functionalities:
 
