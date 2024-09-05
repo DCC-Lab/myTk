@@ -264,17 +264,16 @@ class CanvasApp(App):
 
         self.window.column_resize_weight(index=1, weight=1)
         self.window.row_resize_weight(index=1, weight=1)
-        self.coords_origin = Point(50, 230)
 
-        self.dyn_basis = DynamicBasis(self.canvas, 'relative_basis')
+        self.coords_origin = Point(0.05, 0.5, basis=DynamicBasis(self.canvas, "relative_basis"))
 
-        # size = (Vector(0.9,0, basis=self.canvas.relative_size_basis), Vector(0,-0.9, basis=self.canvas.relative_size_basis))
-        size = (Vector(1000,0), Vector(0,-250))
+        size = (Vector(0.75,0, basis=DynamicBasis(self.canvas, "relative_basis")), Vector(0,-0.6, basis=DynamicBasis(self.canvas, "relative_basis")))
+        # size = (Vector(1000,0), Vector(0,-250))
         self.coords = XYCoordinateSystemElement(
             size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
-        self.canvas.place(self.coords, position=self.coords_origin)
-        optics_basis = self.coords.basis
+        self.canvas.place(self.coords, position=Point(0.05, 0.5, basis=self.canvas.relative_basis))
+        optics_basis = DynamicBasis(self.coords, "basis")
 
         self.bind_properties(
             "number_of_heights", self.number_heights_entry, "value_variable"
@@ -328,7 +327,7 @@ class CanvasApp(App):
         self.initialization_completed = True
 
     def canvas_did_resize(self, notification):
-        print(self.dyn_basis)
+        self.refresh()
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -380,15 +379,18 @@ class CanvasApp(App):
             self.canvas.widget.delete("apertures")
             self.canvas.widget.delete("labels")
             self.canvas.widget.delete("conjugates")
-            # self.canvas.widget.delete("tick")
-            # self.canvas.widget.delete("tick-label")
+            self.canvas.widget.delete("x-axis")
+            self.canvas.widget.delete("y-axis")
+            self.canvas.widget.delete("tick")
+            self.canvas.widget.delete("tick-label")
 
             # self.coords.axes_limits = ((0, 800), (-50, 50))
-            # self.coords.create_x_major_ticks()
-            # self.coords.create_x_major_ticks_labels()
-            # self.coords.create_y_major_ticks()
-            # self.coords.create_y_major_ticks_labels()
-            print(self.dyn_basis)
+            self.coords.create_x_axis()
+            self.coords.create_x_major_ticks()
+            self.coords.create_x_major_ticks_labels()
+            self.coords.create_y_axis()
+            self.coords.create_y_major_ticks()
+            self.coords.create_y_major_ticks_labels()
 
             path = self.get_path_from_ui()
 
@@ -421,14 +423,14 @@ class CanvasApp(App):
             if principal_ray is not None:
                 principal_raytrace = path.trace(principal_ray)
                 line_trace = self.create_line_from_raytrace(
-                    principal_raytrace, basis=self.coords.basis, color="green"
+                    principal_raytrace, basis=DynamicBasis(self.coords, "basis"), color="green"
                 )
                 self.coords.place(line_trace, position=Point(0, 0))
 
                 axial_ray = path.axialRay()
                 axial_raytrace = path.trace(axial_ray)
                 line_trace = self.create_line_from_raytrace(
-                    axial_raytrace, basis=self.coords.basis, color="red"
+                    axial_raytrace, basis=DynamicBasis(self.coords, "basis"), color="red"
                 )
                 self.coords.place(line_trace, position=Point(0, 0))
 
@@ -452,7 +454,7 @@ class CanvasApp(App):
         if self.show_principal_rays:
             object_height = path.fieldOfView()
 
-        basis = self.coords.basis
+        basis = DynamicBasis(self.coords, "basis")
         canvas_object = Arrow(
             start=Point(object_z, -object_height / 2, basis=basis),
             end=Point(object_z, object_height / 2, basis=basis),
@@ -513,7 +515,7 @@ class CanvasApp(App):
         else:
             raytraces_to_show = raytraces
 
-        line_traces = self.raytraces_to_lines(raytraces_to_show, self.coords.basis)
+        line_traces = self.raytraces_to_lines(raytraces_to_show, DynamicBasis(self.coords, "basis"))
 
         for line_trace in line_traces:
             self.canvas.place(line_trace, position=self.coords_origin)

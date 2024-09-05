@@ -3,7 +3,7 @@ from tkinter import font
 from math import cos, sin, sqrt
 import subprocess
 from .base import Base, BaseNotification
-from .vectors import Vector, Point, Basis, Doublet
+from .vectors import Vector, Point, Basis, Doublet, DynamicBasis
 import os
 from pathlib import Path
 from .notificationcenter import NotificationCenter
@@ -16,7 +16,11 @@ class CanvasView(Base):
         self._widget_args.update(kwargs)
         self.elements = []
         self.coords_systems = {}
-        self.relative_basis = None
+        self._relative_basis = None
+
+    @property
+    def relative_basis(self):
+        return DynamicBasis(self, "_relative_basis")
 
     def _update_relative_size_basis(self):
         self.widget.update_idletasks()
@@ -24,7 +28,7 @@ class CanvasView(Base):
         w = self.widget.winfo_width()
         h = self.widget.winfo_height()
 
-        self.relative_basis = Basis( Vector(w,0), Vector(0,h))
+        self._relative_basis = Basis( Vector(w,0), Vector(0,h))
 
     def create_widget(self, master, **kwargs):
         self.widget = Canvas(master=master, **self._widget_args)
