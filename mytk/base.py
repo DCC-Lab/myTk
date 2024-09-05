@@ -2,13 +2,16 @@ from enum import StrEnum
 import re
 from .bindable import *
 from contextlib import suppress
-
+from enum import Enum
 
 def _class_nice_(cls):
     full_name = str(cls.__class__)
     match = re.search("'(.*?)'", full_name)
     if match is not None:
         return match.group(1).split(".")[-1]
+
+class BaseNotification(Enum):
+   did_resize     = "did_resize"
 
 
 class Base(Bindable):

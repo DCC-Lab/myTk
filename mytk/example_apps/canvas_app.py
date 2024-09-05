@@ -1,10 +1,12 @@
 from tkinter import DoubleVar
 from tkinter import filedialog
 from mytk import *
+from mytk.base import BaseNotification
 from mytk.canvasview import *
 from mytk.dataviews import *
-from mytk.vectors import Point, PointDefault
+from mytk.vectors import Point, PointDefault, DynamicBasis
 from mytk.labels import Label
+from mytk.notificationcenter import NotificationCenter
 
 import time
 from numpy import linspace, isfinite
@@ -257,12 +259,19 @@ class CanvasApp(App):
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
         )
+
+        NotificationCenter().add_observer(self, self.canvas_did_resize, BaseNotification.did_resize)
+
         self.window.column_resize_weight(index=1, weight=1)
         self.window.row_resize_weight(index=1, weight=1)
         self.coords_origin = Point(50, 230)
 
+        self.dyn_basis = DynamicBasis(self.canvas, 'relative_basis')
+
+        # size = (Vector(0.9,0, basis=self.canvas.relative_size_basis), Vector(0,-0.9, basis=self.canvas.relative_size_basis))
+        size = (Vector(1000,0), Vector(0,-250))
         self.coords = XYCoordinateSystemElement(
-            size=(900, -250), axes_limits=((0, 400), (-25, 25)), width=2
+            size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
         self.canvas.place(self.coords, position=self.coords_origin)
         optics_basis = self.coords.basis
@@ -317,6 +326,9 @@ class CanvasApp(App):
         # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
         self.initialization_completed = True
+
+    def canvas_did_resize(self, notification):
+        print(self.dyn_basis)
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
@@ -376,6 +388,7 @@ class CanvasApp(App):
             # self.coords.create_x_major_ticks_labels()
             # self.coords.create_y_major_ticks()
             # self.coords.create_y_major_ticks_labels()
+            print(self.dyn_basis)
 
             path = self.get_path_from_ui()
 

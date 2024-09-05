@@ -2,11 +2,11 @@ from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt
 import subprocess
-from .base import Base
+from .base import Base, BaseNotification
 from .vectors import Vector, Point, Basis, Doublet
 import os
 from pathlib import Path
-
+from .notificationcenter import NotificationCenter
 
 class CanvasView(Base):
     def __init__(self, width=200, height=200, **kwargs):
@@ -16,9 +16,24 @@ class CanvasView(Base):
         self._widget_args.update(kwargs)
         self.elements = []
         self.coords_systems = {}
+        self.relative_basis = None
+
+    def _update_relative_size_basis(self):
+        self.widget.update_idletasks()
+
+        w = self.widget.winfo_width()
+        h = self.widget.winfo_height()
+
+        self.relative_basis = Basis( Vector(w,0), Vector(0,h))
 
     def create_widget(self, master, **kwargs):
         self.widget = Canvas(master=master, **self._widget_args)
+        self.widget.bind("<Configure>", self.on_resize)
+        self._update_relative_size_basis()
+
+    def on_resize(self, event):
+        self._update_relative_size_basis()
+        NotificationCenter().post_notification(BaseNotification.did_resize, self)
 
     def place(self, element, position=None):
         id = element.create(canvas=self, position=position)

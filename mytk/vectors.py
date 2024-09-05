@@ -304,8 +304,16 @@ class Basis:
         assert e0.length > 0
         assert e1.length > 0
 
-        self.e0 = e0
-        self.e1 = e1
+        self._e0 = e0
+        self._e1 = e1
+
+    @property
+    def e0(self):
+        return self._e0
+
+    @property
+    def e1(self):
+        return self._e1
 
     def __eq__(self, rhs: "Basis"):
         assert isinstance(rhs, Basis)
@@ -346,6 +354,24 @@ class Basis:
         if self.is_orthonormal:
             return self.e0.is_unitary and self.e1.is_unitary
 
+class DynamicBasis(Basis):
+    def __init__(self, source, basis_name):
+        self.source = source
+        self.basis_name = basis_name
+
+    @property
+    def e0(self):
+        basis = getattr(self.source, self.basis_name)
+        if basis is None:
+            raise ValueError('Basis {self.basis_name} from {self.source} not found')
+        return basis.e0
+
+    @property
+    def e1(self):
+        basis = getattr(self.source, self.basis_name)
+        if basis is None:
+            raise ValueError('Basis {self.basis_name} from {self.source} not found')
+        return basis.e1
 
 class Doublet(tuple):
     def __new__(cls, *args):

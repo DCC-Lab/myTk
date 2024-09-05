@@ -34,13 +34,17 @@ class Function(CanvasElement):
 
 
 class XYCoordinateSystemElement(CanvasElement):
-    def __init__(self, size, axes_limits=((0, 1), (0, 1)), **kwargs):
+    def __init__(self, size=None, normalized_size=None, axes_limits=((0, 1), (0, 1)), **kwargs):
         super().__init__(**kwargs)
         """
         Provide size or scale, since one will calculate the other.
 
         """
+        if size is None and normalized_size is None:
+            raise ValueError("You must set size or normalized size")
+
         self.size = size
+        self.normalized_size = normalized_size
         self.axes_limits = axes_limits
 
         self.major = 5
@@ -58,18 +62,22 @@ class XYCoordinateSystemElement(CanvasElement):
     def basis(self):
         x_lims = self.axes_limits[0]
         y_lims = self.axes_limits[1]
-        return Basis(Vector(self.size[0] / (x_lims[1] - x_lims[0]), 0), Vector(0, self.size[1] / (y_lims[1] - y_lims[0])))
+
+        size_vector_x = self.size[0].standard_coordinates()
+        size_vector_y = self.size[1].standard_coordinates()
+
+        return Basis(Vector(size_vector_x.c0 / (x_lims[1] - x_lims[0]), 0), Vector(0, size_vector_y.c1 / (y_lims[1] - y_lims[0])))
 
     @basis.setter
     def basis(self, new_value):
-        print(f'Warning: cannot set basis in XYCoordinate system {new_value}')
-        pass
+        print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
 
     def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
+
         self.reference_point = position
 
-        self.id = "my_coords"
+        self.id = "xy_coords"
         self.add_group_tag(f"group-{self.id}")
 
         width = self._element_kwargs.get("width", 1)
