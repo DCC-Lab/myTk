@@ -1,17 +1,17 @@
 """
     This implements a "one-to-many" notification system, when one class needs
-    to simply notify other objects (possibly many) that something has
+    to notify many other objects (possibly one also, or none) that something has
     happened. You use this strategy when the notifier does not really need to
     know who does what, but it knows that other objects may need to adjust in
     response to a change. An example is a window that will notify "I was just
     resized" or a computation section that may notify "I am done calculating"
     so that the interface can react and display the result, or even a
-    physical device(such as a translation stage) that will notify "I just
-    finished moving".
+    physical device (such as a translation stage) that will notify "I just
+    finished moving", you can start acquiring the image.
 
-    At the center of this mechanism is the NotificationCenter(): a singleton class (that is
-    a class with a single instance in the code, never two) that will manage 
-    the observers and will post the notifications.
+    At the center of this mechanism is the NotificationCenter(): a singleton
+    class (that is a class with a single instance in the code, never two)
+    that will manage the observers and will post the notifications.
 
     You define notifications names in your code, and post them when
     appropriate. You *must* define notification names as Enum (because if you
@@ -22,7 +22,6 @@
     class DeviceNotification(Enum):
         will_move        = "will_move"
         did_move         = "did_move"
-        did_get_position = "did_get_position"
 
     When appropriate, the stage would call, for example:
 
