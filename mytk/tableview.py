@@ -1,4 +1,4 @@
-from tkinter import END
+from tkinter import END, DoubleVar
 import tkinter.ttk as ttk
 from .base import Base
 import json
@@ -166,6 +166,9 @@ class TableView(Base):
             column_format = self.column_formats.get(column_name, None)
 
             try:
+                if value is None:
+                    value = ""
+                    
                 if column_format is not None:
                     format_string = column_format['format_string']
                     multiplier = column_format['multiplier']
