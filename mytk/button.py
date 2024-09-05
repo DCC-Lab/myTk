@@ -1,7 +1,7 @@
 import tkinter.ttk as ttk
+from tkinter import StringVar
 
 from .base import *
-
 
 class Button(Base):
     def __init__(

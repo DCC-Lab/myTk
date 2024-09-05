@@ -1,4 +1,4 @@
-from tkinter import Variable, StringVar, BooleanVar
+from tkinter import Variable
 from collections import namedtuple
 
 
@@ -185,7 +185,7 @@ class Bindable:
         Tk widget): the class is such that it always defines value_variable
         as a Tk.Variable that will reflect the value of the widget.
         """
-        
+
         self.bind_properties(
             property_name, control_widget, other_property_name="value_variable"
         )
