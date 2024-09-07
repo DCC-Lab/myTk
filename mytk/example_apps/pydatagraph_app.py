@@ -10,6 +10,8 @@ import urllib
 import zipfile
 import subprocess
 import pandas
+from pathlib import Path
+from tkinter import filedialog
 
 class PyDatagraphApp(App):
     def __init__(self):
@@ -22,7 +24,7 @@ class PyDatagraphApp(App):
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.data = TableView(columns_labels={})
+        self.data = TableView(columns_labels={"a":"A","b":"B","c":"C","d":"D"})
         self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
         self.data.delegate = self
 
@@ -122,7 +124,9 @@ class PyDatagraphApp(App):
         self.add_observer(self, 'selected_column_visible', 'inspector_values_changed')
         self.add_observer(self, 'selected_column_is_independent', 'inspector_values_changed')
 
-        test_file = '/Users/dccote/Desktop/test-excel.xlsx'
+        parent = Path(__file__).parent.resolve()
+
+        test_file = Path(parent, 'test-excel.xlsx')
         if os.path.exists(test_file):
             self.load_data(test_file)
 
@@ -137,7 +141,7 @@ class PyDatagraphApp(App):
         
         super().observed_property_changed(observed_object, observed_property_name, new_value, context)
 
-    def column_inspector_selection_changed(self, menu):
+    def column_inspector_selection_changed(self, menu, selected_index):
         name = self.selected_column_name.get()
         
         self.disable_inspector_values_changed = True
@@ -254,7 +258,6 @@ class PyDatagraphApp(App):
 
             for name in df.columns:
                 self.data.widget.heading(name, text=name)
-
 
             self.data.data_source.set_records_from_dataframe(df)
 

@@ -314,16 +314,16 @@ class TabularData(Bindable):
             json.dump(records, fp, indent=4, ensure_ascii=False)
 
     def load_tabular_data(self, filepath):
-        self.load_dataframe_from_tabular_data(filepath)
+        return self.load_dataframe_from_tabular_data(filepath)
 
     def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         import pandas
 
-        if filepath.endswith(".csv"):
+        if filepath.suffix == ".csv":
             df = pandas.read_csv(
                 filepath, sep=r"[\s+,]", header=header_row, engine="python"
             )
-        elif filepath.endswith(".xls") or filepath.endswith(".xlsx"):
+        elif filepath.suffix in [".xls", ".xlsx"]:
             df = pandas.read_excel(filepath, header=header_row)
         else:
             raise Exception(f"Format not recognized: {filepath}")
