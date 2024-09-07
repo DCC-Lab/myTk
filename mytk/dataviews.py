@@ -47,7 +47,8 @@ class XYCoordinateSystemElement(CanvasElement):
         self.normalized_size = normalized_size
         self.axes_limits = axes_limits
 
-        self.major = 5
+        self.nx_major = 20
+        self.ny_major = 10
         self.is_clipping = True
         self.x_axis_at_bottom = True
 
@@ -167,18 +168,22 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def x_major_ticks(self):
         x_lims = self.axes_limits[0]
-        ticks = get_nice_ticks(x_lims[0], x_lims[1], num_ticks=self.major)
-        return ticks
+        ticks = get_nice_ticks(x_lims[0], x_lims[1], num_ticks=self.nx_major)
+        return [ tick for tick in ticks if tick >= x_lims[0] and tick <= x_lims[1] ]
 
     def y_major_ticks(self):
-        y_lims = self.axes_limits[1]
-        delta = y_lims[1] / self.major
-        positive = [i * delta for i in range(0, self.major + 1)]
-        delta = -abs(delta)
-        n_ticks = int(abs(y_lims[0] / delta))
-        negative = [i * delta for i in range(1, n_ticks + 1)]
-        positive.extend(negative)
-        return positive
+        x_lims = self.axes_limits[1]
+        ticks = get_nice_ticks(x_lims[0], x_lims[1], num_ticks=self.ny_major)
+        return [ tick for tick in ticks if tick >= x_lims[0] and tick <= x_lims[1] ]
+
+        # y_lims = self.axes_limits[1]
+        # delta = y_lims[1] / self.major
+        # positive = [i * delta for i in range(0, self.major + 1)]
+        # delta = -abs(delta)
+        # n_ticks = int(abs(y_lims[0] / delta))
+        # negative = [i * delta for i in range(1, n_ticks + 1)]
+        # positive.extend(negative)
+        # return positive
 
     def create_x_major_ticks(self, origin=None):
         if origin is None:

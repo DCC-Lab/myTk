@@ -263,6 +263,9 @@ class CanvasApp(App):
         self.coords = XYCoordinateSystemElement(
             size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
+        self.coords.nx_major = 20
+        self.coords.ny_major = 10
+
         self.canvas.place(self.coords, position=Point(0.05, 0.5, basis=self.canvas.relative_basis))
         optics_basis = DynamicBasis(self.coords, "basis")
 
@@ -390,7 +393,12 @@ class CanvasApp(App):
         if finite_path is None:
             finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
 
-        self.coords.axes_limits = ((0, finite_path.L), (-50, 50))
+
+        half_diameter = max(self.tableview.data_source.field('diameter'))/2
+        raytraces = self.raytraces_to_display(finite_path)
+        y_min, y_max = self.raytraces_limits(raytraces)
+
+        self.coords.axes_limits = ((0, finite_path.L), (min(y_min,-half_diameter)*1.1, max(y_max,half_diameter)*1.1))
 
         self.coords.create_x_axis()
         self.coords.create_x_major_ticks()
@@ -417,6 +425,34 @@ class CanvasApp(App):
             self.create_object_labels(finite_path)
 
         
+    def raytraces_limits(self, raytraces):
+        ys = []
+        for raytrace in raytraces:
+            ys.extend([ray.y for ray in raytrace ])
+        y_max = max(ys)
+        y_min = min(ys)
+        return y_min, y_max
+
+    def raytraces_to_display(self, path):
+        if self.show_principal_rays:
+            principal_ray = path.principalRay()
+            if principal_ray is not None:
+                principal_raytrace = path.trace(principal_ray)
+                axial_ray = path.axialRay()
+                axial_raytrace = path.trace(axial_ray)
+                return [principal_raytrace, axial_raytrace]
+        else:
+            M = int(self.number_of_heights)
+            N = int(self.number_of_angles)
+            yMax = float(self.max_height)
+            thetaMax = float(self.max_fan_angle)
+
+            if M == 1:
+                yMax = 0
+            if N == 1:
+                thetaMax = 0
+            rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
+            return path.traceMany(rays)
 
     def create_all_traces(self, path):
         if self.show_principal_rays:
