@@ -130,6 +130,10 @@ class PyDatagraphApp(App):
         if os.path.exists(test_file):
             self.load_data(test_file)
 
+    def click_cell(self, item_id, column_name, table):
+        self.selected_column_name.set(column_name)
+        self.column_inspector_selection_changed(None, 0)
+
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):

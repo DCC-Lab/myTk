@@ -285,7 +285,7 @@ class TableView(Base):
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.click_cell(
-                    item_id, column_name, item_dict, self
+                    item_id, column_name, self
                 )
         except Exception as err:
             raise TableView.DelegateError(err)
