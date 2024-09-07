@@ -48,6 +48,17 @@ class OpticalComponentViewer(App):
         self.table.delegate = self
         self.table.grid_into(self.header, sticky="nsew", padx=5)
 
+        self.table.column_formats['backFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
+        self.table.column_formats['frontFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
+        self.table.column_formats['effectiveFocalLengths'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
+        self.table.column_formats['apertureDiameter'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
+        self.table.column_formats['wavelengthRef'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
+        self.table.data_source.field_properties['backFocalLength'] = {'type':float}
+        self.table.data_source.field_properties['frontFocalLength'] = {'type':float}
+        self.table.data_source.field_properties['effectiveFocalLengths'] = {'type':float}
+        self.table.data_source.field_properties['apertureDiameter'] = {'type':float}
+        self.table.data_source.field_properties['wavelengthRef'] = {'type':float}
+
         for column in self.columns:
             self.table.widget.column(column, width=150, anchor=CENTER)
         self.table.widget.column("url", width=350, anchor=W)
@@ -68,18 +79,19 @@ class OpticalComponentViewer(App):
                     materials = "{0}".format(str(lens.mat()))
 
 
-            values=(
-                    lens.label,
-                    "{0:.1f}".format(lens.backFocalLength()),
-                    "{0:.1f}".format(lens.frontFocalLength()),
-                    "{0:.1f}".format(lens.effectiveFocalLengths()[0]),
-                    "{0:.1f}".format(lens.apertureDiameter),
-                    wavelengthRef,
-                    materials,
-                    lens.url,
-                )
 
-            record = dict(zip(self.columns.keys(), values))
+            record = {
+                "label": lens.label,
+                "backFocalLength": lens.backFocalLength(),
+                "frontFocalLength": lens.frontFocalLength(),
+                "effectiveFocalLengths": lens.effectiveFocalLengths()[0],
+                "apertureDiameter": lens.apertureDiameter,
+                "wavelengthRef": wavelengthRef,
+                "materials": materials,
+                "url": lens.url,
+            }
+
+            # record = dict(zip(self.columns.keys(), values))
             iid = self.table.data_source.append_record(record)
             iids.append(iid)
 
