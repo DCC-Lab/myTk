@@ -114,20 +114,20 @@ class CanvasApp(App):
             {
                 "element": "Lens",
                 "focal_length": 100,
-                "diameter": 45,
+                "diameter": 25.4,
                 "position": 200,
                 "label": "L1",
             }
         )
-        self.tableview.data_source.append_record(
-            {
-                "element": "Aperture",
-                "focal_length": "",
-                "diameter": 10,
-                "position": 400,
-                "label": "Camera",
-            }
-        )
+        # self.tableview.data_source.append_record(
+        #     {
+        #         "element": "Aperture",
+        #         "focal_length": "",
+        #         "diameter": 10,
+        #         "position": 400,
+        #         "label": "Camera",
+        #     }
+        # )
         self.tableview.delegate = self
 
         self.results_tableview = TableView(
@@ -342,6 +342,8 @@ class CanvasApp(App):
             pyperclip.copy(script)
 
     def click_table_buttons(self, event, button):
+        path = self.get_path_from_ui(without_apertures=False)
+
         if button == self.delete_button:
             for selected_item in self.tableview.widget.selection():
                 record = self.tableview.data_source.record(selected_item)
@@ -349,14 +351,14 @@ class CanvasApp(App):
         elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Lens"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["focal_length"] = 50
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
         elif button == self.add_aperture_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Aperture"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["diameter"] = 25.4
             record["focal_length"] = None
             self.tableview.data_source.append_record(record)
@@ -377,7 +379,7 @@ class CanvasApp(App):
         self.canvas.widget.delete("tick")
         self.canvas.widget.delete("tick-label")
 
-
+        breakpoint()
         user_provided_path = self.get_path_from_ui(without_apertures=True, max_position=None)
         finite_imaging_path = None
         finite_path = None
@@ -385,9 +387,8 @@ class CanvasApp(App):
         conjugate = user_provided_path.forwardConjugate()
 
         if isfinite(conjugate.d):
-            if conjugate.d > 0:
-                image_position = user_provided_path.L + conjugate.d
-                finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
+            image_position = user_provided_path.L + conjugate.d
+            finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
         
         finite_path = finite_imaging_path
         if finite_path is None:
@@ -794,7 +795,7 @@ path.display(rays=rays)
 
         if imaging_path is None:
             data_source.append_record(
-                {"property": "Imaging Path", "value": "The path is non-imaging"}
+                {"property": "Imaging Path", "value": "Non-imaging/infinite conjugate"}
             )
             return
         """
@@ -918,10 +919,10 @@ path.display(rays=rays)
                 {"property": "Image size", "value": f"{imaging_path.imageSize():.2f}"}
             )
             data_source.append_record(
-                {"property": "Magnification [Transverse]", "value": f"{mag_tran}"}
+                {"property": "Magnification [Transverse]", "value": f"{mag_tran:.2f}"}
             )
             data_source.append_record(
-                {"property": "Magnification [Angular]", "value": f"{mag_angle}"}
+                {"property": "Magnification [Angular]", "value": f"{mag_angle:.2f}"}
             )
         else:
             data_source.append_record(

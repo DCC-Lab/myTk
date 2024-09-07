@@ -203,10 +203,11 @@ class TableView(Base):
 
         return all_item_ids
 
-    def item_modified(self, item_id, values):
-        self.widget.item(item_id, values=values)
-        values_dict = dict(zip(self.columns, values))
-        self.data_source.update_record(item_id, values=values_dict)
+    def item_modified(self, item_id, modified_record):
+        ordered_values = self.record_to_formatted_widget_values(modified_record)
+
+        self.widget.item(item_id, values=ordered_values)
+        self.data_source.update_record(item_id, values=modified_record)
 
     def clear_widget_content(self):
         items_ids = self.widget.get_children()
@@ -280,13 +281,11 @@ class TableView(Base):
     def click_cell(self, item_id, column_name):  # pragma: no cover
         item_dict = self.widget.item(item_id)
 
-        column_id = self.get_column_id(column_name)
-
         keep_running = True
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.click_cell(
-                    item_id, column_id, item_dict, self
+                    item_id, column_name, item_dict, self
                 )
         except Exception as err:
             raise TableView.DelegateError(err)
@@ -336,11 +335,11 @@ class TableView(Base):
 
             self.widget.move(record['__uuid'], parent_id , END)
 
-    def click_header(self, column_id=None, column_name=None):
+    def click_header(self, column_name=None):
         keep_running = True
         try:
             with suppress(AttributeError):
-                keep_running = self.delegate.click_header(column_id, self)
+                keep_running = self.delegate.click_header(column_name, self)
         except Exception as err:
             raise TableView.DelegateError(err)
 
@@ -372,7 +371,7 @@ class TableView(Base):
 
         # return True
 
-    def is_editable(self, item_id, column_id):
+    def is_editable(self, item_id, column_name):
         return self.all_elements_are_editable
 
     def doubleclick_cell(self, item_id, column_name):
@@ -392,13 +391,6 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
     def focus_edit_cell(self, item_id, column_name):
-        # values_column_id = column_id 
-        # column_name = self.displaycolumns[values_column_id-1]
-
-        # column_id = self.displaycolumns.index(column_name)
-        column_name = self.displaycolumns[column_id-1]
-        column_id = self.columns.index(column_name)
-
         bbox = self.widget.bbox(item_id, column=column_name)
         entry_box = CellEntry(tableview=self, item_id=item_id, column_name=column_name)
         entry_box.place_into(
@@ -410,10 +402,10 @@ class TableView(Base):
         )
         entry_box.widget.focus()
 
-    def doubleclick_header(self, column_id):  # pragma: no cover
+    def doubleclick_header(self, column_name):  # pragma: no cover
         keep_running = True
         try:
             with suppress(AttributeError):
-                keep_running = self.delegate.doubleclick_cell(item_id, column_id, self)
+                keep_running = self.delegate.doubleclick_cell(item_id, column_name, self)
         except Exception as err:
             raise TableView.DelegateError(err)

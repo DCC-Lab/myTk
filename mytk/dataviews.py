@@ -1,7 +1,7 @@
 from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt, log10, floor, ceil
-from .vectors import Vector, Point, Basis, PointDefault
+from .vectors import Vector, Point, Basis, PointDefault, is_standard_basis
 from .canvasview import *
 
 
@@ -72,7 +72,8 @@ class XYCoordinateSystemElement(CanvasElement):
     @basis.setter
     def basis(self, new_value):
         if new_value is not None:
-            print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
+            if not is_standard_basis(new_value):
+                print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
 
     def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
