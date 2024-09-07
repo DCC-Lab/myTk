@@ -253,12 +253,7 @@ class PyDatagraphApp(App):
 
                 self.column_properties[name] = dict(properties)
 
-            # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
-            # I destroy the table and recreate it.        
-            self.data.widget.destroy()
-            self.data = TableView(columns_labels=dict.fromkeys(df.columns,df.columns))
-            self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-            self.data.delegate = self
+            self.data.columns = list(df.columns)
 
             for name in df.columns:
                 self.data.widget.heading(name, text=name)
@@ -267,6 +262,7 @@ class PyDatagraphApp(App):
 
             for column in df.columns:
                 self.data.widget.column(column, width=40)
+                
             self.column_headings_changed(list(df.columns))
 
     def table_data_changed(self):

@@ -48,6 +48,14 @@ class TableView(Base):
         else:
             return list(self._columns_labels.keys())
 
+    @columns.setter
+    def columns(self, new_values):
+        if self.widget is not None:
+            self.widget["columns"] = new_values
+        else:
+            raise ValueError("Set columns-labels directly if the widget is not created yet.")
+
+
     def column_info(self, cid):
         if self.widget is not None:
             return self.widget.column(cid)
