@@ -47,7 +47,8 @@ class OpticalComponentViewer(App):
         self.table = TableView(columns_labels=self.columns)
         self.table.delegate = self
         self.table.grid_into(self.header, sticky="nsew", padx=5)
-
+        self.table.all_elements_are_editable = False
+        
         self.table.column_formats['backFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['frontFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['effectiveFocalLengths'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
@@ -161,9 +162,9 @@ class OpticalComponentViewer(App):
     def help(self):
         webbrowser.open("https://raytracing.readthedocs.io/")
 
-    def doubleclick_cell(self, item_id, column_id, item_dict):
-        value = item_dict["values"][column_id - 1]
-        print(value)
+    def doubleclick_cell(self, item_id, column_name, table):
+        record = table.record(item_id)
+        value = record[column_name]
         pyperclip.copy(value)
         return True
 
