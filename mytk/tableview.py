@@ -137,7 +137,6 @@ class TableView(Base):
                 self.widget.insert(parentid, END, iid=item_id, values=formatted_values)
 
     def source_data_deleted(self, records):
-
         uuids = [str(record["__uuid"]) for record in records]
         items_ids = self.items_ids()
 
@@ -222,6 +221,41 @@ class TableView(Base):
             with suppress(AttributeError):
                 self.delegate.selection_changed(event, self)
 
+    def identify_column_name(self, event_x):
+        column_string_id = self.widget.identify_column(event_x)
+        if column_string_id == '#0':
+            return column_string_id
+
+        display_column_number = int(column_string_id.strip("#"))
+        column_name = self.displaycolumns[display_column_number-1]
+
+        return column_name
+
+    def get_column_name(self, column_id=None, display_column_number=None):
+        if column_id is not None:
+            # column_id is 1-based, our list is 0-based
+            if column_id == 0:
+                return "#0"
+            return self.columns[column_id-1]
+        elif display_column_number is not None:
+            # display_column_number 0 is the icon column
+            if display_column_number == 0:
+                return "#0"
+            return self.displaycolumns[display_column_number-1]
+
+    def get_column_id(self, column_name):
+        # column_id is 1-based, our list is 0-based
+        # The items "values" are accessible by column_id-1
+        if column_name == "#0":
+            return 0
+        return self.columns.index(column_name)+1
+
+    def get_logical_column_id(self, column_name):
+        # logical_column_id is 0-based and used to access item['values']
+        if column_name == "#0":
+            return None # We do not store the icon
+        return self.columns.index(column_name)
+
     def click(self, event) -> bool:  # pragma: no cover
         keep_running = True
         try:
@@ -234,20 +268,19 @@ class TableView(Base):
             region = self.widget.identify_region(event.x, event.y)
 
             if region == "heading":
-                column_id = self.widget.identify_column(event.x)
-                column_id = int(column_id.strip("#"))
-                column_name = self.displaycolumns[column_id-1]
+                column_name = self.identify_column_name(event.x)
                 self.click_header(column_name=column_name)
             elif region == "cell":
-                column_id = self.widget.identify_column(event.x)
-                column_id = int(column_id.strip("#"))
+                column_name = self.identify_column_name(event.x)
                 item_id = self.widget.identify_row(event.y)
-                self.click_cell(item_id=item_id, column_id=int(column_id))
+                self.click_cell(item_id=item_id, column_name=column_name)
 
         return True
 
-    def click_cell(self, item_id, column_id):  # pragma: no cover
+    def click_cell(self, item_id, column_name):  # pragma: no cover
         item_dict = self.widget.item(item_id)
+
+        column_id = self.get_column_id(column_name)
 
         keep_running = True
         try:
@@ -259,7 +292,8 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
         if keep_running:
-            value = item_dict["values"][column_id - 1]
+            logical_column_id = self.get_logical_column_id(column_name)
+            value = item_dict["values"][logical_column_id]
             if isinstance(value, str):
                 if value.startswith("http"):
                     import webbrowser
@@ -270,8 +304,8 @@ class TableView(Base):
 
     def is_column_sorted(self, column_name):
         original_items_ids = list(self.widget.get_children())
-        sorted_items_ids = list(self.sort_column(column_name=column_name, reverse=False))
-        sorted_items_ids_reverse = list(self.sort_column(column_name=column_name, reverse=True))
+        sorted_items_ids = list(self.sorted_column(column_name=column_name, reverse=False))
+        sorted_items_ids_reverse = list(self.sorted_column(column_name=column_name, reverse=True))
 
         if sorted_items_ids == original_items_ids:
             return "<"
@@ -283,9 +317,6 @@ class TableView(Base):
     def sorted_column(self, column_name=None, reverse=False):
         if column_name == "#0":
             return self.widget.get_children()
-
-        if column_name is None:
-            column_name = self.displaycolumns[column_id - 1]
 
         # HACK We sort only what is actually in the widget (may be filtered)
         widget_items_ids = self.items_ids()
@@ -332,36 +363,35 @@ class TableView(Base):
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
+            column_name = self.identify_column_name(event.x)
             if region == "heading":
-                column_id = self.widget.identify_column(event.x)
-                self.doubleclick_header(column_id=int(column_id.strip("#")))
+                self.doubleclick_header(column_name=column_name)
             elif region == "cell":
-                column_id = self.widget.identify_column(event.x).strip("#")
                 item_id = self.widget.identify_row(event.y)
-                self.doubleclick_cell(item_id=item_id, column_id=int(column_id))
+                self.doubleclick_cell(item_id=item_id, column_name=column_name)
 
         # return True
 
     def is_editable(self, item_id, column_id):
         return self.all_elements_are_editable
 
-    def doubleclick_cell(self, item_id, column_id):
+    def doubleclick_cell(self, item_id, column_name):
         item_dict = self.widget.item(item_id)
 
-        if self.is_editable(item_id, column_id):
-            self.focus_edit_cell(item_id, column_id)
+        if self.is_editable(item_id, column_name=column_name):
+            self.focus_edit_cell(item_id=item_id, column_name=column_name)
         else:
             keep_running = True
 
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.doubleclick_cell(
-                    item_id, column_id, item_dict, self
+                    item_id, column_name, item_dict, self
                 )
         except Exception as err:
             raise TableView.DelegateError(err)
 
-    def focus_edit_cell(self, item_id, column_id):
+    def focus_edit_cell(self, item_id, column_name):
         # values_column_id = column_id 
         # column_name = self.displaycolumns[values_column_id-1]
 
