@@ -47,7 +47,7 @@ class XYCoordinateSystemElement(CanvasElement):
         self.normalized_size = normalized_size
         self.axes_limits = axes_limits
 
-        self.nx_major = 20
+        self.nx_major = 10
         self.ny_major = 10
         self.is_clipping = True
         self.x_axis_at_bottom = True

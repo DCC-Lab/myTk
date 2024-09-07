@@ -394,7 +394,7 @@ class CanvasApp(App):
             finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
 
 
-        half_diameter = max(self.tableview.data_source.field('diameter'))/2
+        half_diameter = max( filter(lambda e:e is not None, self.tableview.data_source.field('diameter')))/2
         raytraces = self.raytraces_to_display(finite_path)
         y_min, y_max = self.raytraces_limits(raytraces)
 
