@@ -71,7 +71,8 @@ class XYCoordinateSystemElement(CanvasElement):
 
     @basis.setter
     def basis(self, new_value):
-        print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
+        if new_value is not None:
+            print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
 
     def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas

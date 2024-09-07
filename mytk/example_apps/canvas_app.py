@@ -394,11 +394,7 @@ class CanvasApp(App):
             finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
 
 
-        half_diameter = max( filter(lambda e:e is not None, self.tableview.data_source.field('diameter')))/2
-        raytraces = self.raytraces_to_display(finite_path)
-        y_min, y_max = self.raytraces_limits(raytraces)
-
-        self.coords.axes_limits = ((0, finite_path.L), (min(y_min,-half_diameter)*1.1, max(y_max,half_diameter)*1.1))
+        self.adjust_axes_limits(finite_path)
 
         self.coords.create_x_axis()
         self.coords.create_x_major_ticks()
@@ -423,6 +419,13 @@ class CanvasApp(App):
 
         if self.show_labels:
             self.create_object_labels(finite_path)
+
+    def adjust_axes_limits(self, path):
+        half_diameter = max( filter(lambda e:e is not None and type(e) != str, self.tableview.data_source.field('diameter')))/2
+        raytraces = self.raytraces_to_display(path)
+        y_min, y_max = self.raytraces_limits(raytraces)
+
+        self.coords.axes_limits = ((0, path.L), (min(y_min,-half_diameter)*1.1, max(y_max,half_diameter)*1.1))
 
         
     def raytraces_limits(self, raytraces):
