@@ -232,11 +232,15 @@ class TableView(Base):
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
+
             if region == "heading":
                 column_id = self.widget.identify_column(event.x)
-                self.click_header(column_id=int(column_id.strip("#")))
+                column_id = int(column_id.strip("#"))
+                column_name = self.displaycolumns[column_id-1]
+                self.click_header(column_name=column_name)
             elif region == "cell":
-                column_id = self.widget.identify_column(event.x).strip("#")
+                column_id = self.widget.identify_column(event.x)
+                column_id = int(column_id.strip("#"))
                 item_id = self.widget.identify_row(event.y)
                 self.click_cell(item_id=item_id, column_id=int(column_id))
 
@@ -264,10 +268,10 @@ class TableView(Base):
 
         return True
 
-    def is_column_sorted(self, column_id):
+    def is_column_sorted(self, column_name):
         original_items_ids = list(self.widget.get_children())
-        sorted_items_ids = list(self.sort_column(column_id, reverse=False))
-        sorted_items_ids_reverse = list(self.sort_column(column_id, reverse=True))
+        sorted_items_ids = list(self.sort_column(column_name=column_name, reverse=False))
+        sorted_items_ids_reverse = list(self.sort_column(column_name=column_name, reverse=True))
 
         if sorted_items_ids == original_items_ids:
             return "<"
@@ -276,19 +280,32 @@ class TableView(Base):
         else:
             return None
 
-    def sort_column(self, column_id, reverse=False):
-        if column_id == 0:
+    def sorted_column(self, column_name=None, reverse=False):
+        if column_name == "#0":
             return self.widget.get_children()
 
-        clicked_name = self.displaycolumns[column_id - 1]
+        if column_name is None:
+            column_name = self.displaycolumns[column_id - 1]
+
         # HACK We sort only what is actually in the widget (may be filtered)
         widget_items_ids = self.items_ids()
         items_ids_sorted = self.data_source.sorted_records_uuids(
-            only_uuids=widget_items_ids, field=clicked_name, reverse=reverse
+            only_uuids=widget_items_ids, field=column_name, reverse=reverse
         )
         return items_ids_sorted
 
-    def click_header(self, column_id):
+    def sort_column(self, column_name=None, reverse=False):
+        items_ids_sorted = self.sorted_column(column_name=column_name, reverse=reverse)
+
+        for i, item_id in enumerate(items_ids_sorted):
+            record = self.data_source.record(item_id)
+            parent_id = record['__puuid']
+            if parent_id is None:
+                parent_id = ""
+
+            self.widget.move(record['__uuid'], parent_id , END)
+
+    def click_header(self, column_id=None, column_name=None):
         keep_running = True
         try:
             with suppress(AttributeError):
@@ -298,18 +315,10 @@ class TableView(Base):
 
         if keep_running:
             with suppress(IndexError):  # if empty, not an error
-                if self.is_column_sorted(column_id) == "<":
-                    items_ids_sorted = self.sort_column(column_id, reverse=True)
+                if self.is_column_sorted(column_name) == "<":
+                    self.sort_column(column_name=column_name, reverse=True)
                 else:
-                    items_ids_sorted = self.sort_column(column_id, reverse=False)
-
-                for i, item_id in enumerate(items_ids_sorted):
-                    record = self.data_source.record(item_id)
-                    parent_id = record['__puuid']
-                    if parent_id is None:
-                        parent_id = ""
-
-                    self.widget.move(record['__uuid'], parent_id , END)
+                    self.sort_column(column_name=column_name, reverse=False)
 
         return True
 

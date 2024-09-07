@@ -1,6 +1,6 @@
 from tkinter import Canvas
 from tkinter import font
-from math import cos, sin, sqrt
+from math import cos, sin, sqrt, log10, floor, ceil
 from .vectors import Vector, Point, Basis, PointDefault
 from .canvasview import *
 
@@ -105,7 +105,7 @@ class XYCoordinateSystemElement(CanvasElement):
 
         with PointDefault(basis=self.basis):
             start = Point(0,0)
-            end = Point(x_lims[1] * 1.2, 0)
+            end = Point(x_lims[1] * 1.05, 0)
 
         self.x_axis_positive = Arrow(
             start=start,
@@ -167,13 +167,8 @@ class XYCoordinateSystemElement(CanvasElement):
 
     def x_major_ticks(self):
         x_lims = self.axes_limits[0]
-        delta = x_lims[1] / self.major
-        positive = [i * delta for i in range(1, self.major + 1)]
-        delta = -abs(delta)
-        n_ticks = int(abs(x_lims[0] / delta))
-        negative = [i * delta for i in range(1, n_ticks + 1)]
-        positive.extend(negative)
-        return positive
+        ticks = get_nice_ticks(x_lims[0], x_lims[1], num_ticks=self.major)
+        return ticks
 
     def y_major_ticks(self):
         y_lims = self.axes_limits[1]
@@ -284,3 +279,60 @@ class XYCoordinateSystemElement(CanvasElement):
     def place(self, element, position):
         position.basis = self.basis
         self.canvas.place(element, self.reference_point + position)
+
+
+def nice_number(x, round_to_nearest=True):
+    """Rounds or ceilings the number `x` to a 'nice' value, which is one of 1, 2, or 5 times a power of 10."""
+    exp = floor(log10(x))  # Exponent of the range
+    frac = x / 10**exp  # Fractional part of the range
+    
+    if round_to_nearest:
+        # Round to the nearest 'nice' value
+        if frac < 1.5:
+            nice = 1
+        elif frac < 3:
+            nice = 2
+        elif frac < 7:
+            nice = 5
+        else:
+            nice = 10
+    else:
+        # Ceiling to the next 'nice' value
+        if frac <= 1:
+            nice = 1
+        elif frac <= 2:
+            nice = 2
+        elif frac <= 5:
+            nice = 5
+        else:
+            nice = 10
+
+    return nice * 10**exp
+
+def get_nice_ticks(x_min, x_max, num_ticks=5):
+    """Generate 'nice' tick marks for the axis spanning from x_min to x_max."""
+    range_x = x_max - x_min
+    
+    if range_x == 0:
+        return [x_min]  # Single point case
+    
+    # Get an approximate step size
+    step_size_approx = range_x / (num_ticks - 1)
+    
+    # Round the step size to a 'nice' value
+    step_size = nice_number(step_size_approx)
+    
+    # Find the lower bound for the ticks (multiple of step_size below x_min)
+    tick_min = floor(x_min / step_size) * step_size
+    
+    # Find the upper bound for the ticks (multiple of step_size above x_max)
+    tick_max = ceil(x_max / step_size) * step_size
+    
+    # Generate the tick values from tick_min to tick_max with step_size
+    ticks = []
+    tick = tick_min
+    while tick <= tick_max:
+        ticks.append(tick)
+        tick += step_size
+    
+    return ticks
