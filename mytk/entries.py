@@ -87,17 +87,18 @@ class CellEntry(Base):
         self.item_id = item_id
         self.column_name = column_name
         self.column_id = self.tableview.columns.index(self.column_name)
+
+        self.value_type = str # default
+        field_properties = self.tableview.data_source.get_field_properties(self.column_name)
+        if field_properties is not None:
+            self.value_type = field_properties.get('type', str)
+
         self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
         record = self.tableview.data_source.record(self.item_id)
         
-        value_type = str # default
-        field_properties = self.tableview.data_source.field_properties.get(self.column_name, None)
-        if field_properties is not None:
-            value_type = field_properties.get('type', str)
-
-        if value_type != str:
+        if self.value_type != str:
             selected_text = f"{(record[self.column_name]):g}"
         else:
             selected_text = str(record[self.column_name])
@@ -112,13 +113,8 @@ class CellEntry(Base):
     def event_return_callback(self, event):
         record = dict(self.tableview.data_source.record(self.item_id))
 
-        value_type = str # default
-        field_properties = self.tableview.data_source.field_properties.get(self.column_name, None)
-        if field_properties is not None:
-            value_type = field_properties.get('type', str)
-
         try:
-            record[self.column_name] = value_type(self.value_variable.get())
+            record[self.column_name] = self.value_type(self.value_variable.get())
         except ValueError:
             record[self.column_name] = None
 

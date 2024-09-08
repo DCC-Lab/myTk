@@ -305,6 +305,12 @@ class TestTableview(envtest.MyTkTestCase):
         self.assertEqual(self.tableview.columns_labels, {"a":"Column A"})
 
 
+    def test_displaycolumns_empty(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.tableview.displaycolumns = []
+        self.assertEqual(self.tableview.displaycolumns, [])
+
     def test_must_provide_same_number_elements(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column B"})

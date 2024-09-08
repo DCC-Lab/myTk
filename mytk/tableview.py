@@ -8,6 +8,7 @@ import collections
 import re
 import os
 import time
+from collections.abc import Iterable
 from contextlib import contextmanager, suppress
 
 from .bindable import Bindable
@@ -60,8 +61,9 @@ class TableView(Base):
             #     if old_column_name not in new_values:
             #         self.displaycolumns.remove(old_column_name)                    
 
-            self.displaycolumns = ()
+            self.displaycolumns = ["#all"] # necessary to avoid TCLError when setting columns
             self.widget["columns"] = new_values
+            self.displaycolumns = new_values.copy() # We refer to displaycolumns to get displayed order
         else:
             raise ValueError("Set columns-labels directly if the widget is not created yet.")
 
@@ -81,6 +83,10 @@ class TableView(Base):
 
     @displaycolumns.setter
     def displaycolumns(self, values):
+        if isinstance(values, Iterable):
+            if len(values) == 0:
+                print('Warning: empty displaycolumns will display nothing')
+
         self.widget.configure(displaycolumns=values)
 
     @property
@@ -165,7 +171,7 @@ class TableView(Base):
 
         if self.delegate is not None:
             with suppress(AttributeError):
-                self.delegate.source_data_changed()
+                self.delegate.source_data_changed(self)
 
     def source_data_added_or_updated(self, records):
         for record in records:
