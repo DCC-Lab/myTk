@@ -51,6 +51,16 @@ class TableView(Base):
     @columns.setter
     def columns(self, new_values):
         if self.widget is not None:
+            # If displaycolumns has been set, it cannot contain columns 
+            # that are being deleted. We start by removing them from displaycolumns
+            # We will modify the list, we need to make a copy
+            # displayed_column_names = self.displaycolumns.copy()
+
+            # for old_column_name in displayed_column_names:
+            #     if old_column_name not in new_values:
+            #         self.displaycolumns.remove(old_column_name)                    
+
+            self.displaycolumns = ()
             self.widget["columns"] = new_values
         else:
             raise ValueError("Set columns-labels directly if the widget is not created yet.")
@@ -77,13 +87,39 @@ class TableView(Base):
     def headings(self):
         headings = []
         if self.widget is not None:
-            for column in self.columns:
-                treeview_heading = self.widget.heading(column)
+            for column_name in self.columns:
+                treeview_heading = self.widget.heading(column_name)
                 headings.append(treeview_heading["text"])
         else:
             headings = list(self._columns_labels.values())
 
         return headings
+
+    @headings.setter
+    def headings(self, new_values):
+        assert len(new_values) == len(self.columns)
+        new_columns_labels = dict(zip(self.columns, new_values))
+
+        if self.widget is not None:
+            for column_name, column_heading in new_columns_labels.items():
+                self.widget.heading(column_name,text=column_heading)
+        else:
+            self._columns_labels = dict(zip(self.columns, new_values))
+
+    @property
+    def columns_labels(self):
+        if self.widget is not None:
+            return dict(zip(self.columns, self.headings))
+        else:
+            return self._columns_labels
+
+    @columns_labels.setter
+    def columns_labels(self, new_values):
+        if self.widget is not None:
+            self.columns = list(new_values.keys())
+            self.headings = list(new_values.values())
+        else:
+            return self._columns_labels
 
     def heading_info(self, cid):
         if self.widget is not None:
@@ -158,9 +194,10 @@ class TableView(Base):
         for i, value in enumerate(ordered_values):
             padding = ""
             column_name = self.columns[i]
-            if column_name == self.displaycolumns[0]:
-                level = record.get("depth_level", 0)
-                padding = "   " * level
+            if len(self.displaycolumns) > 0:
+                if column_name == self.displaycolumns[0]:
+                    level = record.get("depth_level", 0)
+                    padding = "   " * level
             
             column_format = self.column_formats.get(column_name, None)
 
@@ -287,6 +324,7 @@ class TableView(Base):
         return True
 
     def click_cell(self, item_id, column_name):  # pragma: no cover
+        assert isinstance(column_name, str)
         item_dict = self.widget.item(item_id)
 
         keep_running = True
@@ -310,6 +348,8 @@ class TableView(Base):
         return True
 
     def is_column_sorted(self, column_name):
+        assert isinstance(column_name, str)
+
         original_items_ids = list(self.widget.get_children())
         sorted_items_ids = list(self.sorted_column(column_name=column_name, reverse=False))
         sorted_items_ids_reverse = list(self.sorted_column(column_name=column_name, reverse=True))
@@ -322,6 +362,8 @@ class TableView(Base):
             return None
 
     def sorted_column(self, column_name=None, reverse=False):
+        assert isinstance(column_name, str)
+
         if column_name == "#0":
             return self.widget.get_children()
 
@@ -333,6 +375,8 @@ class TableView(Base):
         return items_ids_sorted
 
     def sort_column(self, column_name=None, reverse=False):
+        assert isinstance(column_name, str)
+
         items_ids_sorted = self.sorted_column(column_name=column_name, reverse=reverse)
 
         for i, item_id in enumerate(items_ids_sorted):
@@ -344,7 +388,13 @@ class TableView(Base):
             self.widget.move(record['__uuid'], parent_id , END)
 
     def click_header(self, column_name=None):
+        assert isinstance(column_name, str)
+
         keep_running = True
+
+        if column_name not in self.columns:
+            raise ValueError(f"click_header: '{column_name}'' is not the name of a column")
+
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.click_header(column_name, self)
@@ -383,6 +433,8 @@ class TableView(Base):
         return self.all_elements_are_editable
 
     def doubleclick_cell(self, item_id, column_name):
+        assert isinstance(column_name, str)
+
         item_dict = self.widget.item(item_id)
 
         if self.is_editable(item_id, column_name=column_name):
@@ -399,6 +451,8 @@ class TableView(Base):
             raise TableView.DelegateError(err)
 
     def focus_edit_cell(self, item_id, column_name):
+        assert isinstance(column_name, str)
+
         bbox = self.widget.bbox(item_id, column=column_name)
         entry_box = CellEntry(tableview=self, item_id=item_id, column_name=column_name)
         entry_box.place_into(
@@ -411,6 +465,8 @@ class TableView(Base):
         entry_box.widget.focus()
 
     def doubleclick_header(self, column_name):  # pragma: no cover
+        assert isinstance(column_name, str)
+
         keep_running = True
         try:
             with suppress(AttributeError):
