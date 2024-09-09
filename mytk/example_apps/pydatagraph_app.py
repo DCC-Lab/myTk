@@ -77,12 +77,12 @@ class PyDatagraphApp(App):
         self.is_independent = Checkbox(label="is X", user_callback=self.column_inspector_checkbox_changed)
         self.is_independent.grid_into(self.inspector, row=6, column=1, padx=10, pady=2, sticky='w')
 
-        self.marker.bind_properties('is_disabled', self.is_independent, 'value')
-        self.marker_facecolor.bind_properties('is_disabled', self.is_independent, 'value')
-        self.marker_edgecolor.bind_properties('is_disabled', self.is_independent, 'value')
-        self.linestyle.bind_properties('is_disabled', self.is_independent, 'value')
-        self.linecolor.bind_properties('is_disabled', self.is_independent, 'value')
-        self.show.bind_properties('is_disabled', self.is_independent, 'value')
+        self.marker.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.marker_facecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.marker_edgecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.linestyle.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.linecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.show.bind_properties('is_disabled', self.is_independent, 'value_variable')
 
         self.controls = View(width=400, height=50)
         self.controls.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
