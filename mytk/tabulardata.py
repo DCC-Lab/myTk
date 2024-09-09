@@ -28,6 +28,9 @@ class TabularData(Bindable):
     class ExtraField(Exception):
         pass
 
+    class UnrecognizedFileFormat(Exception):
+        pass
+
     def __init__(self, tableview=None, delegate=None, required_fields=None):
         super().__init__()
         self.records = []
@@ -343,7 +346,7 @@ class TabularData(Bindable):
         elif filepath.suffix in [".xls", ".xlsx"]:
             df = pandas.read_excel(filepath, header=header_row)
         else:
-            raise Exception(f"Format not recognized: {filepath}")
+            raise TabularData.UnrecognizedFileFormat(f"Format not recognized: {filepath}")
 
         return df
 

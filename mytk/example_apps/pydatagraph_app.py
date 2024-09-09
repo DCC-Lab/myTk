@@ -19,15 +19,16 @@ class PyDatagraphApp(App):
 
         self.window.widget.title("Data")
         self.window.column_resize_weight(0, 1)
-        # self.widget.grid_rowconfigure(0, weight=1)
 
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.data = TableView(columns_labels={})
-        self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-        self.data.delegate = self
-        self.data.data_source.default_field_properties = self.default_field_properties()
+        self.tableview = TableView(columns_labels={})
+        self.tableview.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
+        self.tableview.delegate = self
+        self.data_source = self.tableview.data_source
+        self.data_source.default_field_properties = self.default_field_properties()
+
 
         self.inspector = Box(label='Inspector', width=300, height=50)
         self.inspector.grid_into(self.window, row=0, column=1, padx=10, pady=5, sticky='nsew')
@@ -90,8 +91,8 @@ class PyDatagraphApp(App):
         self.controls.widget.grid_columnconfigure(2, weight=1)
         self.load_data_button = Button("Load data…", user_event_callback=self.user_click_load)
         self.load_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
-        self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
-        self.copy_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
+        # self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
+        # self.copy_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
 
 
         self.plot = XYPlot(figsize=(4,4))
@@ -103,12 +104,15 @@ class PyDatagraphApp(App):
         self.disable_inspector_values_changed = False
 
         parent = Path(__file__).parent.resolve()
-
         test_file = Path(parent, 'test-excel.xlsx')
         if os.path.exists(test_file):
             self.load_data(test_file)
 
-        self.refresh_plot()
+        self.after(delay=100, function=self.refresh_plot)
+
+    @property
+    def has_one_independent_variable(self):
+        return len(self.independent_variables()) == 1
 
     def default_field_properties(self):
         return {'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False}.copy()
@@ -121,7 +125,7 @@ class PyDatagraphApp(App):
     ):
         if context == "inspected_variable_changed":
             name = self.name_menu.value
-            properties = self.data.data_source.get_field_properties(name)
+            properties = self.data_source.get_field_properties(name)
             self.properties_to_column_inspector(properties=properties)
         else:
             super().observed_property_changed(observed_object, observed_property_name, new_value, context)
@@ -135,6 +139,7 @@ class PyDatagraphApp(App):
         properties['color'] = self.linecolor.value
         properties['visible'] = self.show.value
         properties['is_independent'] = self.is_independent.value
+
         return properties
 
     def properties_to_column_inspector(self, properties):
@@ -151,13 +156,13 @@ class PyDatagraphApp(App):
     def update_column_properties_from_inspector(self):
         name = self.name_menu.value
         properties = self.column_inspector_to_properties()
-        self.data.data_source.update_field_properties(name, properties)
+        self.data_source.update_field_properties(name, properties)
 
         self.after(delay=100, function=self.refresh_plot)
 
     def update_inspector_from_column_properties(self):
         name = self.name_menu.value
-        properties = self.data.data_source.get_field_properties(name)
+        properties = self.data_source.get_field_properties(name)
         self.update_inspector_from_column_properties(properties)
 
     def column_inspector_checkbox_changed(self, selected_index):
@@ -171,74 +176,77 @@ class PyDatagraphApp(App):
         self.name_menu.add_menu_items(new_names)
 
         if len(new_names) >= 2:
-            selected = new_names[1]
+            selected_name = new_names[1]
         else:
-            selected = new_names[0]
+            selected_name = new_names[0]
 
-        properties = self.data.data_source.get_field_properties(field_name=selected)
-        self.properties_to_column_inspector(properties)
-        self.name_menu.value = selected
+        self.name_menu.value = selected_name
 
     def user_click_load(self, event, button):
         filepath = filedialog.askopenfilename()
-        self.load_data(filepath)
+        if filepath != '':
+            self.load_data(Path(filepath))
 
     def load_data(self, filepath):
-        if filepath != '':
-            df = self.data.data_source.load_tabular_data(filepath)
-            if df is None:
-                return
+        try:
+            df = self.data_source.load_tabular_data(filepath)
+        except TabularData.UnrecognizedFileFormat:
+            diag=Dialog.showerror(
+                title=f"Unknown file format",
+                message=f"The file '{filepath}' does not have readable data organized in a table manner. The module pandas is used, check the supported file formats.",
+            )
+            return
 
-            # FIXME: always overwrites columns
-            rows, cols = df.shape
-            if cols <= 3:
-                first_heading = ord('x')
-            else:
-                first_heading = ord('a')
-            df.columns = [ chr(first_heading + c) for c in range(cols)]
 
-            with PostponeChangeCalls(self.data.data_source):
-                # Reset data_source
-                self.data.data_source._field_properties = {}
-                self.data.data_source.records = []
+        # FIXME: this always overwrites columns
+        rows, cols = df.shape
+        if cols <= 3:
+            first_heading = ord('x')
+        else:
+            first_heading = ord('a')
+        df.columns = [ chr(first_heading + c) for c in range(cols)]
 
-                # Reset tableview
-                self.data.clear_widget_content()
-                self.data.columns = list(df.columns).copy()
-                self.data.headings = list(df.columns).copy()
-                # self.data.displaycolumns= list(df.columns).copy()
-            
-                for column_name in self.data.columns:
-                    self.data.widget.column(column_name, width=30)
+        with PostponeChangeCalls(self.data_source):
+            # Reset data_source
+            self.data_source._field_properties = {}
+            self.data_source.records = []
 
-                default_styles = self.plot.styles_pointmarker(linestyle='')
-                for i, column_name in enumerate(self.data.columns):
-                    properties = self.data.data_source.get_field_properties(column_name)
-                    properties['type'] = float
+            # Reset tableview
+            self.tableview.clear_widget_content()
+            self.tableview.columns = list(df.columns).copy()
+            self.tableview.headings = list(df.columns).copy()
+            # self.tableview.displaycolumns= list(df.columns).copy()
+        
+            for column_name in self.tableview.columns:
+                self.tableview.widget.column(column_name, width=30)
 
-                    if i == 0:
-                        properties['is_independent'] =  True
-                    else:
-                        properties['is_independent'] =  False
-                        style_properties = default_styles[(i-1)%len(default_styles)]
-                        properties.update(style_properties)
+            default_styles = self.plot.styles_pointmarker(linestyle='')
+            for i, column_name in enumerate(self.tableview.columns):
+                properties = self.data_source.get_field_properties(column_name)
+                properties['type'] = float
 
-                    self.data.data_source.update_field_properties(field_name=column_name, new_properties=properties)
-                    self.data.column_formats[column_name] = {'format_string':'{0:.3f}', 'multiplier':1, 'type':float,'anchor':"w" }
+                if i == 0:
+                    properties['is_independent'] =  True
+                else:
+                    properties['is_independent'] =  False
+                    style_properties = default_styles[(i-1)%len(default_styles)]
+                    properties.update(style_properties)
 
-                # Load with new data
-                self.data.data_source.set_records_from_dataframe(df)
+                self.data_source.update_field_properties(field_name=column_name, new_properties=properties)
+                self.tableview.column_formats[column_name] = {'format_string':'{0:.3f}', 'multiplier':1, 'type':float,'anchor':"w" }
 
-            self.column_headings_changed(list(df.columns))
+            # Load with new data
+            self.data_source.set_records_from_dataframe(df)
+
+        self.column_headings_changed(list(df.columns))
 
     def source_data_changed(self, table):
-        self.refresh_plot()
+        self.after(delay=100, function=self.refresh_plot)
 
     def dependent_variable(self):
-        records = self.data.data_source.records
-        columns = self.data.data_source.record_fields()
+        columns = self.data_source.record_fields()
+        dependent_variable = [ column_name for column_name in columns if self.data_source.get_field_property(field_name=column_name, property_name='is_independent')]
 
-        dependent_variable = [ column_name for column_name in columns if self.data.data_source.get_field_property(field_name=column_name, property_name='is_independent')]
         if len(dependent_variable) == 1:
             dependent_variable = dependent_variable[0]
         else:
@@ -246,22 +254,21 @@ class PyDatagraphApp(App):
         return dependent_variable
 
     def independent_variables(self):
-        records = self.data.data_source.records
-        columns = self.data.data_source.record_fields()
+        columns = self.data_source.record_fields()
 
-        return [ column_name for column_name in columns if not self.data.data_source.get_field_property(column_name, 'is_independent')]
+        return [ column_name for column_name in columns if not self.data_source.get_field_property(column_name, 'is_independent')]
 
     def refresh_plot(self):
         self.plot.clear_plot()
-        records = self.data.data_source.records
-        variable_names= self.data.data_source.record_fields()
+        records = self.data_source.records
+        variable_names= self.data_source.record_fields()
 
         dependent_variable = self.dependent_variable()
         independent_variables = self.independent_variables()
 
         style_keys = ['marker','markeredgecolor','markerfacecolor','linestyle','color']
         for i, variable_name in enumerate(independent_variables):
-            column_properties = self.data.data_source.get_field_properties(variable_name)
+            column_properties = self.data_source.get_field_properties(variable_name)
             style_properties = { key:column_properties[key] for key in column_properties.keys() if key in style_keys}
 
             is_visible = column_properties['visible']
@@ -287,28 +294,6 @@ class PyDatagraphApp(App):
         self.plot.figure.subplots_adjust(bottom=0.2)
         self.plot.figure.canvas.draw()
         self.plot.figure.canvas.flush_events()
-
-
-    def copy_data(self, event, button):
-        for selected_item in self.data.widget.selection():
-            item = self.data.widget.item(selected_item)
-            record = item['values']
-
-            filename_idx = list(self.data.columns.keys()).index('filename')
-            filename = record[filename_idx] 
-
-            filepath = os.path.join(self.filepath_root, filename)
-            if os.path.isfile(filepath):
-                data = self.load_filter_data(filepath)
-                
-                text = ""
-                for x,y in data:
-                    text = text + "{0}\t{1}\n".format(x,y)
-
-                pyperclip.copy(text)
-
-    def selection_changed(self, event, table):
-        pass
 
 if __name__ == "__main__":
     ModulesManager.install_and_import_modules_if_absent(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
