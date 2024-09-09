@@ -1,4 +1,3 @@
-import envapp
 from mytk import *
 
 import os
@@ -15,7 +14,8 @@ from pathlib import Path
 class FilterDBApp(App):
     def __init__(self):
         App.__init__(self, name="Filter Database")
-        self.filepath_root = 'tpop_filters_data'
+
+        self.filepath_root = Path(Path(__file__).parent, 'tpop_filters_data')
         self.web_root = 'http://www.dccmlab.ca'
         self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
         self.download_files = False
@@ -68,7 +68,7 @@ class FilterDBApp(App):
 
             if not os.path.exists(self.filepath_root):
                 os.mkdir(self.filepath_root)
-                self.filters.save(filepath)
+                self.filters.data_source.save(filepath)
 
 
         self.filters.data_source.load(filepath)
@@ -225,7 +225,7 @@ class FilterDBApp(App):
             filename_idx = list(self.filters.column_names()).index('filename')
             filename = record[filename_idx] 
             filepath = os.path.join(self.filepath_root, filename)
-            
+            breakpoint()
             if os.path.exists(filepath) and not os.path.isdir(filepath):
 
                 data = self.load_filter_data(filepath)

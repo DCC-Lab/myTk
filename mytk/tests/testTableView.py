@@ -1,11 +1,12 @@
 import envtest
 import unittest
+
 import os
 import tempfile
 import collections
 import random
 from mytk import *
-
+from tkinter import TclError
 
 class TestTableview(envtest.MyTkTestCase):
     def source_data_changed(self, records):
@@ -72,7 +73,7 @@ class TestTableview(envtest.MyTkTestCase):
             a = random.random()
             b = random.random()
             parent_record = self.tableview.data_source.append_record(
-                {"a": f"value a{a}", "b": b}
+                {"a": f"value a{a}", "b": "value b{b}"}
             )
 
         for i in range(3):
@@ -80,7 +81,7 @@ class TestTableview(envtest.MyTkTestCase):
             b = random.random()
             record = self.tableview.data_source.insert_child_records(
                 index=None,
-                records=[{"a": f"value a{a}", "b": b}],
+                records=[{"a": f"value a{a}", "b": f"value b{b}"}],
                 pid=parent_record["__puuid"],
             )
 
@@ -133,11 +134,11 @@ class TestTableview(envtest.MyTkTestCase):
     def test_sort_column_1(self):
         self.subtest_recreate()
         self.add_6_records()
-        self.tableview.click_header(1)
+        self.tableview.click_header(column_name="a")
 
     def click_header_1(self):
-        self.tableview.click_header(1)
-        self.assertEqual(self.tableview.is_column_sorted(1), "<")
+        self.tableview.click_header(column_name="a")
+        self.assertEqual(self.tableview.is_column_sorted(column_name="a"), "<")
 
     def test_sort_column_2_on_loop(self):
         self.subtest_recreate()
@@ -150,16 +151,16 @@ class TestTableview(envtest.MyTkTestCase):
     def test_sort_column_2(self):
         self.subtest_recreate()
         self.add_6_records()
-        self.tableview.click_header(2)
+        self.tableview.click_header(column_name="b")
 
     def click_header_2(self):
-        self.tableview.click_header(2)
-        self.assertEqual(self.tableview.is_column_sorted(2), "<")
+        self.tableview.click_header(column_name="b")
+        self.assertEqual(self.tableview.is_column_sorted(column_name="b"), "<")
 
     def click_header_2_twice(self):
-        self.tableview.click_header(2)
-        self.tableview.click_header(2)
-        self.assertEqual(self.tableview.is_column_sorted(2), ">")
+        self.tableview.click_header(column_name="b")
+        self.tableview.click_header(column_name="b")
+        self.assertEqual(self.tableview.is_column_sorted(column_name="b"), ">")
 
     def test_sort_column_2_twice_on_loop(self):
         self.subtest_recreate()
@@ -243,22 +244,96 @@ class TestTableview(envtest.MyTkTestCase):
 
         self.app.mainloop()
 
-    def test_impossible_to_change_column_after_setting_them(self):
+    def test_impossible_to_change_column_after_setting_them_in_display(self):
+        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name 
+
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
 
-        with self.assertRaises(Exception):
+        self.assertTrue(len(self.tableview.displaycolumns) != 0)
+        with self.assertRaises(TclError):
             self.tableview.widget["columns"] = ("c", "d", "e")
 
-        with self.assertRaises(Exception):
-            self.widget.configure(columns=("c", "d", "e"))
+        self.assertTrue(len(self.tableview.displaycolumns) != 0)
+        with self.assertRaises(TclError):
+            self.tableview.widget.configure(columns=("c", "d", "e"))
+
+        self.assertTrue(len(self.tableview.displaycolumns) != 0)
+        self.tableview.columns = ("c", "d", "e") # Resets display column
+        self.assertTrue(len(self.tableview.displaycolumns) == 0)
+
+        # Without displaycolumns I can do anything!
+        self.assertTrue(len(self.tableview.displaycolumns) == 0)
+        self.tableview.widget["columns"] = ("c", "d", "e")
+        self.tableview.widget.configure(columns=("c2", "d2", "e2"))
+        self.tableview.widget.configure(columns=())
+        self.tableview.columns=()
+        self.assertTrue(len(self.tableview.displaycolumns) == 0)
+
+    def test_columns_change_in_tkinter_resets_headings(self):
+        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name 
+
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+
+        headings_before = self.tableview.headings
+        self.assertTrue(len(headings_before) == 2)
+        self.tableview.columns = ("c", "d", "e") # Tableview resets the display column
+        headings_after = self.tableview.headings
+        self.assertTrue(headings_before != headings_after)
+        self.assertTrue(len(headings_after) == 3)
+
+    def test_set_columns_labels_in_tableview_sets_columns_and_headings(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+
+        self.tableview.columns_labels = {"c":"Column C", "d":"Column D"} # Tableview resets the display column
+        self.assertEqual(self.tableview.columns, ['c','d'])
+        self.assertEqual(self.tableview.headings, ['Column C','Column D'])
+
+    def test_columns_labels(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column B"})
+
+        self.tableview.headings = ("Column A", "Column Not B")
+        self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column Not B"})
+        self.tableview.columns = ("a")
+        self.assertEqual(self.tableview.columns_labels, {"a":""})
+        self.tableview.headings = ("Column A",)
+        self.assertEqual(self.tableview.columns_labels, {"a":"Column A"})
+
+
+    def test_displaycolumns_empty(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.tableview.displaycolumns = []
+        self.assertEqual(self.tableview.displaycolumns, [])
+
+    def test_must_provide_same_number_elements(self):
+        self.tableview = TableView({"a": "Column A", "b": "Column B"})
+        self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column B"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        self.assertEqual(self.tableview.columns_labels, {"a": "Column A", "b": "Column B"})
+
+
+        self.tableview.columns = ('c','d','e')
+        self.tableview.headings = ('Column C','Column D','Column E')
+        self.assertEqual(self.tableview.columns_labels, {"c": "Column C", "d": "Column D","e": "Column E"})
+
+        self.tableview.columns = ('c','d')
+        self.assertEqual(self.tableview.columns_labels, {"c": "", "d": ""})
+        with self.assertRaises(AssertionError):
+            self.tableview.headings = ('Column C','Column D','Extra column')
+        self.assertEqual(self.tableview.columns_labels, {"c": "", "d": ""})
 
     def add_change(self):
         record = self.tableview.data_source.append_record(
             {"a": "value a", "b": "value b"}
         )
         iinfo = self.tableview.item_modified(
-            record["__uuid"], values=["new value a", "new value b"]
+            record["__uuid"], modified_record={"a": "value a", "b": "value b"}
         )
 
     def test_get_all_items_ids(self):
@@ -324,4 +399,5 @@ class TestTableview(envtest.MyTkTestCase):
 
 
 if __name__ == "__main__":
+    # unittest.main(defaultTest=['TestTableview.test_impossible_to_change_column_after_setting_them'])
     unittest.main()
