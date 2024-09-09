@@ -87,11 +87,21 @@ class CellEntry(Base):
         self.item_id = item_id
         self.column_name = column_name
         self.column_id = self.tableview.columns.index(self.column_name)
+
+        self.value_type = str # default
+        field_properties = self.tableview.data_source.get_field_properties(self.column_name)
+        if field_properties is not None:
+            self.value_type = field_properties.get('type', str)
+
         self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
-        item_dict = self.tableview.widget.item(self.item_id)
-        selected_text = item_dict["values"][self.column_id]
+        record = self.tableview.data_source.record(self.item_id)
+        
+        if self.value_type != str:
+            selected_text = f"{(record[self.column_name]):g}"
+        else:
+            selected_text = str(record[self.column_name])
 
         self.parent = master
         self.value_variable = StringVar()
@@ -101,20 +111,14 @@ class CellEntry(Base):
         self.widget.insert(0, selected_text)
 
     def event_return_callback(self, event):
-        values = self.tableview.widget.item(self.item_id).get("values")
-
-        value_type = str # default
-
-        field_properties = self.tableview.data_source.field_properties.get(self.column_name, None)
-        if field_properties is not None:
-            value_type = field_properties.get('type', str)
+        record = dict(self.tableview.data_source.record(self.item_id))
 
         try:
-            values[self.column_id] = value_type(self.value_variable.get())
+            record[self.column_name] = self.value_type(self.value_variable.get())
         except ValueError:
-            values[self.column_id] = ''
+            record[self.column_name] = None
 
-        self.tableview.item_modified(item_id=self.item_id, values=values)
+        self.tableview.item_modified(item_id=self.item_id, modified_record=record)
         self.event_generate("<FocusOut>")
 
     def event_focusout_callback(self, event):

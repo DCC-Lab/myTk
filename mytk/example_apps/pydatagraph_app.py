@@ -10,6 +10,8 @@ import urllib
 import zipfile
 import subprocess
 import pandas
+from pathlib import Path
+from tkinter import filedialog
 
 class PyDatagraphApp(App):
     def __init__(self):
@@ -17,14 +19,16 @@ class PyDatagraphApp(App):
 
         self.window.widget.title("Data")
         self.window.column_resize_weight(0, 1)
-        # self.widget.grid_rowconfigure(0, weight=1)
 
         self.window.row_resize_weight(0,1) # Tables
         self.window.row_resize_weight(1,0) # Buttons
         self.window.row_resize_weight(2,1) # Graph
-        self.data = TableView(columns_labels={})
-        self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-        self.data.delegate = self
+        self.tableview = TableView(columns_labels={})
+        self.tableview.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
+        self.tableview.delegate = self
+        self.data_source = self.tableview.data_source
+        self.data_source.default_field_properties = self.default_field_properties()
+
 
         self.inspector = Box(label='Inspector', width=300, height=50)
         self.inspector.grid_into(self.window, row=0, column=1, padx=10, pady=5, sticky='nsew')
@@ -33,45 +37,52 @@ class PyDatagraphApp(App):
 
         self.column_label = Label("Column: ")
         self.column_label.grid_into(self.inspector, row=0, column=0, padx=10, pady=5, sticky='ne')
-        self.name_menu = PopupMenu([], self.column_inspector_selection_changed)
+        self.name_menu = PopupMenu([])
         self.name_menu.grid_into(self.inspector, row=0, column=1, padx=10, pady=2, sticky='nw')
         self.name_menu.widget['width'] = 5
 
         self.marker_label = Label("Marker: ")
         self.marker_label.grid_into(self.inspector, row=1, column=0, padx=10, pady=2, sticky='ne')
-        self.marker = PopupMenu(['o','.','s','x','+'])
+        self.marker = PopupMenu(['o','.','s','x','+'],user_callback=self.column_inspector_data_changed)
         self.marker.grid_into(self.inspector, row=1, column=1, padx=10, pady=2, sticky='nw')
         self.marker.widget['width'] = 5
 
         colors = ['black','red','blue','green','white']
         self.facecolor_label = Label("Face color: ")
         self.facecolor_label.grid_into(self.inspector, row=2, column=0, padx=10, pady=2, sticky='ne')        
-        self.marker_facecolor = PopupMenu(colors)
+        self.marker_facecolor = PopupMenu(colors,user_callback=self.column_inspector_data_changed)
         self.marker_facecolor.grid_into(self.inspector, row=2, column=1, padx=10, pady=2, sticky='nw')
         self.marker_facecolor.widget['width'] = 5
 
         self.edgecolor_label = Label("Edge color: ")
         self.edgecolor_label.grid_into(self.inspector, row=3, column=0, padx=10, pady=2, sticky='ne')        
-        self.marker_edgecolor = PopupMenu(colors)
+        self.marker_edgecolor = PopupMenu(colors,user_callback=self.column_inspector_data_changed)
         self.marker_edgecolor.grid_into(self.inspector, row=3, column=1, padx=10, pady=2, sticky='nw')
         self.marker_edgecolor.widget['width'] = 5
 
         self.linestyle_label = Label("Line Style: ")
         self.linestyle_label.grid_into(self.inspector, row=4, column=0, padx=10, pady=2, sticky='ne')        
-        self.linestyle = PopupMenu(['','-','--'])
+        self.linestyle = PopupMenu(['','-','--'],user_callback=self.column_inspector_data_changed)
         self.linestyle.grid_into(self.inspector, row=4, column=1, padx=10, pady=2, sticky='nw')
         self.linestyle.widget['width'] = 5
 
         self.linecolor_label = Label("Line color: ")
         self.linecolor_label.grid_into(self.inspector, row=5, column=0, padx=10, pady=2, sticky='ne')        
-        self.linecolor = PopupMenu(colors)
+        self.linecolor = PopupMenu(colors, user_callback=self.column_inspector_data_changed)
         self.linecolor.grid_into(self.inspector, row=5, column=1, padx=10, pady=2, sticky='nw')
         self.linecolor.widget['width'] = 5
 
-        self.show = Checkbox(label="Visible", user_callback=self.column_inspector_data_changed)
+        self.show = Checkbox(label="Visible", user_callback=self.column_inspector_checkbox_changed)
         self.show.grid_into(self.inspector, row=6, column=0, columnspan=2, padx=10, pady=2, sticky='w')
-        self.is_independent = Checkbox(label="is X")
+        self.is_independent = Checkbox(label="is X", user_callback=self.column_inspector_checkbox_changed)
         self.is_independent.grid_into(self.inspector, row=6, column=1, padx=10, pady=2, sticky='w')
+
+        self.marker.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.marker_facecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.marker_edgecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.linestyle.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.linecolor.bind_properties('is_disabled', self.is_independent, 'value_variable')
+        self.show.bind_properties('is_disabled', self.is_independent, 'value_variable')
 
         self.controls = View(width=400, height=50)
         self.controls.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
@@ -80,196 +91,168 @@ class PyDatagraphApp(App):
         self.controls.widget.grid_columnconfigure(2, weight=1)
         self.load_data_button = Button("Load data…", user_event_callback=self.user_click_load)
         self.load_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
-        self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
-        self.copy_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
+        # self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
+        # self.copy_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
 
 
         self.plot = XYPlot(figsize=(4,4))
         self.plot.grid_into(self.window, row=2, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
 
 
-        self.column_properties = {
-        'a':{'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':True},
-        'b':{'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False},
-        'c':{'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False},
-        'd':{'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False} }
-
-
-        self.selected_column_name = StringVar(value='a')
-        self.selected_column_marker = StringVar(value='o')
-        self.selected_column_marker_facecolor = StringVar(value='black')
-        self.selected_column_marker_edgecolor = StringVar(value='black')
-        self.selected_column_linestyle = StringVar(value='')
-        self.selected_column_linecolor = StringVar(value='black')
-        self.selected_column_visible = BooleanVar(value=True)
-        self.selected_column_is_independent = BooleanVar(value=True)
-
-        self.bind_properties('selected_column_name', self.name_menu, "value_variable")
-        self.bind_properties("selected_column_marker", self.marker, "value_variable")
-        self.bind_properties("selected_column_marker_facecolor", self.marker_facecolor, "value_variable")
-        self.bind_properties("selected_column_marker_edgecolor", self.marker_edgecolor, "value_variable")
-        self.bind_properties("selected_column_linestyle", self.linestyle, "value_variable")
-        self.bind_properties("selected_column_linecolor", self.linecolor, "value_variable")
-        self.bind_properties("selected_column_visible", self.show, "value_variable")
-        self.bind_properties("selected_column_is_independent", self.is_independent, "value_variable")
+        self.name_menu.add_observer(self, "value_variable", 'inspected_variable_changed')
 
         self.disable_inspector_values_changed = False
-        self.add_observer(self, 'selected_column_marker', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_marker_facecolor', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_marker_edgecolor', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_linestyle', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_linecolor', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_visible', 'inspector_values_changed')
-        self.add_observer(self, 'selected_column_is_independent', 'inspector_values_changed')
 
-        test_file = '/Users/dccote/Desktop/test-excel.xlsx'
+        parent = Path(__file__).parent.resolve()
+        test_file = Path(parent, 'test-excel.xlsx')
         if os.path.exists(test_file):
             self.load_data(test_file)
+
+        self.after(delay=100, function=self.refresh_plot)
+
+    @property
+    def has_one_independent_variable(self):
+        return len(self.independent_variables()) == 1
+
+    def default_field_properties(self):
+        return {'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False}.copy()
+
+    def click_cell(self, item_id, column_name, table):
+        self.name_menu.value = self.tableview.columns_labels[column_name]
+
+    def column_name_from_heading(self, heading_name):
+        column_idx = self.tableview.headings.index(heading_name)
+        return self.tableview.columns[column_idx]
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
-        if context == 'inspector_values_changed':
-            if not self.disable_inspector_values_changed:
-                name = self.selected_column_name.get()
-                self.column_inspector_to_properties(name)
-                self.refresh_plot()
-        
-        super().observed_property_changed(observed_object, observed_property_name, new_value, context)
+        if context == "inspected_variable_changed":
+            column_name = self.column_name_from_heading(self.name_menu.value)
 
-    def column_inspector_selection_changed(self, menu):
-        name = self.selected_column_name.get()
-        
-        self.disable_inspector_values_changed = True
-        self.properties_to_column_inspector(name=name)
-        self.disable_inspector_values_changed = False
-
-    def column_inspector_apply(self, event, button):
-        name = self.selected_column_name.get()
-        self.column_inspector_to_properties(name=name)
-        self.refresh_plot()
-
-    def column_inspector_to_properties(self, name):
-        properties = self.column_properties[name]
-        properties['marker'] = self.selected_column_marker.get()
-        properties['markerfacecolor'] = self.selected_column_marker_facecolor.get()
-        properties['markeredgecolor'] = self.selected_column_marker_edgecolor.get()
-        properties['linestyle'] = self.selected_column_linestyle.get()
-        properties['color'] = self.selected_column_linecolor.get()
-        properties['visible'] = self.selected_column_visible.get()
-        properties['is_independent'] = self.selected_column_is_independent.get()
-        self.column_properties[name] = properties
-
-        if properties['is_independent']:
-            self.marker.disable()
-            self.marker_facecolor.disable()
-            self.marker_edgecolor.disable()
-            self.linestyle.disable()
-            self.linecolor.disable()
-            self.show.disable()
+            properties = self.data_source.get_field_properties(column_name)
+            self.properties_to_column_inspector(properties=properties)
         else:
-            self.marker.enable()
-            self.marker_facecolor.enable()
-            self.marker_edgecolor.enable()
-            self.linestyle.enable()
-            self.linecolor.enable()
-            self.show.enable()
+            super().observed_property_changed(observed_object, observed_property_name, new_value, context)
 
+    def column_inspector_to_properties(self):
+        properties = {}
+        properties['marker'] = self.marker.value
+        properties['markerfacecolor'] = self.marker_facecolor.value
+        properties['markeredgecolor'] = self.marker_edgecolor.value
+        properties['linestyle'] = self.linestyle.value
+        properties['color'] = self.linecolor.value
+        properties['visible'] = self.show.value
+        properties['is_independent'] = self.is_independent.value
 
-    def properties_to_column_inspector(self, name):
-        properties = self.column_properties[name]
-        self.selected_column_marker.set(value=properties['marker'])
-        self.selected_column_marker_facecolor.set(value=properties['markerfacecolor'])
-        self.selected_column_marker_edgecolor.set(value=properties['markeredgecolor'])
-        self.selected_column_linestyle.set(value=properties['linestyle'])
-        self.selected_column_linecolor.set(value=properties['color'])
-        self.selected_column_visible.set(value=properties['visible'])        
-        self.selected_column_is_independent.set(value=properties['is_independent'])
+        return properties
 
-        if properties['is_independent']:
-            self.marker.disable()
-            self.marker_facecolor.disable()
-            self.marker_edgecolor.disable()
-            self.linestyle.disable()
-            self.linecolor.disable()
-            self.show.disable()
-        else:
-            self.marker.enable()
-            self.marker_facecolor.enable()
-            self.marker_edgecolor.enable()
-            self.linestyle.enable()
-            self.linecolor.enable()
-            self.show.enable()
+    def properties_to_column_inspector(self, properties):
+        assert properties is not None
 
+        self.marker.value = properties['marker']
+        self.marker_facecolor.value = properties['markerfacecolor']
+        self.marker_edgecolor.value = properties['markeredgecolor']
+        self.linestyle.value = properties['linestyle']
+        self.linecolor.value = properties['color']
+        self.show.value = properties['visible']
+        self.is_independent.value = properties['is_independent']
 
-    def column_inspector_data_changed(self, menu):
-        pass
+    def update_column_properties_from_inspector(self):
+        column_name = self.column_name_from_heading(self.name_menu.value)
+
+        properties = self.column_inspector_to_properties()
+        self.data_source.update_field_properties(column_name, properties)
+
+        self.after(delay=100, function=self.refresh_plot)
+
+    def update_inspector_from_column_properties(self):
+        column_name = self.column_name_from_heading(self.name_menu.value)
+
+        properties = self.data_source.get_field_properties(column_name)
+        self.update_inspector_from_column_properties(properties)
+
+    def column_inspector_checkbox_changed(self, selected_index):
+        self.update_column_properties_from_inspector()
+
+    def column_inspector_data_changed(self, menu, selected_index):
+        self.update_column_properties_from_inspector()
 
     def column_headings_changed(self, new_names):
         self.name_menu.clear_menu_items()
         self.name_menu.add_menu_items(new_names)
 
         if len(new_names) >= 2:
-            selected = new_names[1]
+            selected_name = new_names[1]
         else:
-            selected = new_names[0]
+            selected_name = new_names[0]
 
-        self.properties_to_column_inspector(name=selected)
-        self.selected_column_name.set(value=selected)
+        self.name_menu.value = selected_name
 
     def user_click_load(self, event, button):
         filepath = filedialog.askopenfilename()
-        self.load_data(filepath)
+        if filepath != '':
+            self.load_data(Path(filepath))
 
     def load_data(self, filepath):
-        if filepath != '':
-            df = self.data.data_source.load_tabular_data(filepath)
-            if df is None:
-                return
-            rows, cols = df.shape
-            if cols <= 3:
-                first_heading = ord('x')
-            else:
-                first_heading = ord('a')
-            df.columns = [ chr(first_heading + c) for c in range(cols)]
-            
-            styles = self.plot.styles_pointmarker(linestyle='')
-            for i, name in enumerate(df.columns):
-                properties = styles[(i-1)%len(styles)]
+        try:
+            df = self.data_source.load_tabular_data(filepath)
+        except TabularData.UnrecognizedFileFormat:
+            diag=Dialog.showerror(
+                title=f"Unknown file format",
+                message=f"The file '{filepath}' does not have readable data organized in a table manner. The module pandas is used, check the supported file formats.",
+            )
+            return
+
+
+        # FIXME: this always overwrites columns
+        rows, cols = df.shape
+        if cols <= 3:
+            first_heading = ord('x')
+        else:
+            first_heading = ord('a')
+        df.columns = [ chr(first_heading + c) for c in range(cols)]
+
+        with PostponeChangeCalls(self.data_source):
+            # Reset data_source
+            self.data_source._field_properties = {}
+            self.data_source.records = []
+
+            # Reset tableview
+            self.tableview.clear_widget_content()
+            self.tableview.columns = list(df.columns).copy()
+            self.tableview.headings = [ name.upper() for name in self.tableview.columns]
+        
+            for column_name in self.tableview.columns:
+                self.tableview.widget.column(column_name, width=30)
+
+            default_styles = self.plot.styles_pointmarker(linestyle='')
+            for i, column_name in enumerate(self.tableview.columns):
+                properties = self.data_source.get_field_properties(column_name)
+                properties['type'] = float
+
                 if i == 0:
-                    properties['is_independent'] = True
+                    properties['is_independent'] =  True
                 else:
-                    properties['is_independent'] = False
+                    properties['is_independent'] =  False
+                    style_properties = default_styles[(i-1)%len(default_styles)]
+                    properties.update(style_properties)
 
-                properties['visible'] = True
+                self.data_source.update_field_properties(field_name=column_name, new_properties=properties)
+                self.tableview.column_formats[column_name] = {'format_string':'{0:.3f}', 'multiplier':1, 'type':float,'anchor':"w" }
 
-                self.column_properties[name] = dict(properties)
+            # Load with new data
+            self.data_source.set_records_from_dataframe(df)
 
-            # FIXME HACK: I am unable to clear the tk.treeview table columns: it crashes
-            # I destroy the table and recreate it.        
-            self.data.widget.destroy()
-            self.data = TableView(columns_labels=dict.fromkeys(df.columns,df.columns))
-            self.data.grid_into(self.window, row=0, column=0, padx=10, pady=10, sticky='nsew')
-            self.data.delegate = self
+        self.column_headings_changed(self.tableview.headings)
 
-            for name in df.columns:
-                self.data.widget.heading(name, text=name)
-
-
-            self.data.data_source.set_records_from_dataframe(df)
-
-            for column in df.columns:
-                self.data.widget.column(column, width=40)
-            self.column_headings_changed(list(df.columns))
-
-    def table_data_changed(self):
-        self.refresh_plot()
+    def source_data_changed(self, table):
+        self.after(delay=100, function=self.refresh_plot)
 
     def dependent_variable(self):
-        records = self.data.data_source.records
-        columns = self.column_properties.keys()
+        columns = self.data_source.record_fields()
+        dependent_variable = [ column_name for column_name in columns if self.data_source.get_field_property(field_name=column_name, property_name='is_independent')]
 
-        dependent_variable = [ key for key in columns if self.column_properties.get(key,{}).get('is_independent',{})]
         if len(dependent_variable) == 1:
             dependent_variable = dependent_variable[0]
         else:
@@ -277,41 +260,32 @@ class PyDatagraphApp(App):
         return dependent_variable
 
     def independent_variables(self):
-        records = self.data.data_source.records
-        columns = self.column_properties.keys()
+        columns = self.data_source.record_fields()
 
-        independent_variables = [ key for key in columns if not self.column_properties[key].get('is_independent',{})]
-        
-        return independent_variables
+        return [ column_name for column_name in columns if not self.data_source.get_field_property(column_name, 'is_independent')]
 
     def refresh_plot(self):
         self.plot.clear_plot()
-        records = self.data.data_source.records
-        columns = self.data.data_source.record_fields()
+        records = self.data_source.records
+        variable_names= self.data_source.record_fields()
 
         dependent_variable = self.dependent_variable()
-
         independent_variables = self.independent_variables()
 
-        styles = self.plot.styles_pointmarker(linestyle='-')
-
         style_keys = ['marker','markeredgecolor','markerfacecolor','linestyle','color']
-        for i, key in enumerate(independent_variables):
-            is_visible = self.column_properties.get(key,{'visible':True})['visible']
+        for i, variable_name in enumerate(independent_variables):
+            column_properties = self.data_source.get_field_properties(variable_name)
+            style_properties = { key:column_properties[key] for key in column_properties.keys() if key in style_keys}
+
+            is_visible = column_properties['visible']
             if is_visible:
-                y = [ float(record[key]) for record in records]
+                y = [ float(record[variable_name]) for record in records]
                 if dependent_variable is not None:
                     x = [ float(record[dependent_variable]) for record in records]
                 else:
                     x = list(range(len(records)))
 
-                style_dict = styles[i%len(styles)]
-                
-                custom = {k: v for k, v in self.column_properties[key].items() if k in style_keys}
-
-                style_dict.update(custom)
-
-                self.plot.first_axis.plot(x,y, label=f"Column {key}", **(style_dict) )
+                self.plot.first_axis.plot(x,y, label=f"Column {variable_name}", **(style_properties) )
 
         self.plot.first_axis.set_ylabel('Y',fontsize=18)
         if dependent_variable is not None:
@@ -326,37 +300,6 @@ class PyDatagraphApp(App):
         self.plot.figure.subplots_adjust(bottom=0.2)
         self.plot.figure.canvas.draw()
         self.plot.figure.canvas.flush_events()
-
-
-    def copy_data(self, event, button):
-        ModulesManager.install_and_import_modules_if_absent(modules={"pyperclip":"pyperclip"})
-        pyperclip = ModulesManager.imported['pyperclip']
-        try:
-            for selected_item in self.data.widget.selection():
-                item = self.data.widget.item(selected_item)
-                record = item['values']
-
-                filename_idx = list(self.data.columns.keys()).index('filename')
-                filename = record[filename_idx] 
-
-                filepath = os.path.join(self.filepath_root, filename)
-                if os.path.isfile(filepath):
-                    data = self.load_filter_data(filepath)
-                    
-                    text = ""
-                    for x,y in data:
-                        text = text + "{0}\t{1}\n".format(x,y)
-
-                    pyperclip.copy(text)
-        except ModuleNotFoundError as err:
-            print(err)
-            showerror(
-                title="Unable to copy to clipboard",
-                message="You must have the module pyperclip installed to copy the data.",
-            )
-
-    def selection_changed(self, event, table):
-        pass
 
 if __name__ == "__main__":
     ModulesManager.install_and_import_modules_if_absent(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
