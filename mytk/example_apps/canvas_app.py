@@ -114,29 +114,20 @@ class CanvasApp(App):
             {
                 "element": "Lens",
                 "focal_length": 100,
-                "diameter": 45,
+                "diameter": 25.4,
                 "position": 200,
                 "label": "L1",
             }
         )
         # self.tableview.data_source.append_record(
         #     {
-        #         "element": "Lens",
-        #         "focal_length": 50,
-        #         "diameter": 25.4,
-        #         "position": 300,
-        #         "label": "L2",
+        #         "element": "Aperture",
+        #         "focal_length": "",
+        #         "diameter": 10,
+        #         "position": 400,
+        #         "label": "Camera",
         #     }
         # )
-        self.tableview.data_source.append_record(
-            {
-                "element": "Aperture",
-                "focal_length": "",
-                "diameter": 10,
-                "position": 400,
-                "label": "Camera",
-            }
-        )
         self.tableview.delegate = self
 
         self.results_tableview = TableView(
@@ -231,13 +222,6 @@ class CanvasApp(App):
             self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w"
         )
 
-        self.principal_rays_checkbox = Checkbox(
-            label="Show principal rays [blue: chief, red: axial]"
-        )
-        # self.principal_rays_checkbox.grid_into(
-        #     self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w"
-        # )
-
         self.apertures_checkbox = Checkbox(
             label="Show Aperture stop (AS) and field stop (FS)"
         )
@@ -255,6 +239,23 @@ class CanvasApp(App):
             self.controls, column=0, row=5, columnspan=4, pady=5, padx=5, sticky="w"
         )
 
+        self.conjugation_box = Box(label="Conjugation")
+        self.conjugation_box.grid_into(
+            self.controls, column=0, row=6, pady=5, padx=5, sticky="nsew"
+        )
+
+        self.object_conjugate = PopupMenu(menu_items=['Finite object','Infinite object'])        
+        self.object_conjugate.grid_into(
+            self.conjugation_box, column=0, row=0, pady=5, padx=5, sticky="w"
+        )
+        self.object_conjugate.selection_changed(0)
+
+        self.image_conjugate = PopupMenu(menu_items=['Finite image','Infinite image'])        
+        self.image_conjugate.grid_into(
+            self.conjugation_box, column=1, row=0, pady=5, padx=5, sticky="w"
+        )
+        self.image_conjugate.selection_changed(0)
+
         self.canvas = CanvasView(width=1000, height=400, background="white")
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
@@ -267,11 +268,13 @@ class CanvasApp(App):
 
         self.coords_origin = Point(0.05, 0.5, basis=DynamicBasis(self.canvas, "relative_basis"))
 
-        size = (Vector(0.75,0, basis=DynamicBasis(self.canvas, "relative_basis")), Vector(0,-0.6, basis=DynamicBasis(self.canvas, "relative_basis")))
-        # size = (Vector(1000,0), Vector(0,-250))
+        size = (Vector(0.85,0, basis=DynamicBasis(self.canvas, "relative_basis")), Vector(0,-0.6, basis=DynamicBasis(self.canvas, "relative_basis")))
         self.coords = XYCoordinateSystemElement(
             size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
+        self.coords.nx_major = 20
+        self.coords.ny_major = 10
+
         self.canvas.place(self.coords, position=Point(0.05, 0.5, basis=self.canvas.relative_basis))
         optics_basis = DynamicBasis(self.coords, "basis")
 
@@ -281,6 +284,7 @@ class CanvasApp(App):
         self.bind_properties(
             "number_of_angles", self.number_angles_entry, "value_variable"
         )
+
         # self.bind_properties('maximum_x', self.maximum_x_entry, 'value_variable')
         self.bind_properties(
             "dont_show_blocked_rays", self.blocked_rays_checkbox, "value_variable"
@@ -314,15 +318,11 @@ class CanvasApp(App):
 
         self.add_observer(self, "number_of_heights")
         self.add_observer(self, "number_of_angles")
-        # self.add_observer(self, 'maximum_x', context='refresh_graph')
         self.add_observer(self, "dont_show_blocked_rays")
         self.add_observer(self, "show_apertures")
         self.add_observer(self, "show_principal_rays")
         self.add_observer(self, "show_labels")
         self.add_observer(self, "show_conjugates")
-
-        # a = Arc(radius=100)
-        # a.create(self.canvas, position=self.coords_origin + Point(10, 0, basis=self.coords.basis))
 
         self.initialization_completed = True
 
@@ -350,6 +350,8 @@ class CanvasApp(App):
             pyperclip.copy(script)
 
     def click_table_buttons(self, event, button):
+        path = self.get_path_from_ui(without_apertures=False)
+
         if button == self.delete_button:
             for selected_item in self.tableview.widget.selection():
                 record = self.tableview.data_source.record(selected_item)
@@ -357,14 +359,14 @@ class CanvasApp(App):
         elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Lens"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["focal_length"] = 50
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
         elif button == self.add_aperture_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Aperture"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["diameter"] = 25.4
             record["focal_length"] = None
             self.tableview.data_source.append_record(record)
@@ -373,49 +375,96 @@ class CanvasApp(App):
         if not self.initialization_completed:
             return
 
-        try:
-            self.canvas.widget.delete("ray")
-            self.canvas.widget.delete("optics")
-            self.canvas.widget.delete("apertures")
-            self.canvas.widget.delete("labels")
-            self.canvas.widget.delete("conjugates")
-            self.canvas.widget.delete("x-axis")
-            self.canvas.widget.delete("y-axis")
-            self.canvas.widget.delete("tick")
-            self.canvas.widget.delete("tick-label")
+        self.tableview.sort_column(column_name='position')
 
-            # self.coords.axes_limits = ((0, 800), (-50, 50))
-            self.coords.create_x_axis()
-            self.coords.create_x_major_ticks()
-            self.coords.create_x_major_ticks_labels()
-            self.coords.create_y_axis()
-            self.coords.create_y_major_ticks()
-            self.coords.create_y_major_ticks_labels()
+        self.canvas.widget.delete("ray")
+        self.canvas.widget.delete("optics")
+        self.canvas.widget.delete("apertures")
+        self.canvas.widget.delete("labels")
+        self.canvas.widget.delete("conjugates")
+        self.canvas.widget.delete("x-axis")
+        self.canvas.widget.delete("y-axis")
+        self.canvas.widget.delete("tick")
+        self.canvas.widget.delete("tick-label")
 
-            path = self.get_path_from_ui()
+        user_provided_path = self.get_path_from_ui(without_apertures=True, max_position=None)
+        finite_imaging_path = None
+        finite_path = None
 
-            try:
-                self.path_has_field_stop = path.hasFieldStop()
-            except TypeError:
-                self.path_has_field_stop = False
+        conjugate = user_provided_path.forwardConjugate()
 
-            self.create_optical_path(path, self.coords)
+        if isfinite(conjugate.d):
+            image_position = user_provided_path.L + conjugate.d
+            finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
+        
+        finite_path = finite_imaging_path
+        if finite_path is None:
+            finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
 
-            if self.show_raytraces:
-                self.create_all_traces(path)
+        self.path_has_field_stop = finite_path.hasFieldStop()
 
-            if self.show_conjugates:
-                self.create_conjugate_planes(path)
+        self.adjust_axes_limits(finite_path)
 
-            if self.show_apertures:
-                self.create_apertures_labels(path)
+        self.coords.create_x_axis()
+        self.coords.create_x_major_ticks()
+        self.coords.create_x_major_ticks_labels()
+        self.coords.create_y_axis()
+        self.coords.create_y_major_ticks()
+        self.coords.create_y_major_ticks_labels()
 
-            if self.show_labels:
-                self.create_object_labels(path)
 
-            self.refresh_results(path)
-        except ValueError as err:
-            print(err)
+        self.calculate_imaging_path_results(finite_imaging_path)
+
+        self.create_optical_path(finite_path, self.coords)
+
+        if self.show_raytraces:
+            self.create_all_traces(finite_path)
+
+        if self.show_conjugates:
+            self.create_conjugate_planes(finite_path)
+
+        if self.show_apertures:
+            self.create_apertures_labels(finite_path)
+
+        if self.show_labels:
+            self.create_object_labels(finite_path)
+
+    def adjust_axes_limits(self, path):
+        half_diameter = max( filter(lambda e:e is not None and type(e) != str, self.tableview.data_source.field('diameter')))/2
+        raytraces = self.raytraces_to_display(path)
+        y_min, y_max = self.raytraces_limits(raytraces)
+
+        self.coords.axes_limits = ((0, path.L), (min(y_min,-half_diameter)*1.1, max(y_max,half_diameter)*1.1))
+
+        
+    def raytraces_limits(self, raytraces):
+        ys = []
+        for raytrace in raytraces:
+            ys.extend([ray.y for ray in raytrace ])
+        y_max = max(ys)
+        y_min = min(ys)
+        return y_min, y_max
+
+    def raytraces_to_display(self, path):
+        if self.show_principal_rays:
+            principal_ray = path.principalRay()
+            if principal_ray is not None:
+                principal_raytrace = path.trace(principal_ray)
+                axial_ray = path.axialRay()
+                axial_raytrace = path.trace(axial_ray)
+                return [principal_raytrace, axial_raytrace]
+        else:
+            M = int(self.number_of_heights)
+            N = int(self.number_of_angles)
+            yMax = float(self.max_height)
+            thetaMax = float(self.max_fan_angle)
+
+            if M == 1:
+                yMax = 0
+            if N == 1:
+                thetaMax = 0
+            rays = UniformRays(yMax=yMax, thetaMax=thetaMax, M=M, N=N)
+            return path.traceMany(rays)
 
     def create_all_traces(self, path):
         if self.show_principal_rays:
@@ -625,14 +674,21 @@ class CanvasApp(App):
         rgbi = (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
         return "#{0:02x}{1:02x}{2:02x}".format(*rgbi)
 
-    def get_path_from_ui(self):
+
+    def get_path_from_ui(self, without_apertures=True, max_position=None):
         path = ImagingPath()
 
         z = 0
         ordered_records = self.tableview.data_source.records
+        if without_apertures:
+            ordered_records = [ record for record in ordered_records if record['element'].lower() != 'aperture']
+
         ordered_records.sort(key=lambda e: float(e["position"]))
+        if max_position is not None:
+            ordered_records = [ record for record in ordered_records if record['position'] <= max_position]
 
         for element in ordered_records:
+            path_element = None
             if element["element"].lower() == "lens":
                 focal_length = float(element["focal_length"])
                 label = element["label"]
@@ -652,22 +708,17 @@ class CanvasApp(App):
             else:
                 print(f"Unable to include unknown element {element['element']}")
 
+
             delta = next_z - z
+
             path.append(Space(d=delta))
             path.append(path_element)
             z += delta
 
+        if max_position is not None:
+            if path.L < max_position:
+                path.append(Space(d=max_position-path.L))
 
-        max_x = self.coords.axes_limits[0][1]
-        if max_x > z:
-            path.append(Space(d=max_x - z))
-
-        if self.show_conjugates or self.show_principal_rays:
-            conjugate = path.forwardConjugate()
-            image_z = path.L + conjugate.d
-            if image_z > z and isfinite(image_z):
-                path.append(Space(d=conjugate.d))
-            
         return path
 
     def get_path_script(self):
@@ -743,36 +794,129 @@ path.display(rays=rays)
 
         return script
 
-    def refresh_results(self, path):
+    def calculate_imaging_path_results(self, imaging_path):
         data_source = self.results_tableview.data_source
 
         uuids = data_source.sorted_records_uuids(field="__uuid")
         for uid in uuids:
             data_source.remove_record(uid)
 
-        d, _ = path.forwardConjugate()
-        if isfinite(d):
-            path.append(Space(d=d))
+        if imaging_path is None:
+            data_source.append_record(
+                {"property": "Imaging Path", "value": "Non-imaging/infinite conjugate"}
+            )
+            return
+        """
+        Object and Image positions
+        """
 
-        ## Begin workaround: fieldStop() sometimes crashes
-        bug_path_has_field_stop = self.path_has_field_stop
-        field_stop = Stop(None, None)
-        with suppress(TypeError):
-            field_stop = path.fieldStop()
-            if field_stop.z is not None:
-                bug_path_has_field_stop = False
-
-        fov = float("+inf")
-        if bug_path_has_field_stop: # bug workaround
-            with suppress(TypeError):
-                fov = path.fieldOfView()
-        ## End Workaround
+        image_position = imaging_path.L
 
         data_source.append_record(
             {"property": "Object position", "value": f"0.0 (always)"}
         )
+        data_source.append_record(
+            {"property": "Image position", "value": f"{image_position:.2f}"}
+        )
+
+        """
+        Aperture Stop and Axial ray
+        """
+        aperture_stop = imaging_path.apertureStop()
+        has_aperture_stop = False
+
+        if aperture_stop.z is not None:
+            has_aperture_stop = True
+
+        if has_aperture_stop:
+            data_source.append_record(
+                {"property": "AS position", "value": f"{aperture_stop.z:.2f}"}
+            )
+            data_source.append_record(
+                {"property": "AS size", "value": f"{aperture_stop.diameter:.2f}"}
+            )
+
+            axial_ray = imaging_path.axialRay()
+            NA = imaging_path.NA()
+            data_source.append_record(
+                {
+                    "property": "Axial ray θ_max",
+                    "value": f"{axial_ray.theta:.2f} rad / {axial_ray.theta*180/3.1416:.2f}°",
+                }
+            )
+            data_source.append_record(
+                {
+                    "property": "NA",
+                    "value": f"{NA:.1f}",
+                }
+            )
+        else:
+            data_source.append_record(
+                {"property": "AS position", "value": f"Inexistent"}
+            )
+            data_source.append_record({"property": "AS size", "value": f"Inexistent"})
+
+            data_source.append_record(
+                {"property": "Axial ray θ_max", "value": f"Inexistent [no AS]"}
+            )
+            data_source.append_record(
+                {
+                    "property": "NA",
+                    "value": f"Inexistent",
+                }
+            )
+
+
+        """
+        Field Stop
+        """
+        has_field_stop = False
+        field_stop = imaging_path.fieldStop()
+        if field_stop.z is not None:
+            has_field_stop = True
+
+
+        if has_field_stop:
+            data_source.append_record(
+                {"property": "FS position", "value": f"{field_stop.z:.2f}"}
+            )
+            data_source.append_record(
+                {"property": "FS size", "value": f"{field_stop.diameter:.2f}"}
+            )
+            if field_stop.z < image_position:
+                data_source.append_record(
+                    {"property": "Has vignetting [FS before image]", "value": f"True"}
+                )
+            else:
+                data_source.append_record(
+                    {"property": "Has vignetting [FS before image]", "value": f"False"}
+                )
+            principal_ray = imaging_path.principalRay()
+            data_source.append_record(
+                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
+            )
+        else:
+            data_source.append_record(
+                {"property": "FS position", "value": f"Inexistent"}
+            )
+            data_source.append_record({"property": "FS size", "value": f"Inexistent"})
+            data_source.append_record(
+                {"property": "Has vignetting [FS before image]", "value": f"Inexistent"}
+            )
+
+            data_source.append_record(
+                {"property": "Principal ray y_max", "value": f"Inexistent [no FS]"}
+            )
+
+
+        """
+        Object [FOV] and Image Sizes, dicated by finite FOV
+        """
+        fov = imaging_path.fieldOfView()
 
         if isfinite(fov):
+            mag_tran, mag_angle = imaging_path.magnification()
+
             data_source.append_record(
                 {"property": "Field of view [FOV]", "value": f"{fov:.2f}"}
             )
@@ -780,7 +924,13 @@ path.display(rays=rays)
                 {"property": "Object size [same as FOV]", "value": f"{fov:.2f}"}
             )
             data_source.append_record(
-                {"property": "Image size", "value": f"{path.imageSize():.2f}"}
+                {"property": "Image size", "value": f"{imaging_path.imageSize():.2f}"}
+            )
+            data_source.append_record(
+                {"property": "Magnification [Transverse]", "value": f"{mag_tran:.2f}"}
+            )
+            data_source.append_record(
+                {"property": "Magnification [Angular]", "value": f"{mag_angle:.2f}"}
             )
         else:
             data_source.append_record(
@@ -792,86 +942,14 @@ path.display(rays=rays)
             data_source.append_record(
                 {"property": "Image size", "value": f"Infinite [no FS]"}
             )
-
-        mag_tran, mag_angle = path.magnification()
-        if mag_tran is None:
-            mag_tran = "Inexistent"
-            mag_angle = "Inexistent"
-        data_source.append_record(
-            {"property": "Magnification [Transverse]", "value": f"{mag_tran}"}
-        )
-        data_source.append_record(
-            {"property": "Magnification [Angular]", "value": f"{mag_angle}"}
-        )
-        data_source.append_record(
-            {"property": "Image position", "value": f"{path.L:.2f}"}
-        )
-
-        aperture_stop = path.apertureStop()
-        if aperture_stop.z is not None:
             data_source.append_record(
-                {"property": "AS position", "value": f"{aperture_stop.z:.2f}"}
+                {"property": "Magnification [Transverse]", "value": f"Inexistent"}
             )
             data_source.append_record(
-                {"property": "AS size", "value": f"{aperture_stop.diameter:.2f}"}
-            )
-        else:
-            data_source.append_record(
-                {"property": "AS position", "value": f"Inexistent"}
-            )
-            data_source.append_record({"property": "AS size", "value": f"Inexistent"})
-
-
-        if bug_path_has_field_stop and field_stop.z is not None:
-            data_source.append_record(
-                {"property": "FS position", "value": f"{field_stop.z:.2f}"}
-            )
-            data_source.append_record(
-                {"property": "FS size", "value": f"{field_stop.diameter:.2f}"}
-            )
-            if field_stop.z >= path.L:
-                data_source.append_record(
-                    {"property": "Has vignetting [FS before image]", "value": f"False"}
-                )
-            else:
-                data_source.append_record(
-                    {"property": "Has vignetting [FS before image]", "value": f"True"}
-                )
-
-            principal_ray = path.principalRay()
-            data_source.append_record(
-                {"property": "Principal ray y_max", "value": f"{principal_ray.y:.2f}"}
-            )
-        else:
-            data_source.append_record(
-                {"property": "FS position", "value": f"Inexistent"}
-            )
-            data_source.append_record({"property": "FS size", "value": f"Inexistent"})
-
-            data_source.append_record(
-                {"property": "Principal ray y_max", "value": f"Inexistent [no FS]"}
+                {"property": "Magnification [Angular]", "value": f"Inexistent"}
             )
 
-        axial_ray = path.axialRay()
-        if axial_ray is not None:
-            data_source.append_record(
-                {
-                    "property": "Axial ray θ_max",
-                    "value": f"{axial_ray.theta:.2f} rad / {axial_ray.theta*180/3.1416:.2f}°",
-                }
-            )
-            data_source.append_record(
-                {
-                    "property": "NA",
-                    "value": f"{path.NA():.1f}",
-                }
-            )
-        else:
-            data_source.append_record(
-                {"property": "Axial ray θ_max", "value": f"Inexistent [no AS]"}
-            )
-
-        self.results_tableview.click_header(column_id=1)
+        self.results_tableview.sort_column(column_name='property')
 
     def save(self):
         filepath = filedialog.asksaveasfilename()

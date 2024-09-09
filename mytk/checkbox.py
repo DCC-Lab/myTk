@@ -1,4 +1,6 @@
 import tkinter.ttk as ttk
+from tkinter import BooleanVar
+
 from .base import *
 
 

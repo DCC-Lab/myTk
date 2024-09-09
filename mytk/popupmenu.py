@@ -14,11 +14,22 @@ class PopupMenu(Base):
         self.menu_items = menu_items
         self.menu = None
 
+    @property
+    def value(self):
+        return self.value_variable.get()
+
+    @value.setter
+    def value(self, value):
+        return self.value_variable.set(value=value)
+
     def create_widget(self, master):
         self.parent = master
         self.menu = Menu(master, tearoff=0)
         self.widget = ttk.Menubutton(master, text="-", menu=self.menu)
-        self.bind_textvariable(StringVar(value="Select menu item"))
+        if self.value_variable is None:
+            self.value_variable = StringVar(value="Select menu item")
+
+        self.bind_textvariable(self.value_variable)
 
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
