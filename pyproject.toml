@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mytk"
-version="0.9.1"
+version="0.9.2"
 description = "A wrapper for Tkinter for busy scientists"
 readme = "README.md"
 license = {file = "LICENSE"}
