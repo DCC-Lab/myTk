@@ -118,14 +118,19 @@ class PyDatagraphApp(App):
         return {'marker':'o','markeredgecolor':'black','markerfacecolor':'black','linestyle':'','color':'black','visible':True, 'is_independent':False}.copy()
 
     def click_cell(self, item_id, column_name, table):
-        self.name_menu.value = column_name
+        self.name_menu.value = self.tableview.columns_labels[column_name]
+
+    def column_name_from_heading(self, heading_name):
+        column_idx = self.tableview.headings.index(heading_name)
+        return self.tableview.columns[column_idx]
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
         if context == "inspected_variable_changed":
-            name = self.name_menu.value
-            properties = self.data_source.get_field_properties(name)
+            column_name = self.column_name_from_heading(self.name_menu.value)
+
+            properties = self.data_source.get_field_properties(column_name)
             self.properties_to_column_inspector(properties=properties)
         else:
             super().observed_property_changed(observed_object, observed_property_name, new_value, context)
@@ -154,15 +159,17 @@ class PyDatagraphApp(App):
         self.is_independent.value = properties['is_independent']
 
     def update_column_properties_from_inspector(self):
-        name = self.name_menu.value
+        column_name = self.column_name_from_heading(self.name_menu.value)
+
         properties = self.column_inspector_to_properties()
-        self.data_source.update_field_properties(name, properties)
+        self.data_source.update_field_properties(column_name, properties)
 
         self.after(delay=100, function=self.refresh_plot)
 
     def update_inspector_from_column_properties(self):
-        name = self.name_menu.value
-        properties = self.data_source.get_field_properties(name)
+        column_name = self.column_name_from_heading(self.name_menu.value)
+
+        properties = self.data_source.get_field_properties(column_name)
         self.update_inspector_from_column_properties(properties)
 
     def column_inspector_checkbox_changed(self, selected_index):
@@ -214,8 +221,7 @@ class PyDatagraphApp(App):
             # Reset tableview
             self.tableview.clear_widget_content()
             self.tableview.columns = list(df.columns).copy()
-            self.tableview.headings = list(df.columns).copy()
-            # self.tableview.displaycolumns= list(df.columns).copy()
+            self.tableview.headings = [ name.upper() for name in self.tableview.columns]
         
             for column_name in self.tableview.columns:
                 self.tableview.widget.column(column_name, width=30)
@@ -238,7 +244,7 @@ class PyDatagraphApp(App):
             # Load with new data
             self.data_source.set_records_from_dataframe(df)
 
-        self.column_headings_changed(list(df.columns))
+        self.column_headings_changed(self.tableview.headings)
 
     def source_data_changed(self, table):
         self.after(delay=100, function=self.refresh_plot)
