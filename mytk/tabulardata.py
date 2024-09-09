@@ -28,10 +28,15 @@ class TabularData(Bindable):
     class ExtraField(Exception):
         pass
 
+    class UnrecognizedFileFormat(Exception):
+        pass
+
     def __init__(self, tableview=None, delegate=None, required_fields=None):
         super().__init__()
         self.records = []
-        self.field_properties = {}
+        self._field_properties = {}
+        self.default_field_properties = {}
+
         self.delegate = None
         self.error_on_extra_field = False
         self.error_on_missing_field = False
@@ -48,7 +53,18 @@ class TabularData(Bindable):
 
     def enable_change_calls(self):
         self._disable_change_calls = False
-        self.source_records_changed()
+        self.source_records_changed(self.records) # Assume everything changed
+
+    def get_field_properties(self, field_name):
+        return self._field_properties.get(field_name, self.default_field_properties.copy()).copy()
+
+    def get_field_property(self, field_name, property_name):
+        return self._field_properties.get(field_name, self.default_field_properties)[property_name]
+
+    def update_field_properties(self, field_name, new_properties):
+        current_values = self._field_properties.get(field_name, self.default_field_properties.copy())
+        current_values.update(new_properties)
+        self._field_properties[field_name] = current_values
 
     @property
     def record_count(self):
@@ -95,6 +111,8 @@ class TabularData(Bindable):
                 if (pid is None or pid in inserted_uuids) and uid not in inserted_uuids:
                     ordered_records.append(record)
                     inserted_uuids.append(uid)
+
+        assert len(self.records) == len(ordered_records)
 
         return ordered_records
 
@@ -158,10 +176,9 @@ class TabularData(Bindable):
                             f"record has extra field: {field_name}"
                         )
         for field_name in self.record_fields():
-            field_properties = self.field_properties.get(field_name,None)
+            field_properties = self.get_field_properties(field_name)
             field_type = str
-            if field_properties is not None:
-                field_type = field_properties.get('type', str)
+            field_type = field_properties.get('type', str)
 
             try:
                 record[field_name] = field_type(record[field_name])
@@ -285,11 +302,14 @@ class TabularData(Bindable):
         )
         return [record["__uuid"] for record in sorted_records]
 
-    def source_records_changed(self):
+    def source_records_changed(self, changed_records=None):
         if not self._disable_change_calls:
             if self.delegate is not None:
                 with suppress(AttributeError):
-                    self.delegate().source_data_changed(self.ordered_records())
+                    if changed_records is None:
+                        changed_records = self.ordered_records()
+
+                    self.delegate().source_data_changed(changed_records)
 
     def load(self, filepath, disable_change_calls=False):
         records_from_file = self.load_records_from_json(filepath)
@@ -314,25 +334,23 @@ class TabularData(Bindable):
             json.dump(records, fp, indent=4, ensure_ascii=False)
 
     def load_tabular_data(self, filepath):
-        self.load_dataframe_from_tabular_data(filepath)
+        return self.load_dataframe_from_tabular_data(filepath)
 
     def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         import pandas
 
-        if filepath.endswith(".csv"):
+        if filepath.suffix == ".csv":
             df = pandas.read_csv(
                 filepath, sep=r"[\s+,]", header=header_row, engine="python"
             )
-        elif filepath.endswith(".xls") or filepath.endswith(".xlsx"):
+        elif filepath.suffix in [".xls", ".xlsx"]:
             df = pandas.read_excel(filepath, header=header_row)
         else:
-            raise Exception(f"Format not recognized: {filepath}")
+            raise TabularData.UnrecognizedFileFormat(f"Format not recognized: {filepath}")
 
         return df
 
     def set_records_from_dataframe(self, df):
-        fields = df.columns.to_list()
-
         with PostponeChangeCalls(self):
             for row in df.to_dict(orient="records"):
                 self.append_record(row)

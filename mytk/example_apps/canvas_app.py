@@ -114,20 +114,20 @@ class CanvasApp(App):
             {
                 "element": "Lens",
                 "focal_length": 100,
-                "diameter": 45,
+                "diameter": 25.4,
                 "position": 200,
                 "label": "L1",
             }
         )
-        self.tableview.data_source.append_record(
-            {
-                "element": "Aperture",
-                "focal_length": "",
-                "diameter": 10,
-                "position": 400,
-                "label": "Camera",
-            }
-        )
+        # self.tableview.data_source.append_record(
+        #     {
+        #         "element": "Aperture",
+        #         "focal_length": "",
+        #         "diameter": 10,
+        #         "position": 400,
+        #         "label": "Camera",
+        #     }
+        # )
         self.tableview.delegate = self
 
         self.results_tableview = TableView(
@@ -222,13 +222,6 @@ class CanvasApp(App):
             self.controls, column=0, row=1, columnspan=4, pady=5, padx=5, sticky="w"
         )
 
-        self.principal_rays_checkbox = Checkbox(
-            label="Show principal rays [blue: chief, red: axial]"
-        )
-        # self.principal_rays_checkbox.grid_into(
-        #     self.controls, column=0, row=2, columnspan=4, pady=5, padx=5, sticky="w"
-        # )
-
         self.apertures_checkbox = Checkbox(
             label="Show Aperture stop (AS) and field stop (FS)"
         )
@@ -246,6 +239,23 @@ class CanvasApp(App):
             self.controls, column=0, row=5, columnspan=4, pady=5, padx=5, sticky="w"
         )
 
+        self.conjugation_box = Box(label="Conjugation")
+        self.conjugation_box.grid_into(
+            self.controls, column=0, row=6, pady=5, padx=5, sticky="nsew"
+        )
+
+        self.object_conjugate = PopupMenu(menu_items=['Finite object','Infinite object'])        
+        self.object_conjugate.grid_into(
+            self.conjugation_box, column=0, row=0, pady=5, padx=5, sticky="w"
+        )
+        self.object_conjugate.selection_changed(0)
+
+        self.image_conjugate = PopupMenu(menu_items=['Finite image','Infinite image'])        
+        self.image_conjugate.grid_into(
+            self.conjugation_box, column=1, row=0, pady=5, padx=5, sticky="w"
+        )
+        self.image_conjugate.selection_changed(0)
+
         self.canvas = CanvasView(width=1000, height=400, background="white")
         self.canvas.grid_into(
             self.window, column=0, row=1, columnspan=3, pady=5, padx=5, sticky="nsew"
@@ -259,7 +269,6 @@ class CanvasApp(App):
         self.coords_origin = Point(0.05, 0.5, basis=DynamicBasis(self.canvas, "relative_basis"))
 
         size = (Vector(0.85,0, basis=DynamicBasis(self.canvas, "relative_basis")), Vector(0,-0.6, basis=DynamicBasis(self.canvas, "relative_basis")))
-        # size = (Vector(1000,0), Vector(0,-250))
         self.coords = XYCoordinateSystemElement(
             size=size, axes_limits=((0, 400), (-25, 25)), width=2
         )
@@ -309,7 +318,6 @@ class CanvasApp(App):
 
         self.add_observer(self, "number_of_heights")
         self.add_observer(self, "number_of_angles")
-        # self.add_observer(self, 'maximum_x', context='refresh_graph')
         self.add_observer(self, "dont_show_blocked_rays")
         self.add_observer(self, "show_apertures")
         self.add_observer(self, "show_principal_rays")
@@ -342,6 +350,8 @@ class CanvasApp(App):
             pyperclip.copy(script)
 
     def click_table_buttons(self, event, button):
+        path = self.get_path_from_ui(without_apertures=False)
+
         if button == self.delete_button:
             for selected_item in self.tableview.widget.selection():
                 record = self.tableview.data_source.record(selected_item)
@@ -349,14 +359,14 @@ class CanvasApp(App):
         elif button == self.add_lens_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Lens"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["focal_length"] = 50
             record["diameter"] = 25.4
             self.tableview.data_source.append_record(record)
         elif button == self.add_aperture_button:
             record = self.tableview.data_source.empty_record()
             record["element"] = "Aperture"
-            record["position"] = 50
+            record["position"] = position = path.L + 50
             record["diameter"] = 25.4
             record["focal_length"] = None
             self.tableview.data_source.append_record(record)
@@ -377,7 +387,6 @@ class CanvasApp(App):
         self.canvas.widget.delete("tick")
         self.canvas.widget.delete("tick-label")
 
-
         user_provided_path = self.get_path_from_ui(without_apertures=True, max_position=None)
         finite_imaging_path = None
         finite_path = None
@@ -385,14 +394,14 @@ class CanvasApp(App):
         conjugate = user_provided_path.forwardConjugate()
 
         if isfinite(conjugate.d):
-            if conjugate.d > 0:
-                image_position = user_provided_path.L + conjugate.d
-                finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
+            image_position = user_provided_path.L + conjugate.d
+            finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
         
         finite_path = finite_imaging_path
         if finite_path is None:
             finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
 
+        self.path_has_field_stop = finite_path.hasFieldStop()
 
         self.adjust_axes_limits(finite_path)
 
@@ -794,7 +803,7 @@ path.display(rays=rays)
 
         if imaging_path is None:
             data_source.append_record(
-                {"property": "Imaging Path", "value": "The path is non-imaging"}
+                {"property": "Imaging Path", "value": "Non-imaging/infinite conjugate"}
             )
             return
         """
@@ -918,10 +927,10 @@ path.display(rays=rays)
                 {"property": "Image size", "value": f"{imaging_path.imageSize():.2f}"}
             )
             data_source.append_record(
-                {"property": "Magnification [Transverse]", "value": f"{mag_tran}"}
+                {"property": "Magnification [Transverse]", "value": f"{mag_tran:.2f}"}
             )
             data_source.append_record(
-                {"property": "Magnification [Angular]", "value": f"{mag_angle}"}
+                {"property": "Magnification [Angular]", "value": f"{mag_angle:.2f}"}
             )
         else:
             data_source.append_record(

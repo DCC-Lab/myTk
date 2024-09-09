@@ -53,8 +53,9 @@ class Dialog(Base):
             self.buttons_labels = buttons_labels
         self.buttons = {}
 
-        if self.auto_click not in self.buttons_labels:
-            raise ValueError("The auto-click button must be present in the window")
+        if self.auto_click is not None:
+            if self.auto_click not in self.buttons_labels:
+                self.auto_click = None
 
         self.create_widget(master=None)
 
@@ -71,22 +72,25 @@ class Dialog(Base):
             icon = Image(filepath=resource_directory / "error.png")
         elif self.dialog_type == "warning":
             icon = Image(filepath=resource_directory / "warning.png")
+        elif self.dialog_type == "info":
+            icon = Image(filepath=resource_directory / "info.png")
         else:
             icon = Image(filepath=resource_directory / "info.png")
 
         icon.is_rescalable = False
         icon.grid_into(self, column=0, row=0, pady=20, padx=20, sticky="")
 
-        control_buttons = View(width=100, height=30)
+        control_buttons = View(width=200, height=30)
         control_buttons.grid_into(
             widget=self.widget,
             column=1,
             row=1,
             columnspan=2,
-            pady=5,
-            padx=5,
+            pady=10,
+            padx=10,
             sticky="nsew",
         )
+        control_buttons.column_resize_weight(0, 1)
 
         self.buttons = self.create_behavior_buttons()
         for i, button_label in enumerate(self.buttons_labels):
@@ -107,6 +111,10 @@ class Dialog(Base):
             padx=5,
             sticky="nsew",
         )
+
+        self.column_resize_weight(0, 0)
+        self.column_resize_weight(1, 1)
+        self.widget.resizable(False, False)
 
         self.assign_default_key_shortcuts()
 
@@ -144,8 +152,6 @@ class Dialog(Base):
         self.widget.destroy()
 
     def run(self):
-        self.all_resize_weight(1)
-
         if self.auto_click is not None:
             button = self.buttons[self.auto_click]
             if (

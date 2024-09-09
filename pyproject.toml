@@ -34,5 +34,8 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 
+[tool.setuptools.package-data]
+"mytk.resources" = ["*.png"]
+
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

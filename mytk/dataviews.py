@@ -1,7 +1,7 @@
 from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt, log10, floor, ceil
-from .vectors import Vector, Point, Basis, PointDefault
+from .vectors import Vector, Point, Basis, PointDefault, is_standard_basis
 from .canvasview import *
 
 
@@ -72,7 +72,8 @@ class XYCoordinateSystemElement(CanvasElement):
     @basis.setter
     def basis(self, new_value):
         if new_value is not None:
-            print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
+            if not is_standard_basis(new_value):
+                print(f'Warning: cannot set basis in XYCoordinate system. Set size or axes_limits instead.')
 
     def create(self, canvas, position=Point(0, 0)):
         self.canvas = canvas
@@ -176,15 +177,6 @@ class XYCoordinateSystemElement(CanvasElement):
         x_lims = self.axes_limits[1]
         ticks = get_nice_ticks(x_lims[0], x_lims[1], num_ticks=self.ny_major)
         return [ tick for tick in ticks if tick >= x_lims[0] and tick <= x_lims[1] ]
-
-        # y_lims = self.axes_limits[1]
-        # delta = y_lims[1] / self.major
-        # positive = [i * delta for i in range(0, self.major + 1)]
-        # delta = -abs(delta)
-        # n_ticks = int(abs(y_lims[0] / delta))
-        # negative = [i * delta for i in range(1, n_ticks + 1)]
-        # positive.extend(negative)
-        # return positive
 
     def create_x_major_ticks(self, origin=None):
         if origin is None:
