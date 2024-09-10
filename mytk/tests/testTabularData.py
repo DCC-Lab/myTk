@@ -314,10 +314,10 @@ class TestTabularDataSource(unittest.TestCase):
         t = TabularData(delegate=self, required_fields=['name','size'])
         record = t.insert_record(0, {"name": 1, "size": 2})
         Record = t.default_namedtuple_type()
-        print(Record._fields)
+        # print(Record._fields)
         # Record = collections.namedtuple('Record', ['a','b'])
 
-        print(t.records_as_namedtuples())
+        # print(t.records_as_namedtuples())
 
 if __name__ == "__main__":
     unittest.main()

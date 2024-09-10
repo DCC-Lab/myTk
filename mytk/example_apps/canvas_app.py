@@ -87,9 +87,9 @@ class CanvasApp(App):
         self.tableview.column_formats['focal_length'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
         self.tableview.column_formats['diameter'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
         self.tableview.column_formats['position'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
-        self.tableview.data_source.field_properties['focal_length'] = {'type':float}
-        self.tableview.data_source.field_properties['diameter'] = {'type':float}
-        self.tableview.data_source.field_properties['position'] = {'type':float}
+        self.tableview.data_source.update_field_properties('focal_length', {'type':float})
+        self.tableview.data_source.update_field_properties('diameter', {'type':float})
+        self.tableview.data_source.update_field_properties('position', {'type':float})
 
         self.tableview.grid_into(
             self.table_group,
