@@ -5,6 +5,7 @@ import collections
 import re
 import os
 import time
+from pathlib import Path
 from contextlib import contextmanager, suppress
 
 from .bindable import Bindable
@@ -177,13 +178,15 @@ class TabularData(Bindable):
                         )
         for field_name in self.record_fields():
             field_properties = self.get_field_properties(field_name)
-            field_type = str
-            field_type = field_properties.get('type', str)
+            field_type = field_properties.get('type', None)
 
-            try:
-                record[field_name] = field_type(record[field_name])
-            except (ValueError, TypeError):
-                record[field_name] = None
+            if field_type is not None:
+                try:
+                    record[field_name] = field_type(record[field_name])
+                except (ValueError, TypeError):
+                    record[field_name] = None
+            else:
+                pass # Leave as-is
 
         return record
 
@@ -339,6 +342,7 @@ class TabularData(Bindable):
     def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         import pandas
 
+        filepath = Path(filepath)
         if filepath.suffix == ".csv":
             df = pandas.read_csv(
                 filepath, sep=r"[\s+,]", header=header_row, engine="python"
