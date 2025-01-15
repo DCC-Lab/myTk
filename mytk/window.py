@@ -7,10 +7,12 @@ from .base import *
 
 
 class Window(Base):
-    def __init__(self, geometry=None, title="Untitled"):
+    def __init__(self, geometry=None, title="Untitled", withdraw=False):
         super().__init__()
 
         self.widget = Tk()
+        if withdraw:
+            self.widget.withdraw()
         self.widget.geometry(geometry)
         self.title = title
 

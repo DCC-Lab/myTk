@@ -1,5 +1,8 @@
 from mytk import *
+from mytk import XYPlot
 from tkinter import filedialog
+from pathlib import Path
+import pandas
 
 class FileCalculator(App):
     def __init__(self):
@@ -34,7 +37,7 @@ class FileCalculator(App):
         )
 
 
-        self.plot = XYPlot()
+        self.plot = XYPlot(figsize=(8,6))
         self.plot.grid_into(self.inspector, column=0, row=0, pady=15, padx=15, sticky="nsew")
 
         self.fileviewer = FileViewer(self.current_dir, custom_columns={'calc':'Calculation'})
@@ -55,13 +58,27 @@ class FileCalculator(App):
         item_id = table.widget.focus()
         if item_id != '':
             record = table.data_source.record(item_id)
-            self.calculate_something(record)
+            self.after(100, self.calculate_something(record))
         
     def calculate_something(self, record):
-        self.message.text = f"This is where you would put the result of a calculation that you did \
-when the selection changed. You would do so by taking the record, and extract for instance record['fullpath'] \
-(i.e. here: {record['fullpath']}) to get the file path of the record and then compute something."
+        if record['name'].endswith("csv"):
+            filepath = Path(record['fullpath'])
+            df = pandas.read_csv(
+                filepath, sep=r"[\s+,]", header=0, engine="python"
+            )
+            count = len(df.index)
+            step = 1 #count//200
 
+            xlim=(160,200)
+            self.plot.clear_plot()
+            for index, row in df.iterrows():
+                if index % step == 0:
+                    t = row['elapsed_time_ms']/1000/60
+                    value = row['contrast']
+                    if t > xlim[0]:
+                        self.plot.append(t,value)
+            # self.first_axis.xlim([100, 200])
+            self.plot.update_plot()
 
 
 

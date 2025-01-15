@@ -251,7 +251,7 @@ class XYPlot(Figure):
         super().create_widget(master, *kwargs)
 
         if self.first_axis is None:
-            axis = self.figure.add_subplot()
+            self.first_axis = self.figure.add_subplot()
 
         self.update_plot()
 
@@ -290,8 +290,6 @@ class Histogram(Figure):
     def create_widget(self, master, **kwargs):
         super().create_widget(master, *kwargs)
 
-        if self.first_axis is None:
-            axis = self.figure.add_subplot()
         self.update_plot()
 
     def clear_plot(self):

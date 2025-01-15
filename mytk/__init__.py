@@ -37,6 +37,7 @@ from .entries import (
 from .controls import Slider
 from .canvasview import CanvasView
 from .indicators import NumericIndicator, BooleanIndicator, Level
+from .progressbar import ProgressBar, ProgressWindow, ProgressBarNotification
 from .images import Image, DynamicImage, ImageWithGrid
 from .tabulardata import TabularData, PostponeChangeCalls
 from .tableview import TableView

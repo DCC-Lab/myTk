@@ -13,12 +13,12 @@ import pyperclip
 class App(Bindable):
     app = None
 
-    def __init__(self, geometry=None, name="myTk App", help_url=None):
+    def __init__(self, geometry=None, name="myTk App", help_url=None, no_window=False):
         super().__init__()
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry=geometry, title=name)
+        self.window = Window(geometry=geometry, title=name, withdraw=no_window)
         self.check_requirements()
         self.create_menu()
         self.scheduled_tasks = []
