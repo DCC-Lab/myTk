@@ -99,13 +99,13 @@ if __name__ == "__main__":
         pass
 
 
-    # try:
-    #     video = VideoView(device=0)
-    #     video.zoom_level = 5
-    #     video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
-    # except Exception as err:
-    #     video = Label("Unable to load VideoView")
-    #     video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
+    try:
+        video = VideoView(device=0)
+        video.zoom_level = 5
+        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
+    except Exception as err:
+        video = Label("Unable to load VideoView")
+        video.grid_into(app.window, column=2, row=2, pady=5, padx=5, sticky="")
 
     def i_was_changed(checkbox):
         Dialog.showwarning(message="The checkbox was modified")
