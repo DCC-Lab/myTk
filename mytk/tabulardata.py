@@ -146,6 +146,11 @@ class TabularData(Bindable):
         self.source_records_changed()
         return record
 
+    def remove_all_records(self):
+        uuids = self.sorted_records_uuids(field="__uuid")
+        for uid in uuids:
+            self.remove_record(uid)
+
     def empty_record(self):
         return self._normalize_record(record={})
 
