@@ -85,7 +85,7 @@ class PowerMeterApp(App):
         )
         if filepath != "":
             x,y = self.plot.x, self.plot.y
-            pass # Do something with x,y
+            pass # Do something with x,y data
 
     def click_clear(self, event, button):
         self.plot.clear_plot()
