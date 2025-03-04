@@ -2,6 +2,18 @@ import os
 import sys
 import argparse
 import subprocess
+from mytk import *
+
+def printClassHierarchy(aClass):
+    def printAllChilds(aClass):
+        for child in aClass.__subclasses__():
+            print("\"{0}\" -> \"{1}\"".format(aClass.__name__, child.__name__))
+            printAllChilds(child)
+    print("# Paste this in the text field of http://www.webgraphviz.com/")
+    print("digraph G {")
+    print("  rankdir=\"LR\";")
+    printAllChilds(aClass)
+    print("}")
 
 root = os.path.dirname(__file__)
 examples_dir = os.path.join(root, "example_apps")
@@ -31,7 +43,8 @@ else:
     runExamples = [int(y) for y in runExamples.split(',')]
 
 if printClasses:
-    printClassHierarchy(Base)
+    printClassHierarchy(Bindable)
+
 elif runTests:
     moduleDir = os.path.dirname(os.path.realpath(__file__))
     err = os.system('cd {0}/tests; {1} -m unittest'.format(moduleDir, sys.executable))

@@ -1,5 +1,6 @@
 from tkinter import DoubleVar
 from tkinter import filedialog
+import os
 
 if __name__ == "__main__":
     # package_app_script()
@@ -65,7 +66,8 @@ if __name__ == "__main__":
     url2 = URLLabel(url="http://www.python.org", text="The text can be something else")
     url2.grid_into(view2, column=1, row=1, pady=5, padx=5, sticky="nsew")
 
-    image = Image("logo.png")
+    example_dir = os.path.dirname(__file__)
+    image = Image(os.path.join(example_dir, "logo.png"))
     image.grid_into(app.window, column=2, row=1, pady=5, padx=5, sticky="")
 
     box = Box("Some title on top of a box at grid position (1,0)")

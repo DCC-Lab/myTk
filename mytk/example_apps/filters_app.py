@@ -214,7 +214,7 @@ class FilterDBApp(App):
                 message="You must have the module pyperclip installed to copy the data.",
             )
 
-    def source_data_changed(self):
+    def source_data_changed(self, table):
         pass
 
     def selection_changed(self, event, table):
@@ -225,7 +225,6 @@ class FilterDBApp(App):
             filename_idx = list(self.filters.column_names()).index('filename')
             filename = record[filename_idx] 
             filepath = os.path.join(self.filepath_root, filename)
-            breakpoint()
             if os.path.exists(filepath) and not os.path.isdir(filepath):
 
                 data = self.load_filter_data(filepath)
