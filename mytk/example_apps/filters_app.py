@@ -222,22 +222,24 @@ class FilterDBApp(App):
             item = table.widget.item(selected_item)
             record = item['values']
 
-            filename_idx = list(self.filters.column_names()).index('filename')
+            filename_idx = list(self.filters.columns).index('filename')
             filename = record[filename_idx] 
             filepath = os.path.join(self.filepath_root, filename)
             if os.path.exists(filepath) and not os.path.isdir(filepath):
 
                 data = self.load_filter_data(filepath)
-                
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()
-                for x,y in data:
-                    self.filter_data.append((x,y))
-                    self.filter_plot.append(x,y)
+                with PostponeChangeCalls(self.filter_data.data_source):
+                    for x,y in data:
+                        # self.filter_data.data_source.append_record({"wavelength":x,"transmission":y})
+                        self.filter_plot.append(x,y)
+
                 self.filter_plot.first_axis.set_ylabel("Transmission")
                 self.filter_plot.first_axis.set_xlabel("Wavelength [nm]")
                 self.filter_plot.update_plot()
                 self.copy_data_button.enable()
+
             else:
                 self.filter_data.empty()
                 self.filter_plot.clear_plot()
