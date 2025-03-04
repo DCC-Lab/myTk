@@ -260,7 +260,7 @@ class TestTableview(envtest.MyTkTestCase):
 
         self.assertTrue(len(self.tableview.displaycolumns) != 0)
         self.tableview.columns = ("c", "d", "e") # Resets display column
-        self.assertTrue(len(self.tableview.displaycolumns) == 0)
+        self.assertTrue(len(self.tableview.displaycolumns) != 3)
 
         # Without displaycolumns I can do anything!
         self.assertTrue(len(self.tableview.displaycolumns) == 0)

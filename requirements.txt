@@ -4,3 +4,6 @@ packaging
 pyperclip
 Requests
 scipy
+pandas
+openpyxl
+raytracing

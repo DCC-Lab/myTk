@@ -63,7 +63,7 @@ class TableView(Base):
 
             self.displaycolumns = ["#all"] # necessary to avoid TCLError when setting columns
             self.widget["columns"] = new_values
-            self.displaycolumns = new_values.copy() # We refer to displaycolumns to get displayed order
+            self.displaycolumns = new_values # We refer to displaycolumns to get displayed order
         else:
             raise ValueError("Set columns-labels directly if the widget is not created yet.")
 
