@@ -54,11 +54,11 @@ class OpticalComponentViewer(App):
         self.table.column_formats['effectiveFocalLengths'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['apertureDiameter'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['wavelengthRef'] = {'format_string':"{0:g}", 'multiplier':1, 'anchor':''}
-        self.table.data_source.field_properties['backFocalLength'] = {'type':float}
-        self.table.data_source.field_properties['frontFocalLength'] = {'type':float}
-        self.table.data_source.field_properties['effectiveFocalLengths'] = {'type':float}
-        self.table.data_source.field_properties['apertureDiameter'] = {'type':float}
-        self.table.data_source.field_properties['wavelengthRef'] = {'type':float}
+        self.table.data_source.update_field_properties('backFocalLength', {'type':float})
+        self.table.data_source.update_field_properties('frontFocalLength', {'type':float})
+        self.table.data_source.update_field_properties('effectiveFocalLengths', {'type':float})
+        self.table.data_source.update_field_properties('apertureDiameter', {'type':float})
+        self.table.data_source.update_field_properties('wavelengthRef', {'type':float})
 
         for column in self.columns:
             self.table.widget.column(column, width=150, anchor=CENTER)
@@ -137,7 +137,7 @@ class OpticalComponentViewer(App):
             lens = self.lenses[record['label']]  # label
             self.update_figures(lens)
 
-    def source_data_changed(self):
+    def source_data_changed(self, table):
         pass
 
     def update_figures(self, lens):
