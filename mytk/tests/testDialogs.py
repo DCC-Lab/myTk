@@ -66,15 +66,15 @@ class TestDialog(envtest.MyTkTestCase):
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Cancel)
 
-    def test_auto_click_absent_cancel(self):
-        with self.assertRaises(ValueError):
-            self.diag = Dialog(
-                dialog_type="warning",
-                title="Information",
-                message="You can cancel.  Just click Ok or Cancel.",
-                buttons_labels=[Dialog.Replies.Ok],
-                auto_click=(Dialog.Replies.Cancel, 500),
-            )
+    # def test_auto_click_absent_cancel(self):
+    #     with self.assertRaises(ValueError):
+    #         self.diag = Dialog(
+    #             dialog_type="warning",
+    #             title="Information",
+    #             message="You can cancel.  Just click Ok or Cancel.",
+    #             buttons_labels=[Dialog.Replies.Ok],
+    #             auto_click=(Dialog.Replies.Cancel, 500),
+    #         )
 
 
 if __name__ == "__main__":

@@ -144,14 +144,15 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.app.window.widget.grid_columnconfigure(0, weight=1)
         self.tableview = FileViewer("/Applications")
 
+
         self.tableview.grid_into(
             self.app.window, row=0, column=0, padx=15, pady=15, sticky="nsew"
         )
         self.tableview.displaycolumns = ["name"]
 
-        sorted_items_ids = self.tableview.sort_column(column_id=1)
+        sorted_items_ids = self.tableview.sort_column(column_name="name")
         tableview_items_ids = self.tableview.items_ids()
-        datasource_items_ids = self.tableview.data_source.field("__uuid")
+        datasource_items_ids = self.tableview.data_source.field("name")
 
         self.assertEqual(set(sorted_items_ids), set(tableview_items_ids))
         # self.assertEqual(set(tableview_items_ids), set(datasource_items_ids))
@@ -162,8 +163,8 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def click_sort_by_name(self):
-        self.tableview.sort_column(column_id=1)
-        self.tableview.click_header(column_id=1)
+        self.tableview.sort_column(column_name="name")
+        self.tableview.click_header(column_name="name")
 
     def test_show_filesview_custom_column(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)
@@ -210,7 +211,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview = FileViewer("/Users")
         t = self.tableview.data_source
         try:
-            print(t.records_as_namedtuples(FileRecord))
+            t.records_as_namedtuples(FileRecord)
         except:
             self.assertFail('Named tuple not working')
 

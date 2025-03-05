@@ -55,6 +55,17 @@ elif runExamples:
     for i in runExamples:
         entry = examples[i-1]
 
-        print(f"{sys.executable} {os.path.join(examples_dir, entry)}")
+        filepath = os.path.join(examples_dir, entry)
+        title = f"# mytk example file: {filepath}"
+
+        print(f"\n\n\n")
+        print("#"*len(title))
+        print(title)
+        print("#"*len(title))
+        print(f"\n")
+
+        with open(filepath, "r") as file:
+            print(file.read())
+
         subprocess.run([sys.executable, os.path.join(examples_dir, entry)])
 

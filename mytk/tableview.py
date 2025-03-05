@@ -393,6 +393,8 @@ class TableView(Base):
 
             self.widget.move(record['__uuid'], parent_id , END)
 
+        return items_ids_sorted
+
     def click_header(self, column_name=None):
         assert isinstance(column_name, str)
 
