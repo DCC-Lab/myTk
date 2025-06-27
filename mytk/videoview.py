@@ -11,7 +11,6 @@ import cv2
 
 
 class VideoView(Base):
-
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
 
@@ -122,8 +121,11 @@ class VideoView(Base):
             self.videowriter.release()
             self.videowriter = None
 
-    def update_display(self):
-        ret, readonly_frame = self.capture.read()
+    def update_display(self, readonly_frame=None):
+        ret = True
+        if readonly_frame is None:
+            ret, readonly_frame = self.capture.read()
+
         if ret:
             # The OpenCV documentation is clear: the returned frame from read() is read-only
             # and must be copied to be used (I assume it can be overwritten internally)

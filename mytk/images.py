@@ -130,7 +130,7 @@ class Image(Base):
         )["weight"]
         if row_weight == 0 or column_weight == 0:
             raise ValueError(
-                f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} grid({row_properties['weight']}, {column_properties['weight']}) to a value other than 0"
+                f"You cannot have a resizable image in a resizable grid cell. Set the weight of {self.parent} with row_resize_weight(index=0, weight=1) to a value other than 0"
             )
 
         (_, _, width, height) = self.parent.widget.grid_bbox(
