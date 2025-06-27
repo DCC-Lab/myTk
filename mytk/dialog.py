@@ -18,26 +18,40 @@ class Dialog(Base):
     @classmethod
     def showinfo(cls, message, title="Info", auto_click=(None, None)):
         diag = Dialog(
-            dialog_type="info", title=title, message=message, auto_click=auto_click
+            dialog_type="info",
+            title=title,
+            message=message,
+            auto_click=auto_click,
         )
         return diag.run()
 
     @classmethod
     def showwarning(cls, message, title="Warning", auto_click=(None, None)):
         diag = Dialog(
-            dialog_type="warning", title=title, message=message, auto_click=auto_click
+            dialog_type="warning",
+            title=title,
+            message=message,
+            auto_click=auto_click,
         )
         return diag.run()
 
     @classmethod
     def showerror(cls, message, title="Error", auto_click=(None, None)):
         diag = Dialog(
-            dialog_type="error", title=title, message=message, auto_click=auto_click
+            dialog_type="error",
+            title=title,
+            message=message,
+            auto_click=auto_click,
         )
         return diag.run()
 
     def __init__(
-        self, dialog_type, title, message, buttons_labels=None, auto_click=(None, None)
+        self,
+        dialog_type,
+        title,
+        message,
+        buttons_labels=None,
+        auto_click=(None, None),
     ):
         super().__init__()
         self.dialog_type = dialog_type
@@ -96,11 +110,20 @@ class Dialog(Base):
         for i, button_label in enumerate(self.buttons_labels):
             button = self.buttons[button_label]
             button.grid_into(
-                control_buttons, column=2 - i, row=1, pady=5, padx=5, sticky="se"
+                control_buttons,
+                column=2 - i,
+                row=1,
+                pady=5,
+                padx=5,
+                sticky="se",
             )
 
         label1 = Label(
-            text=self.message, wrapping=True, width=30, wraplength=300, justify="center"
+            text=self.message,
+            wrapping=True,
+            width=30,
+            wraplength=300,
+            justify="center",
         )
         label1.grid_into(
             widget=self.widget,
@@ -134,7 +157,8 @@ class Dialog(Base):
                 self.buttons[Dialog.Replies.Ok] = button
             if Dialog.Replies.Cancel in self.buttons_labels:
                 self.buttons[Dialog.Replies.Cancel] = Button(
-                    Dialog.Replies.Cancel, user_event_callback=self.user_clicked_cancel
+                    Dialog.Replies.Cancel,
+                    user_event_callback=self.user_clicked_cancel,
                 )
 
         return self.buttons
@@ -159,7 +183,9 @@ class Dialog(Base):
             ):  # I am unable to get button.widget.invoke to work
                 self.widget.after(500, lambda: self.user_clicked_ok(None, None))
             elif self.auto_click == Dialog.Replies.Cancel:
-                self.widget.after(500, lambda: self.user_clicked_cancel(None, None))
+                self.widget.after(
+                    500, lambda: self.user_clicked_cancel(None, None)
+                )
         elif self.timeout is not None:
             self.widget.after(self.timeout, self.user_timeout)
 
