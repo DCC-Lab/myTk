@@ -6,6 +6,7 @@ from .images import Image
 from .labels import Label
 
 import pathlib
+from enum import StrEnum
 
 
 class Dialog(Base):
