@@ -50,18 +50,18 @@ class EventCapable:
         self.scheduled_tasks = []
         super().__init__(*args, **kwargs)  # cooperative!
 
-    def __del__(self):
-        """
-        Cancels all registered scheduled tasks to prevent dangling callbacks.
-        Also invokes superclass `__del__` if defined.
-        """
-        for task_id in self.scheduled_tasks:
-            self.after_cancel(task_id)
+    # def __del__(self):
+    #     """
+    #     Cancels all registered scheduled tasks to prevent dangling callbacks.
+    #     Also invokes superclass `__del__` if defined.
+    #     """
+    #     for task_id in self.scheduled_tasks:
+    #         self.after_cancel(task_id)
 
-        super_del = getattr(super(), "__del__", None)
-        if callable(super_del):
-            with suppress(Exception):
-                super_del()  # pylint: disable=not-callable
+    #     super_del = getattr(super(), "__del__", None)
+    #     if callable(super_del):
+    #         with suppress(Exception):
+    #             super_del()  # pylint: disable=not-callable
 
     def _valid_mixin_class(self):
         """

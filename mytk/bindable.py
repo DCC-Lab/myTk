@@ -184,12 +184,13 @@ class Bindable:
         if isinstance(new_value, Variable):  # If tk Variable, get its value
             new_value = new_value.get()
 
-        for observer_info in self.observing_me:
-            observer, observed_property_name, context = observer_info
-            if observed_property_name == property_name:
-                observer.observed_property_changed(
-                    self, observed_property_name, new_value, context
-                )
+        if hasattr(self, "observing_me"):
+            for observer_info in self.observing_me:
+                observer, observed_property_name, context = observer_info
+                if observed_property_name == property_name:
+                    observer.observed_property_changed(
+                        self, observed_property_name, new_value, context
+                    )
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
