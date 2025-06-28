@@ -4,25 +4,32 @@ from .modulesmanager import ModulesManager
 from .bindable import *
 from .window import *
 from .dialog import Dialog
+from .eventcapable import EventCapable
+
 from contextlib import redirect_stdout
 import io
 from tkinter import TclError
 import pyperclip
 
 
-class App(Bindable):
+class App(Bindable, EventCapable):
     app = None
 
-    def __init__(self, geometry=None, name="myTk App", help_url=None):
-        super().__init__()
+    def __init__(
+        self, geometry=None, name="myTk App", help_url=None, *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
 
         self.name = name
         self.help_url = help_url
         self.window = Window(geometry=geometry, title=name)
         self.check_requirements()
         self.create_menu()
-        self.scheduled_tasks = []
         App.app = self
+
+    @property
+    def widget(self):
+        return self.root
 
     @property
     def root(self):
@@ -55,7 +62,9 @@ class App(Bindable):
         appmenu.add_separator()
 
         filemenu = Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Save…", command=self.save, accelerator="Command+S")
+        filemenu.add_command(
+            label="Save…", command=self.save, accelerator="Command+S"
+        )
         filemenu.add_command(label="Quit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         editmenu = Menu(menubar, tearoff=0)
@@ -73,7 +82,9 @@ class App(Bindable):
                 label="No help available", command=self.help, state="disabled"
             )
         else:
-            helpmenu.add_command(label="Documentation web site", command=self.help)
+            helpmenu.add_command(
+                label="Documentation web site", command=self.help
+            )
 
         menubar.add_cascade(label="Help", menu=helpmenu)
 
@@ -119,27 +130,6 @@ class App(Bindable):
                 message="There is no help available for this Application.",
                 timeout=3000,
             )
-
-    def after(self, delay, function):
-        task_id = None
-        if self.root is not None and function is not None:
-            task_id = self.root.after(delay, function)
-            self.scheduled_tasks.append(task_id)
-        return task_id
-
-    def after_cancel(self, task_id):
-        if self.root is not None:
-            self.root.after_cancel(task_id)
-            self.scheduled_tasks.remove(task_id)
-
-    def after_cancel_many(self, task_ids):
-        copy_task_ids = []  # In case we receive scheduled_tasks directly without copy
-        copy_task_ids.extend(task_ids)
-        for task_id in copy_task_ids:
-            self.after_cancel(task_id)
-
-    def after_cancel_all(self):
-        self.after_cancel_many(self.scheduled_tasks)
 
     def quit(self):
         if self.is_running:

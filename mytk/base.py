@@ -11,7 +11,8 @@ import re
 from contextlib import suppress
 from enum import Enum
 
-from .bindable import *
+from .bindable import Bindable
+from .eventcapable import EventCapable
 
 
 def _class_nice_(cls):
@@ -38,25 +39,26 @@ class BaseNotification(Enum):
     did_resize = "did_resize"
 
 
-class Base(Bindable):
+class _BaseWidget:
     """
-    Abstract base class for all UI widgets in the framework.
+    Abstract base class for all UI related methods in the framework.
 
     Provides:
     - Tkinter state management (enabled, selected, focused)
-    - Layout control (grid, pack, place)
-    - Event binding and variable synchronization
-    - Task scheduling with `after()`
+    - Layout control (size, grid, pack, place)
     - Diagnostic debug support
+
+    Event-related methods are in EventCapable and binding-related methods are in Bindable.
+    They are all combined into Base.
     """
 
     debug = False
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """
-        Initializes the widget base: sets up properties, scheduling, and environment validation.
+        Initializes the widget base: sets up properties, and environment validation.
         """
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self.widget = None
         self.parent = None
         self.value_variable = None
@@ -64,16 +66,155 @@ class Base(Bindable):
 
         self._grid_kwargs = None
         self.is_environment_valid()
-        self.scheduled_tasks = []
 
-    def __del__(self):
+    def create_widget(self, master, **kwargs):
         """
-        Ensures scheduled callbacks are cancelled upon destruction to avoid dangling references.
+        Actually create the widget as needed.
         """
-        for task_id in self.scheduled_tasks:
-            self.after_cancel(task_id)
-        with suppress(Exception):
-            super().__del__()
+        raise NotImplementedError(
+            "You must override create_widget in your class to create the widget"
+        )
+
+    """
+    Placing widgets in other widgets
+    """
+
+    def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
+        """
+        Places the widget into a grid layout.
+
+        Args:
+            parent (Base): Parent widget wrapper.
+            widget (tk.Widget): Optional target widget.
+            describe (bool): If True, prints diagnostics about layout and geometry.
+            **kwargs: Grid options (row, column, sticky, etc.)
+        """
+        self.parent = parent
+        self.parent_grid_cell = {
+            "row": kwargs.get("row", 0),
+            "column": kwargs.get("column", 0),
+        }
+        self._grid_kwargs = kwargs
+
+        if widget is not None:
+            self.create_widget(master=widget)
+        else:
+            self.create_widget(master=parent.widget)
+            widget = parent.widget
+
+        column = 0
+        if "column" in kwargs.keys():
+            column = kwargs["column"]
+
+        row = 0
+        if "row" in kwargs.keys():
+            row = kwargs["row"]
+
+        sticky = ""
+        if "sticky" in kwargs.keys():
+            sticky = kwargs["sticky"].lower()
+
+        if self.widget is not None:
+            self.widget.grid(kwargs)
+
+        if describe or Base.debug:
+            try:
+                print(
+                    f"\nPlacing widget {_class_nice_(self)} into {_class_nice_(parent)}.grid({row},{column})"
+                )
+                stretch_width_to_fit = False
+                if "n" in sticky and "s" in sticky:
+                    stretch_width_to_fit = True
+
+                stretch_height_to_fit = False
+                if "e" in sticky and "w" in sticky:
+                    stretch_height_to_fit = True
+                print(
+                    f"  Widget size expands to fit grid cell:  (w, h):{stretch_width_to_fit, stretch_height_to_fit}"
+                )
+
+                row_weight = parent.widget.grid_rowconfigure(row)["weight"]
+                column_weight = parent.widget.grid_columnconfigure(column)[
+                    "weight"
+                ]
+
+                print(
+                    f"  Grid cell expands to fill extra space: (h, w):{row_weight==0, column_weight==0}, {row_weight, column_weight}"
+                )
+                print(
+                    f"  Parent propagates resize to parents: {parent.widget.propagate() != 0}"
+                )
+                window_geometry = self.widget.winfo_toplevel().geometry()
+                print(
+                    f"  Top window will resize geometry : {window_geometry!='1x1+0+0'} ({window_geometry})"
+                )
+                print()
+            except Exception as err:
+                print(
+                    f"Unable to describe widget {_class_nice_(self)} into parent {_class_nice_(parent)}.\n{err}"
+                )
+
+    @property
+    def grid_size(self):
+        """Returns the grid size (columns, rows) of the widget."""
+        return self.widget.grid_size()
+
+    def all_resize_weight(self, weight):
+        """
+        Applies the same resize weight to all rows and columns of the widget's grid.
+
+        Args:
+            weight (int): Resize weight to apply.
+        """
+        cols, rows = self.grid_size
+        for i in range(cols):
+            self.column_resize_weight(i, weight)
+
+        for j in range(rows):
+            self.row_resize_weight(j, weight)
+
+    def column_resize_weight(self, index, weight):
+        """Sets the resize weight for a specific column."""
+        self.widget.columnconfigure(index, weight=weight)
+
+    def row_resize_weight(self, index, weight):
+        """Sets the resize weight for a specific row."""
+        self.widget.rowconfigure(index, weight=weight)
+
+    def grid_propagate(self, value):
+        """Controls whether the geometry manager should let children resize the container."""
+        self.widget.grid_propagate(value)
+
+    def pack_into(self, parent, **kwargs):
+        """
+        Packs the widget into the parent using the pack geometry manager.
+
+        Args:
+            parent (Base): Parent widget.
+            **kwargs: Pack options.
+        """
+        self.create_widget(master=parent.widget)
+        self.parent = parent
+
+        if self.widget is not None:
+            self.widget.pack(kwargs)
+
+    def place_into(self, parent, x, y, width, height):
+        """
+        Places the widget into absolute coordinates inside the parent.
+
+        Args:
+            parent (Base): Parent widget.
+            x (int): X-coordinate.
+            y (int): Y-coordinate.
+            width (int): Width in pixels.
+            height (int): Height in pixels.
+        """
+        self.create_widget(master=parent.widget)
+        self.parent = parent
+
+        if self.widget is not None:
+            self.widget.place(x=x, y=y, width=width, height=height)
 
     @property
     def debug_kwargs(self):
@@ -183,10 +324,6 @@ class Base(Bindable):
         else:
             self.widget["height"] = value
 
-    """
-    Convenience setters/getters
-    """
-
     @property
     def is_enabled(self):
         """Whether the widget is enabled (not disabled)."""
@@ -213,225 +350,12 @@ class Base(Bindable):
         """Unselects the widget."""
         self.is_selected = False
 
-    def after(self, delay, function):
-        """
-        Schedules a function to be called after a time delay.
+    def keys(self):
+        """Prints all configurable options of the underlying widget."""
+        print(self.widget.configure().keys())
 
-        Args:
-            delay (int): Delay in milliseconds.
-            function (Callable): Function to call.
 
-        Returns:
-            int: Task ID that can be cancelled.
-        """
-        task_id = None
-        if self.widget is not None and function is not None:
-            task_id = self.widget.after(delay, function)
-            self.scheduled_tasks.append(task_id)
-        return task_id
-
-    def after_cancel(self, task_id):
-        """Cancels a previously scheduled task by ID."""
-        if self.widget is not None:
-            self.widget.after_cancel(task_id)
-            self.scheduled_tasks.remove(task_id)
-
-    def after_cancel_many(self, task_ids):
-        """Cancels multiple tasks given their IDs."""
-        for task_id in task_ids:
-            self.after_cancel(task_id)
-
-    def after_cancel_all(self):
-        """Cancels all scheduled tasks registered by this widget."""
-        self.after_cancel_many(self.scheduled_tasks)
-
-    """
-    Placing widgets in other widgets
-    """
-
-    def create_widget(self, master, **kwargs):
-        """
-        Actually create the widget when needed.
-        """
-        raise NotImplementedError(
-            "You must override create_widget in your class to create the widget"
-        )
-
-    def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
-        """
-        Placeholder for widget placement into a cell that expands.
-
-        Raises:
-            NotImplementedError
-        """
-        raise NotImplementedError("grid_fill_into_expanding_cell")
-
-    def grid_fill_into_fixed_cell(self, parent=None, widget=None, **kwargs):
-        """Placeholder for widget placement into a fixed-size grid cell."""
-        raise NotImplementedError("grid_fill_into_expanding_cell")
-
-    def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
-        """
-        Places the widget into a grid layout.
-
-        Args:
-            parent (Base): Parent widget wrapper.
-            widget (tk.Widget): Optional target widget.
-            describe (bool): If True, prints diagnostics about layout and geometry.
-            **kwargs: Grid options (row, column, sticky, etc.)
-        """
-        self.parent = parent
-        self.parent_grid_cell = {
-            "row": kwargs.get("row", 0),
-            "column": kwargs.get("column", 0),
-        }
-        self._grid_kwargs = kwargs
-
-        if widget is not None:
-            self.create_widget(master=widget)
-        else:
-            self.create_widget(master=parent.widget)
-            widget = parent.widget
-
-        column = 0
-        if "column" in kwargs.keys():
-            column = kwargs["column"]
-
-        row = 0
-        if "row" in kwargs.keys():
-            row = kwargs["row"]
-
-        sticky = ""
-        if "sticky" in kwargs.keys():
-            sticky = kwargs["sticky"].lower()
-            # if "n" in sticky and "s" in sticky:
-            #     if self.widget.grid_rowconfigure(index=row)["weight"] == 0:
-            #         self.widget.grid_rowconfigure(index=row, weight=1)
-            # if "e" in sticky and "w" in sticky:
-            #     if self.widget.grid_columnconfigure(index=column)["weight"] == 0:
-            #         self.widget.grid_columnconfigure(index=column, weight=1)
-
-        if self.widget is not None:
-            self.widget.grid(kwargs)
-
-        if describe or Base.debug:
-            try:
-                print(
-                    f"\nPlacing widget {_class_nice_(self)} into {_class_nice_(parent)}.grid({row},{column})"
-                )
-                stretch_width_to_fit = False
-                if "n" in sticky and "s" in sticky:
-                    stretch_width_to_fit = True
-
-                stretch_height_to_fit = False
-                if "e" in sticky and "w" in sticky:
-                    stretch_height_to_fit = True
-                print(
-                    f"  Widget size expands to fit grid cell:  (w, h):{stretch_width_to_fit, stretch_height_to_fit}"
-                )
-
-                row_weight = parent.widget.grid_rowconfigure(row)["weight"]
-                column_weight = parent.widget.grid_columnconfigure(column)[
-                    "weight"
-                ]
-
-                print(
-                    f"  Grid cell expands to fill extra space: (h, w):{row_weight==0, column_weight==0}, {row_weight, column_weight}"
-                )
-                print(
-                    f"  Parent propagates resize to parents: {parent.widget.propagate() != 0}"
-                )
-                window_geometry = self.widget.winfo_toplevel().geometry()
-                print(
-                    f"  Top window will resize geometry : {window_geometry!='1x1+0+0'} ({window_geometry})"
-                )
-                print()
-            except Exception as err:
-                print(
-                    f"Unable to describe widget {_class_nice_(self)} into parent {_class_nice_(parent)}.\n{err}"
-                )
-
-    @property
-    def grid_size(self):
-        """Returns the grid size (columns, rows) of the widget."""
-        return self.widget.grid_size()
-
-    def all_resize_weight(self, weight):
-        """
-        Applies the same resize weight to all rows and columns of the widget's grid.
-
-        Args:
-            weight (int): Resize weight to apply.
-        """
-        cols, rows = self.grid_size
-        for i in range(cols):
-            self.column_resize_weight(i, weight)
-
-        for j in range(rows):
-            self.row_resize_weight(j, weight)
-
-    def column_resize_weight(self, index, weight):
-        """Sets the resize weight for a specific column."""
-        self.widget.columnconfigure(index, weight=weight)
-
-    def row_resize_weight(self, index, weight):
-        """Sets the resize weight for a specific row."""
-        self.widget.rowconfigure(index, weight=weight)
-
-    def grid_propagate(self, value):
-        """Controls whether the geometry manager should let children resize the container."""
-        self.widget.grid_propagate(value)
-
-    def pack_into(self, parent, **kwargs):
-        """
-        Packs the widget into the parent using the pack geometry manager.
-
-        Args:
-            parent (Base): Parent widget.
-            **kwargs: Pack options.
-        """
-        self.create_widget(master=parent.widget)
-        self.parent = parent
-
-        if self.widget is not None:
-            self.widget.pack(kwargs)
-
-    def place_into(self, parent, x, y, width, height):
-        """
-        Places the widget into absolute coordinates inside the parent.
-
-        Args:
-            parent (Base): Parent widget.
-            x (int): X-coordinate.
-            y (int): Y-coordinate.
-            width (int): Width in pixels.
-            height (int): Height in pixels.
-        """
-        self.create_widget(master=parent.widget)
-        self.parent = parent
-
-        if self.widget is not None:
-            self.widget.place(x=x, y=y, width=width, height=height)
-
-    def bind_event(self, event, callback):
-        """
-        Binds a callback to a specific event.
-
-        Args:
-            event (str): Tkinter event string (e.g. "<Button-1>").
-            callback (Callable): Callback to invoke.
-        """
-        self.widget.bind(event, callback)
-
-    def event_generate(self, event: str):
-        """
-        Programmatically triggers a Tkinter event.
-
-        Args:
-            event (str): Event string to trigger.
-        """
-        self.widget.event_generate(event)
-
+class Base(_BaseWidget, Bindable, EventCapable):
     def bind_textvariable(self, variable):
         """
         Binds a textvariable (e.g., StringVar) to the widget.
@@ -455,7 +379,3 @@ class Base(Bindable):
             self.value_variable = variable
             self.widget.configure(variable=variable)
             self.widget.update()
-
-    def keys(self):
-        """Prints all configurable options of the underlying widget."""
-        print(self.widget.configure().keys())

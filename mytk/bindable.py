@@ -55,12 +55,20 @@ class Bindable:
     It implements two functionalities:
 
     1. a callback method to notify a specific object that a change occurred in
-    another object. 2. a binding mechanism so that two properties are always
+    another object.
+    2. a binding mechanism so that two properties are always
     synchronized, regardless of which one changed
+
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        """
+        We need to assign observing_me before super().__init__()
+        because the overriden __setattr__ will be active for subclasses
+        in case this is part of a multiple inheritance (it is)
+        """
         self.observing_me = []
+        super().__init__(*args, **kwargs)  # cooperative!
 
     def add_observer(self, observer, my_property_name, context=None):
         """

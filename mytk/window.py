@@ -7,8 +7,8 @@ from .base import *
 
 
 class Window(Base):
-    def __init__(self, geometry=None, title="Untitled"):
-        super().__init__()
+    def __init__(self, geometry=None, title="Untitled", *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.widget = Tk()
         self.widget.geometry(geometry)
