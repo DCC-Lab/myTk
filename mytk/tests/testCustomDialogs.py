@@ -7,6 +7,7 @@ from mytk import (
     IntEntry,
     DoubleVar,
     FormattedEntry,
+    View,
 )
 
 
@@ -22,38 +23,46 @@ class TestCustomDialog(envtest.MyTkTestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-            def add_rows(self, elements, start_row, column, **kwargs):
-                for i, element in enumerate(elements):
-                    element.grid_into(
-                        self, row=start_row + i, column=column, **kwargs
-                    )
-
             def populate_widget_body(self):
+                view = View(width=200, height=100)
+                view.grid_into(self)
+
                 labels = [
                     Label("Some label"),
                     Label("Some label2"),
                     Label("Some label3"),
                 ]
-                self.add_rows(
+                view.add_rows(
                     labels,
                     start_row=0,
                     column=0,
                     padx=10,
-                    pady=10,
+                    pady=5,
                     sticky="w",
                 )
 
-                entry = FormattedEntry(format_string="{0:.2f}")
-                self.value_variable = DoubleVar(master=None)
-                entry.bind_variable(self.value_variable)
-                entries = [entry]
-                self.add_rows(
-                    entries,
+                entry1 = FormattedEntry(
+                    format_string="{0:.2f}", character_width=5
+                )
+                entry2 = FormattedEntry(
+                    format_string="{0:.2f}", character_width=5
+                )
+                entry3 = FormattedEntry(
+                    format_string="{0:.2f}", character_width=5
+                )
+                self.entries = {
+                    "SOME_PROPERTY1": entry1,
+                    "SOME_PROPERTY2": entry2,
+                    "SOME_PROPERTY3": entry3,
+                }
+
+                view.add_rows(
+                    self.entries.values(),
                     start_row=0,
                     column=1,
                     padx=10,
-                    pady=10,
-                    sticky="ew",
+                    pady=5,
+                    sticky="w",
                 )
 
         diag = MyDialog(
@@ -64,6 +73,7 @@ class TestCustomDialog(envtest.MyTkTestCase):
         self.assertIsNotNone(diag)
         reply = diag.run()
         self.assertEqual(reply, Dialog.Replies.Ok)
+        print({id: entry.value for id, entry in diag.entries.items()})
 
 
 if __name__ == "__main__":

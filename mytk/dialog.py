@@ -62,6 +62,7 @@ class Dialog(Base):
         self.reply = None
         self.auto_click = auto_click[0]
         self.timeout = auto_click[1]
+        self.entries = {}
 
         if buttons_labels is None:
             self.buttons_labels = [Dialog.Replies.Ok]

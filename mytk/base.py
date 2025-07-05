@@ -79,6 +79,13 @@ class _BaseWidget:
     Placing widgets in other widgets
     """
 
+    def add_rows(self, elements, start_row, column, **kwargs):
+        """
+        Add several elementws in a column with similar settings. Typically Label or Entries.
+        """
+        for i, element in enumerate(elements):
+            element.grid_into(self, row=start_row + i, column=column, **kwargs)
+
     def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
         """
         Places the widget into a grid layout.

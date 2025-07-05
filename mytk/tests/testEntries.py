@@ -21,33 +21,33 @@ class TestEntry(envtest.MyTkTestCase):
         self.assertIsNotNone(self.ui_object)
 
     def test_init_entry_with_args(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         self.assertIsNotNone(self.ui_object)
 
     def test_access_widget_properties_before_creation(self):
-        self.ui_object = Entry(text="bla", character_width=10)
-        self.assertEqual(self.ui_object.text, "bla")
+        self.ui_object = Entry(value="bla", character_width=10)
+        self.assertEqual(self.ui_object.value, "bla")
         self.assertEqual(self.ui_object.character_width, 10)
 
     def test_modify_widget_properties_before_creation(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
 
-        self.ui_object.text = "test"
+        self.ui_object.value = "test"
         self.assertEqual(self.ui_object.value_variable.get(), "test")
         self.ui_object.character_width = 20
 
     def test_access_widget_properties_after_creation(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         self.ui_object.grid_into(self.app.window, row=0, column=0)
 
-        self.assertEqual(self.ui_object.text, "bla")
+        self.assertEqual(self.ui_object.value, "bla")
         self.assertEqual(self.ui_object.character_width, 10)
 
     def test_modify_widget_properties_after_creation(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         self.ui_object.grid_into(self.app.window, row=0, column=0)
 
-        self.ui_object.text = "test"
+        self.ui_object.value = "test"
         self.assertEqual(self.ui_object.value_variable.get(), "test")
         original = self.ui_object.width
         self.ui_object.character_width = 20
@@ -56,12 +56,12 @@ class TestEntry(envtest.MyTkTestCase):
         self.assertTrue(original == self.ui_object.width)
 
     def test_cannot_read_pixel_width_before_creation(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         with self.assertRaises(NotImplementedError):
             self.ui_object.width
 
     def test_cannot_set_pixel_width(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         with self.assertRaises(NotImplementedError):
             self.ui_object.width = 20
 
@@ -72,7 +72,7 @@ class TestEntry(envtest.MyTkTestCase):
 
     @unittest.skip("Only for analysis")
     def test_obtain_dependence_width_vs_character_width(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         self.ui_object.grid_into(self.app.window, row=0, column=0)
 
         for w in range(20):
@@ -80,7 +80,7 @@ class TestEntry(envtest.MyTkTestCase):
             print(w, self.ui_object.width)
 
     def test_release_focus_on_enter(self):
-        self.ui_object = Entry(text="bla", character_width=10)
+        self.ui_object = Entry(value="bla", character_width=10)
         self.ui_object.grid_into(self.app.window, row=0, column=0)
 
         self.start_timed_mainloop(timeout=100)
@@ -116,9 +116,13 @@ class TestIntEntry(envtest.MyTkTestCase):
         self.ui_object.value = 10
         self.assertEqual(self.ui_object.value_variable.get(), 10)
         self.ui_object.value = -100
-        self.assertEqual(self.ui_object.value_variable.get(), self.ui_object.minimum)
+        self.assertEqual(
+            self.ui_object.value_variable.get(), self.ui_object.minimum
+        )
         self.ui_object.value = 200
-        self.assertEqual(self.ui_object.value_variable.get(), self.ui_object.maximum)
+        self.assertEqual(
+            self.ui_object.value_variable.get(), self.ui_object.maximum
+        )
 
     def test_access_and_change_min_max_before_creation(self):
         self.ui_object = IntEntry(minimum=-10, maximum=110)
@@ -152,7 +156,7 @@ class TestNumericEntry(envtest.MyTkTestCase):
         self.ui_object = None
 
     def test_init_entry(self):
-        self.ui_object = NumericEntry()
+        self.ui_object = NumericEntry(value=0)
         self.assertIsNotNone(self.ui_object)
 
     def test_init_entry_with_args(self):
@@ -161,15 +165,15 @@ class TestNumericEntry(envtest.MyTkTestCase):
         self.assertEqual(self.ui_object.value, 10)
 
     def test_init_entry_with_args(self):
-        self.ui_object = NumericEntry(minimum=-10, maximum=110)
+        self.ui_object = NumericEntry(value=0, minimum=-10, maximum=110)
         self.assertIsNotNone(self.ui_object)
         self.assertEqual(self.ui_object.value, 0)
         self.ui_object.value = 10
-        self.assertEqual(self.ui_object.value_variable.get(), 10)
+        self.assertEqual(self.ui_object.value, 10)
         self.ui_object.value = -100
-        self.assertEqual(self.ui_object.value_variable.get(), self.ui_object.minimum)
+        self.assertEqual(self.ui_object.value, self.ui_object.minimum)
         self.ui_object.value = 200
-        self.assertEqual(self.ui_object.value_variable.get(), self.ui_object.maximum)
+        self.assertEqual(self.ui_object.value, self.ui_object.maximum)
 
     def test_access_and_change_min_max_before_creation(self):
         self.ui_object = NumericEntry(minimum=-10, maximum=110, increment=1)
