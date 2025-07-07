@@ -1,9 +1,6 @@
 
-py_modules=["mytk"]
-
-
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools<69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 
@@ -13,10 +10,7 @@ version="0.9.11"
 description = "A wrapper for Tkinter for busy scientists"
 readme = "README.md"
 license = {file = "LICENSE"}
-
 dynamic = ["dependencies"]
-
-
 authors = [
   {name = "Daniel Côté", email = "dccote@cervo.ulaval.ca"}
 ]
@@ -33,6 +27,9 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
 ]
+
+# py_modules=["mytk"]
+
 
 [tool.setuptools.package-data]
 "mytk.resources" = ["*.png"]
