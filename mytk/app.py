@@ -143,7 +143,7 @@ class App(Bindable, EventCapable):
         filemenu.add_command(
             label="Save…", command=self.save, accelerator="Command+S"
         )
-        filemenu.add_command(label="Quit", command=root.quit)
+        filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
         editmenu = Menu(menubar, tearoff=0)
