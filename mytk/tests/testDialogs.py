@@ -1,6 +1,8 @@
 import envtest
 import unittest
-from mytk import *
+from mytk import Dialog, SimpleDialog, Label
+
+glogbal_timeout = 100
 
 
 class TestDialog(envtest.MyTkTestCase):
@@ -11,23 +13,23 @@ class TestDialog(envtest.MyTkTestCase):
         self.timeout = 50000
 
     def test_run_ok_cancel(self):
-        self.diag = Dialog(
+        self.diag = SimpleDialog(
             dialog_type="warning",
             title="Confirmation",
             message="Do you want to quit? Like, for real, just Click Ok. Or Cancel.",
             buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
-            auto_click=(Dialog.Replies.Cancel, 500),
+            auto_click=(Dialog.Replies.Cancel, glogbal_timeout),
         )
 
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Cancel)
 
     def test_run_ok(self):
-        self.diag = Dialog(
+        self.diag = SimpleDialog(
             dialog_type="warning",
             title="Information",
             message="You cannot cancel.  Just ok.",
-            auto_click=(Dialog.Replies.Ok, 500),
+            auto_click=(Dialog.Replies.Ok, glogbal_timeout),
         )
         self.assertIsNotNone(self.diag)
         # breakpoint()
@@ -35,33 +37,35 @@ class TestDialog(envtest.MyTkTestCase):
 
     def test_classmethod_showwarning(self):
         reply = Dialog.showwarning(
-            "Warning message not that long", auto_click=(Dialog.Replies.Ok, 500)
+            "Warning message not that long",
+            auto_click=(Dialog.Replies.Ok, glogbal_timeout),
         )
         self.assertEqual(reply, Dialog.Replies.Ok)
 
     def test_classmethod_showerror(self):
         reply = Dialog.showerror(
-            "Error message not that long", auto_click=(Dialog.Replies.Ok, 500)
+            "Error message not that long",
+            auto_click=(Dialog.Replies.Ok, glogbal_timeout),
         )
         self.assertEqual(reply, Dialog.Replies.Ok)
 
     def test_auto_click_ok(self):
-        self.diag = Dialog(
+        self.diag = SimpleDialog(
             dialog_type="warning",
             title="Information",
             message="You cannot cancel.  Just ok.",
-            auto_click=(Dialog.Replies.Ok, 500),
+            auto_click=(Dialog.Replies.Ok, glogbal_timeout),
         )
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Ok)
 
     def test_auto_click_cancel(self):
-        self.diag = Dialog(
+        self.diag = SimpleDialog(
             dialog_type="warning",
             title="Information",
             message="You can cancel.  Just click Ok or Cancel.",
             buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
-            auto_click=(Dialog.Replies.Cancel, 500),
+            auto_click=(Dialog.Replies.Cancel, glogbal_timeout),
         )
         self.assertIsNotNone(self.diag)
         self.assertEqual(self.diag.run(), Dialog.Replies.Cancel)

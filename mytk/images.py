@@ -111,7 +111,8 @@ class Image(Base):
             if self.resize_update_delay > 0:
                 if len(self.scheduled_tasks) == 0:
                     self.after(
-                        self.resize_update_delay, self.resize_image_to_fit_widget
+                        self.resize_update_delay,
+                        self.resize_image_to_fit_widget,
                     )
             else:
                 self.resize_image_to_fit_widget()
@@ -122,9 +123,9 @@ class Image(Base):
         if self.widget is None:
             return
 
-        row_weight = self.parent.widget.grid_rowconfigure(self.parent_grid_cell["row"])[
-            "weight"
-        ]
+        row_weight = self.parent.widget.grid_rowconfigure(
+            self.parent_grid_cell["row"]
+        )["weight"]
         column_weight = self.parent.widget.grid_columnconfigure(
             self.parent_grid_cell["column"]
         )["weight"]
@@ -162,7 +163,9 @@ class Image(Base):
             image_to_display = self.pil_image
 
         if image_to_display is not None and self.ImageTk is not None:
-            self._displayed_tkimage = self.ImageTk.PhotoImage(image=image_to_display)
+            self._displayed_tkimage = self.ImageTk.PhotoImage(
+                image=image_to_display
+            )
         else:
             self._displayed_tkimage = None
 
@@ -170,7 +173,6 @@ class Image(Base):
 
 
 class ImageWithGrid(Image):
-
     def __init__(self, filepath=None, url=None, pil_image=None):
         super().__init__(filepath=filepath, url=url, pil_image=pil_image)
 
@@ -209,7 +211,9 @@ class ImageWithGrid(Image):
             image_to_display = self.image_with_grid_overlay(image_to_display)
 
         if image_to_display is not None and self.ImageTk is not None:
-            self._displayed_tkimage = self.ImageTk.PhotoImage(image=image_to_display)
+            self._displayed_tkimage = self.ImageTk.PhotoImage(
+                image=image_to_display
+            )
         else:
             self._displayed_tkimage = None
 

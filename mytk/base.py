@@ -1,24 +1,64 @@
-from enum import StrEnum
+"""
+Base module for custom Tkinter widget behavior.
+
+This module defines a `Base` class that extends `Bindable` to provide a 
+unified interface for managing Tkinter widget state, dynamic geometry placement, 
+event binding, and lifecycle scheduling.
+
+Includes support for property observation, variable binding, and diagnostic output.
+"""
 import re
-from .bindable import *
 from contextlib import suppress
 from enum import Enum
 
+from .bindable import Bindable
+from .eventcapable import EventCapable
+
+
 def _class_nice_(cls):
+    """
+    Returns a nicely formatted class name string for debugging or introspection.
+
+    Args:
+        cls: An instance whose class name should be extracted.
+
+    Returns:
+        str: The class name as a string, without module prefix.
+    """
     full_name = str(cls.__class__)
     match = re.search("'(.*?)'", full_name)
     if match is not None:
         return match.group(1).split(".")[-1]
 
+
 class BaseNotification(Enum):
-   did_resize     = "did_resize"
+    """
+    Enum for core notification messages emitted by Base-derived classes.
+    """
+
+    did_resize = "did_resize"
 
 
-class Base(Bindable):
+class _BaseWidget:
+    """
+    Abstract base class for all UI related methods in the framework.
+
+    Provides:
+    - Tkinter state management (enabled, selected, focused)
+    - Layout control (size, grid, pack, place)
+    - Diagnostic debug support
+
+    Event-related methods are in EventCapable and binding-related methods are in Bindable.
+    They are all combined into Base.
+    """
+
     debug = False
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        """
+        Initializes the widget base: sets up properties, and environment validation.
+        """
+        super().__init__(*args, **kwargs)
         self.widget = None
         self.parent = None
         self.value_variable = None
@@ -26,172 +66,36 @@ class Base(Bindable):
 
         self._grid_kwargs = None
         self.is_environment_valid()
-        self.scheduled_tasks = []
 
-    def __del__(self):
-        for task_id in self.scheduled_tasks:
-            self.after_cancel(task_id)
-        with suppress(Exception):
-            super().__del__()
-
-    @property
-    def debug_kwargs(self):
-        if Base.debug:
-            return {"borderwidth": 2, "relief": "groove"}
-        else:
-            return {}
-
-    def is_environment_valid(self):
-        return True
-
-    """
-    Core state setters/getters
-    """
-
-    @property
-    def is_disabled(self):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        return self.widget.instate(["disabled"])
-
-    @is_disabled.setter
-    def is_disabled(self, value):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["disabled"])
-        else:
-            self.widget.state(["!disabled"])
-
-    @property
-    def is_selected(self):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        return self.widget.instate(["selected"])
-
-    @is_selected.setter
-    def is_selected(self, value):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["selected"])
-        else:
-            self.widget.state(["!selected"])
-
-    @property
-    def has_focus(self):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        self.widget.update()
-        return self.widget.instate(["focus"])
-
-    @has_focus.setter
-    def has_focus(self, value):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["focus"])
-        else:
-            self.widget.state(["!focus"])
-
-    @property
-    def width(self):
-        if self.widget is None:
-            return self._widget_args.get("width")
-        else:
-            return self.widget["width"]
-
-    @width.setter
-    def width(self, value):
-        if self.widget is None:
-            self._widget_args["width"] = value
-        else:
-            self.widget["width"] = value
-
-    @property
-    def height(self):
-        if self.widget is None:
-            return self._widget_args.get("height")
-        else:
-            return self.widget["height"]
-
-    @height.setter
-    def height(self, value):
-        if self.widget is None:
-            self._widget_args["height"] = value
-        else:
-            self.widget["height"] = value
-
-    """
-    Convenience setters/getters
-    """
-
-    @property
-    def is_enabled(self):
-        return not self.is_disabled
-
-    @is_enabled.setter
-    def is_enabled(self, value):
-        self.is_disabled = not value
-
-    def enable(self):
-        self.is_disabled = False
-
-    def disable(self):
-        self.is_disabled = True
-
-    def select(self):
-        self.is_selected = True
-
-    def deselect(self):
-        self.is_selected = False
-
-    """
-    Scheduling tasks
-    """
-
-    def after(self, delay, function):
-        task_id = None
-        if self.widget is not None and function is not None:
-            task_id = self.widget.after(delay, function)
-            self.scheduled_tasks.append(task_id)
-        return task_id
-
-    def after_cancel(self, task_id):
-        if self.widget is not None:
-            self.widget.after_cancel(task_id)
-            self.scheduled_tasks.remove(task_id)
-
-    def after_cancel_many(self, task_ids):
-        for task_id in task_ids:
-            self.after_cancel(task_id)
-
-    def after_cancel_all(self):
-        self.after_cancel_many(self.scheduled_tasks)
+    def create_widget(self, master, **kwargs):
+        """
+        Actually create the widget as needed.
+        """
+        raise NotImplementedError(
+            "You must override create_widget in your class to create the widget"
+        )
 
     """
     Placing widgets in other widgets
     """
 
-    def grid_fill_into_expanding_cell(self, parent=None, widget=None, **kwargs):
-        raise NotImplementedError("grid_fill_into_expanding_cell")
-
-    def grid_fill_into_fixed_cell(self, parent=None, widget=None, **kwargs):
-        raise NotImplementedError("grid_fill_into_expanding_cell")
+    def add_rows(self, elements, start_row, column, **kwargs):
+        """
+        Add several elementws in a column with similar settings. Typically Label or Entries.
+        """
+        for i, element in enumerate(elements):
+            element.grid_into(self, row=start_row + i, column=column, **kwargs)
 
     def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
+        """
+        Places the widget into a grid layout.
+
+        Args:
+            parent (Base): Parent widget wrapper.
+            widget (tk.Widget): Optional target widget.
+            describe (bool): If True, prints diagnostics about layout and geometry.
+            **kwargs: Grid options (row, column, sticky, etc.)
+        """
         self.parent = parent
         self.parent_grid_cell = {
             "row": kwargs.get("row", 0),
@@ -216,12 +120,6 @@ class Base(Bindable):
         sticky = ""
         if "sticky" in kwargs.keys():
             sticky = kwargs["sticky"].lower()
-            # if "n" in sticky and "s" in sticky:
-            #     if self.widget.grid_rowconfigure(index=row)["weight"] == 0:
-            #         self.widget.grid_rowconfigure(index=row, weight=1)
-            # if "e" in sticky and "w" in sticky:
-            #     if self.widget.grid_columnconfigure(index=column)["weight"] == 0:
-            #         self.widget.grid_columnconfigure(index=column, weight=1)
 
         if self.widget is not None:
             self.widget.grid(kwargs)
@@ -243,7 +141,9 @@ class Base(Bindable):
                 )
 
                 row_weight = parent.widget.grid_rowconfigure(row)["weight"]
-                column_weight = parent.widget.grid_columnconfigure(column)["weight"]
+                column_weight = parent.widget.grid_columnconfigure(column)[
+                    "weight"
+                ]
 
                 print(
                     f"  Grid cell expands to fill extra space: (h, w):{row_weight==0, column_weight==0}, {row_weight, column_weight}"
@@ -263,9 +163,16 @@ class Base(Bindable):
 
     @property
     def grid_size(self):
+        """Returns the grid size (columns, rows) of the widget."""
         return self.widget.grid_size()
 
     def all_resize_weight(self, weight):
+        """
+        Applies the same resize weight to all rows and columns of the widget's grid.
+
+        Args:
+            weight (int): Resize weight to apply.
+        """
         cols, rows = self.grid_size
         for i in range(cols):
             self.column_resize_weight(i, weight)
@@ -274,15 +181,25 @@ class Base(Bindable):
             self.row_resize_weight(j, weight)
 
     def column_resize_weight(self, index, weight):
+        """Sets the resize weight for a specific column."""
         self.widget.columnconfigure(index, weight=weight)
 
     def row_resize_weight(self, index, weight):
+        """Sets the resize weight for a specific row."""
         self.widget.rowconfigure(index, weight=weight)
 
     def grid_propagate(self, value):
+        """Controls whether the geometry manager should let children resize the container."""
         self.widget.grid_propagate(value)
 
     def pack_into(self, parent, **kwargs):
+        """
+        Packs the widget into the parent using the pack geometry manager.
+
+        Args:
+            parent (Base): Parent widget.
+            **kwargs: Pack options.
+        """
         self.create_widget(master=parent.widget)
         self.parent = parent
 
@@ -290,29 +207,182 @@ class Base(Bindable):
             self.widget.pack(kwargs)
 
     def place_into(self, parent, x, y, width, height):
+        """
+        Places the widget into absolute coordinates inside the parent.
+
+        Args:
+            parent (Base): Parent widget.
+            x (int): X-coordinate.
+            y (int): Y-coordinate.
+            width (int): Width in pixels.
+            height (int): Height in pixels.
+        """
         self.create_widget(master=parent.widget)
         self.parent = parent
 
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)
 
-    def bind_event(self, event, callback):
-        self.widget.bind(event, callback)
+    @property
+    def debug_kwargs(self):
+        """
+        Returns debug border styling if class-level `debug` is True.
 
-    def event_generate(self, event: str):
-        self.widget.event_generate(event)
+        Returns:
+            dict: Widget keyword arguments like borderwidth and relief.
+        """
+        if Base.debug:
+            return {"borderwidth": 2, "relief": "groove"}
+        return {}
 
+    def is_environment_valid(self):
+        """
+        Check environment (TODO)
+        """
+        return True
+
+    @property
+    def is_disabled(self):
+        """Whether the widget is currently disabled (grayed out)."""
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        return self.widget.instate(["disabled"])
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        if value:
+            self.widget.state(["disabled"])
+        else:
+            self.widget.state(["!disabled"])
+
+    @property
+    def is_selected(self):
+        """Whether the widget is currently in the 'selected' state."""
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        return self.widget.instate(["selected"])
+
+    @is_selected.setter
+    def is_selected(self, value):
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        if value:
+            self.widget.state(["selected"])
+        else:
+            self.widget.state(["!selected"])
+
+    @property
+    def has_focus(self):
+        """Whether the widget currently has focus."""
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        self.widget.update()
+        return self.widget.instate(["focus"])
+
+    @has_focus.setter
+    def has_focus(self, value):
+        if self.widget is None:
+            raise Exception(
+                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            )
+        if value:
+            self.widget.state(["focus"])
+        else:
+            self.widget.state(["!focus"])
+
+    @property
+    def width(self):
+        """Gets or sets the widget width."""
+        if self.widget is None:
+            return self._widget_args.get("width")
+
+        return self.widget["width"]
+
+    @width.setter
+    def width(self, value):
+        if self.widget is None:
+            self._widget_args["width"] = value
+        else:
+            self.widget["width"] = value
+
+    @property
+    def height(self):
+        """Gets or sets the widget height."""
+        if self.widget is None:
+            return self._widget_args.get("height")
+        return self.widget["height"]
+
+    @height.setter
+    def height(self, value):
+        if self.widget is None:
+            self._widget_args["height"] = value
+        else:
+            self.widget["height"] = value
+
+    @property
+    def is_enabled(self):
+        """Whether the widget is enabled (not disabled)."""
+        return not self.is_disabled
+
+    @is_enabled.setter
+    def is_enabled(self, value):
+        """Enables the widget."""
+        self.is_disabled = not value
+
+    def enable(self):
+        """Enables the widget."""
+        self.is_disabled = False
+
+    def disable(self):
+        """Disables the widget."""
+        self.is_disabled = True
+
+    def select(self):
+        """Marks the widget as selected."""
+        self.is_selected = True
+
+    def deselect(self):
+        """Unselects the widget."""
+        self.is_selected = False
+
+    def keys(self):
+        """Prints all configurable options of the underlying widget."""
+        print(self.widget.configure().keys())
+
+
+class Base(_BaseWidget, Bindable, EventCapable):
     def bind_textvariable(self, variable):
+        """
+        Binds a textvariable (e.g., StringVar) to the widget.
+
+        Args:
+            variable (tk.Variable): The variable to bind.
+        """
         if self.widget is not None:
             self.value_variable = variable
             self.widget.configure(textvariable=variable)
             self.widget.update()
 
     def bind_variable(self, variable):
+        """
+        Binds a general-purpose variable (e.g., BooleanVar, IntVar).
+
+        Args:
+            variable (tk.Variable): The variable to bind.
+        """
         if self.widget is not None:
             self.value_variable = variable
             self.widget.configure(variable=variable)
             self.widget.update()
-
-    def keys(self):
-        print(self.widget.configure().keys())
