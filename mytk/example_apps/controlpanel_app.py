@@ -5,10 +5,10 @@ class ControlPanelApp(App):
     def __init__(self):
         App.__init__(self, geometry="800x480", name="Control Panel")
 
-        self.is_running = False
+        self.acquisition_is_running = False
 
         # Base.debug = True
-        self.window.widget.title("IoT - Control Panel")
+        self.window.widget.title("Control Panel")
 
         self.plot = XYPlot(figsize=(6,6))
         self.plot.grid_into(self.window, row=0, column=0, rowspan=2, columnspan=1, padx=10, pady=10, sticky='new')
@@ -37,7 +37,7 @@ class ControlPanelApp(App):
         
         self.running_indicator = BooleanIndicator()
         self.running_indicator.grid_into(self.status, row=0, column=0, padx=5, pady=5, sticky='e')
-        self.bind_property_to_widget_value('is_running', self.running_indicator)
+        self.bind_property_to_widget_value('acquisition_is_running', self.running_indicator)
         self.running_label = Label("System running")
         self.running_label.grid_into(self.status, row=0, column=1, padx=5, pady=5, sticky='w')
 
@@ -57,13 +57,13 @@ class ControlPanelApp(App):
         self.plot.widget.after(500, self.ticker)
 
     def start_process(self, event, button):
-        self.is_running = True
+        self.acquisition_is_running = True
 
     def stop_process(self, event, button):
-        self.is_running = False
+        self.acquisition_is_running = False
 
     def ticker(self):
-        if self.is_running:
+        if self.acquisition_is_running:
             self.append_new_data()
             self.plot.update_plot()
 

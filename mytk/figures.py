@@ -259,6 +259,7 @@ class XYPlot(Figure):
         self.x = []
         self.y = []
         self.first_axis.clear()
+        self.update_plot()
 
     def update_plot(self):
         # with plt.style.context(self.style):

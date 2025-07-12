@@ -341,7 +341,7 @@ class CanvasApp(App):
 
         self.refresh()
 
-    def source_data_changed(self):
+    def source_data_changed(self, tableview):
         self.refresh()
 
     def click_copy_buttons(self, event, button):

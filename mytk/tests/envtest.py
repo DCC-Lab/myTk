@@ -2,9 +2,12 @@ import sys
 import os
 
 # append module root directory to sys.path
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+this_dir = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
+sys.path.insert(0, this_dir)
+
+# print(this_dir)
 
 import pathlib
 import unittest
@@ -22,7 +25,9 @@ class MyTkTestCase(unittest.TestCase):
 
         self.callback_function_called = False
         self.delegate_function_called = False
-        self.resource_directory = pathlib.Path(__file__).parent.parent / "resources"
+        self.resource_directory = (
+            pathlib.Path(__file__).parent.parent / "resources"
+        )
         self.widget_under_test = None
 
     def tearDown(self):

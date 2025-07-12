@@ -63,7 +63,7 @@ class TableView(Base):
 
             self.displaycolumns = ["#all"] # necessary to avoid TCLError when setting columns
             self.widget["columns"] = new_values
-            self.displaycolumns = new_values.copy() # We refer to displaycolumns to get displayed order
+            self.displaycolumns = new_values # We refer to displaycolumns to get displayed order
         else:
             raise ValueError("Set columns-labels directly if the widget is not created yet.")
 
@@ -392,6 +392,8 @@ class TableView(Base):
                 parent_id = ""
 
             self.widget.move(record['__uuid'], parent_id , END)
+
+        return items_ids_sorted
 
     def click_header(self, column_name=None):
         assert isinstance(column_name, str)

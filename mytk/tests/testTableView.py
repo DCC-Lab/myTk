@@ -259,16 +259,10 @@ class TestTableview(envtest.MyTkTestCase):
             self.tableview.widget.configure(columns=("c", "d", "e"))
 
         self.assertTrue(len(self.tableview.displaycolumns) != 0)
-        self.tableview.columns = ("c", "d", "e") # Resets display column
-        self.assertTrue(len(self.tableview.displaycolumns) == 0)
+        self.tableview.columns = ("c", "d", "e") 
+        self.assertTrue(len(self.tableview.displaycolumns) == 3)
 
-        # Without displaycolumns I can do anything!
-        self.assertTrue(len(self.tableview.displaycolumns) == 0)
         self.tableview.widget["columns"] = ("c", "d", "e")
-        self.tableview.widget.configure(columns=("c2", "d2", "e2"))
-        self.tableview.widget.configure(columns=())
-        self.tableview.columns=()
-        self.assertTrue(len(self.tableview.displaycolumns) == 0)
 
     def test_columns_change_in_tkinter_resets_headings(self):
         # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name 

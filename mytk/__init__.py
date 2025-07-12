@@ -18,7 +18,7 @@ from .bindable import Bindable
 from .app import App
 from .base import Base
 from .window import Window
-from .dialog import Dialog
+from .dialog import Dialog, SimpleDialog
 from .views import View, Box
 from .button import Button
 from .checkbox import Checkbox
@@ -45,4 +45,4 @@ from .fileviewer import FileTreeData, FileViewer
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
 
-__version__="0.9.3"
+__version__ = "0.9.11"

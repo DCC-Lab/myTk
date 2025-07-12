@@ -11,7 +11,6 @@ import cv2
 
 
 class VideoView(Base):
-
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
 
@@ -31,7 +30,9 @@ class VideoView(Base):
         self.histogram_xyplot = None
 
         self._displayed_tkimage = None
-        self.previous_handler = signal.signal(signal.SIGINT, self.signal_handler)
+        self.previous_handler = signal.signal(
+            signal.SIGINT, self.signal_handler
+        )
         self.next_scheduled_update = None
         self.next_scheduled_update_histogram = None
 
@@ -48,7 +49,8 @@ class VideoView(Base):
             self.PILImageTk = importlib.import_module("PIL.ImageTk")
 
         return all(
-            v is not None for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk]
+            v is not None
+            for v in [self.cv2, self.PIL, self.PILImage, self.PILImageTk]
         )
 
     def signal_handler(self, sig, frame):
@@ -122,8 +124,11 @@ class VideoView(Base):
             self.videowriter.release()
             self.videowriter = None
 
-    def update_display(self):
-        ret, readonly_frame = self.capture.read()
+    def update_display(self, readonly_frame=None):
+        ret = True
+        if readonly_frame is None and self.is_running:
+            ret, readonly_frame = self.capture.read()
+
         if ret:
             # The OpenCV documentation is clear: the returned frame from read() is read-only
             # and must be copied to be used (I assume it can be overwritten internally)
@@ -141,7 +146,10 @@ class VideoView(Base):
             # convert to PIL image
             img = self.PILImage.fromarray(frame)
             resized_image = img.resize(
-                (img.width // int(self.zoom_level), img.height // int(self.zoom_level)),
+                (
+                    img.width // int(self.zoom_level),
+                    img.height // int(self.zoom_level),
+                ),
                 self.PILImage.NEAREST,
             )
             self.image = resized_image
@@ -158,7 +166,9 @@ class VideoView(Base):
             if self.next_scheduled_update_histogram is None:
                 self.update_histogram()
 
-            self.next_scheduled_update = App.app.root.after(20, self.update_display)
+            self.next_scheduled_update = App.app.root.after(
+                20, self.update_display
+            )
 
         if self.abort:
             self.stop_capturing()
@@ -175,12 +185,14 @@ class VideoView(Base):
             self.histogram_xyplot.y.append(
                 values[bins_per_channel : 2 * bins_per_channel : decimate]
             )
-            self.histogram_xyplot.y.append(values[2 * bins_per_channel :: decimate])
+            self.histogram_xyplot.y.append(
+                values[2 * bins_per_channel :: decimate]
+            )
 
             self.histogram_xyplot.update_plot()
 
             self.next_scheduled_update_histogram = App.app.root.after(
-                100, self.update_histogram
+                300, self.update_histogram
             )
 
     def create_behaviour_popups(self):
@@ -265,7 +277,9 @@ class VideoView(Base):
         )
         print("CAP_PROP_FPS : '{}'".format(capture.get(self.cv2.CAP_PROP_FPS)))
         print(
-            "CAP_PROP_POS_MSEC : '{}'".format(capture.get(self.cv2.CAP_PROP_POS_MSEC))
+            "CAP_PROP_POS_MSEC : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_POS_MSEC)
+            )
         )
         print(
             "CAP_PROP_FRAME_COUNT  : '{}'".format(
@@ -278,7 +292,9 @@ class VideoView(Base):
             )
         )
         print(
-            "CAP_PROP_CONTRAST : '{}'".format(capture.get(self.cv2.CAP_PROP_CONTRAST))
+            "CAP_PROP_CONTRAST : '{}'".format(
+                capture.get(self.cv2.CAP_PROP_CONTRAST)
+            )
         )
         print(
             "CAP_PROP_SATURATION : '{}'".format(
@@ -286,7 +302,9 @@ class VideoView(Base):
             )
         )
         print("CAP_PROP_HUE : '{}'".format(capture.get(self.cv2.CAP_PROP_HUE)))
-        print("CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN)))
+        print(
+            "CAP_PROP_GAIN  : '{}'".format(capture.get(self.cv2.CAP_PROP_GAIN))
+        )
         print(
             "CAP_PROP_CONVERT_RGB : '{}'".format(
                 capture.get(self.cv2.CAP_PROP_CONVERT_RGB)

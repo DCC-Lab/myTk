@@ -8,7 +8,41 @@ Making a UI interface should not be complicated. **myTk** is a set of UI classes
 Tk comes standard with Python.  It is highly portable to all main platforms.
 
 I know Qt, wxWidgets, and the many other ways to make an interface in Python, and I have programmed macOS since System 7 (Quickdraw, Powerplant) and Mac OS X (Carbon, Aqua, .nib and .xib files in Objective-C and in Swift).  The issues I have found with UIs in Python is either the lack of portability or the complexity of the UI strategy: 
-**Qt** is very powerful but for most applications (and most scientific programmers) it is too complex, and my experience is that it is fairly fragile to transport to another device (same or different OS). On the other hand, `Tkinter` is standard on Python, but uses UI strategies that are showing their age (for example, raw function callbacks for events, inconsistent nomenclature, and some hoop jumping to get simple things done). It was easier to encapsulate `Tkinter` into something easy to use than to simplify Qt or other UI frameworks. This is therefore the objective of this micro-project: make `Tkinter` very simple to use for non-professional programmers.  Many common tasks have classes ready to use.
+**Qt** is very powerful but for most applications (and most scientific programmers) it is too complex, and my experience is that it is fairly fragile to transport to another device (same or different OS). On the other hand, `Tkinter` is standard on Python, but uses UI strategies that are showing their age (for example, raw function callbacks for events, inconsistent nomenclature, and some hoop jumping to get simple things done). But the advent of Themed Tk (ttk) made it look much better and modern.  It was easier to encapsulate `Tkinter` into something easy to use than to simplify Qt or other UI frameworks. This is therefore the objective of this micro-project: make `Tkinter` very simple to use for non-professional programmers.  Many common tasks have classes ready to use.
+
+## Quickstart
+```
+% pip install mytk -U
+% python -m mytk -h
+
+usage: python -m mytk [-h] [-e EXAMPLES] [-c] [-l] [-t]
+
+options:
+  -h, --help            show this help message and exit
+  -e, --examples EXAMPLES
+                        Specific example numbers, separated by a comma
+  -c, --classes         Print the class hierarchy in graphviz format
+  -l, --list            List all the accessible examples
+  -t, --tests           Run all Unit tests
+
+% python -m mytk -l
+
+ 1. canvas_app.py
+ 2. controlpanel_app.py
+ 3. example.py
+ 4. file_calculator_app.py
+ 5. fileviewer_app.py
+ 6. filters_app.py
+ 7. lensviewer_app.py
+ 8. microscope_app.py
+ 9. powermeter_app.py
+10. pydatagraph_app.py
+
+% python -m mytk -e 3
+
+/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 /Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/mytk/example_apps/example.py
+(example program 3 will run, source is accessible from above path).
+```
 
 ## Design
 Having been a macOS programmer for a long time, I have lived through the many incarnations of UI frameworks. Over the years, I have come to first understand, and second appreciate,  good design patterns.  If interested in Design Patterns, I would recommend reading [Design Patterns](https://refactoring.guru/design-patterns). I sought to make `Tkinter` a bit more mac-like because many design patterns in Apple's libraries are particularly mature and useful.  For instance, Tkinter requires the parent of the UI-element to be specified at creation, even though there is no reason for it to be required.  In addition, the many callbacks get complicated to organize when they are all over the place, therefore when appropriate I implemented a simple strategy to handle many cases by default for the Table, and offer the option to extend the behaviour with delegate-functions (which are a bit cleaner than raw callbacks).
@@ -23,10 +57,6 @@ Having been a macOS programmer for a long time, I have lived through the many in
 The most important aspect to understand with Tk is how to position things on screen, and I have found it quite confusing. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid may adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`column/row` `weight`) and the widget itself may also resize (depending on its `sticky` options ). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
 
 The tutorials that helped me the most are: [pythonguis.com](https://www.pythonguis.com/faq/pack-place-and-grid-in-tkinter/) and [TkDocs](https://tkdocs.com/tutorial/index.html).
-
-The key elements to remember when using the grid layout manager:
-
-1. 
 
 
 ## Classes
@@ -55,9 +85,13 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
+and many others that need to be documented.  [Look at the code](https://github.com/DCC-Lab/myTk/tree/main/mytk) to find them for now.
+
+![image](https://github.com/user-attachments/assets/501952c8-e16c-406e-97cc-3a729472b2ea)
+
 ## Getting started
 
-The best way to learn is to look at the examples applicateion (`mytk.py`, `lensviewer_app.py`, `filters_app.py`, `microscope_app.py`). But here it is:
+The best way to learn is to look at the example applications in mytk/example_apps/ (`mytk.py`, `lensviewer_app.py`, `filters_app.py`, `microscope_app.py`, etc...). But here it is:
 
 1. Create a subclass of `App`. 
 2. In you `__init__`, first call `super().__init__`, then add you interface to the window at `self.window`. See below for examples.
