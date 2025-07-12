@@ -74,6 +74,7 @@ class App(Bindable, EventCapable):
         self.window = Window(geometry=geometry, title=name)
         self.check_requirements()
         self.create_menu()
+
         App.app = self
 
     @property
@@ -167,6 +168,17 @@ class App(Bindable, EventCapable):
 
         menubar.add_cascade(label="Help", menu=helpmenu)
         root.config(menu=menubar)
+
+        # IMPORTANT: Define the Tcl callback for the macOS quit event
+        # If we don't, quitting with the Python menu will skip our self.quit command
+        def on_mac_quit():
+            # This is called when the user clicks "Quit" from the Apple menu or presses ⌘+Q
+            self.quit()
+
+        try:
+            self.root.createcommand("tk::mac::Quit", on_mac_quit)
+        except TclError:
+            pass  # Not on macOS or already defined
 
     def reveal_path(self, path):
         """
