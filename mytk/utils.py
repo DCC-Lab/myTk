@@ -1,3 +1,10 @@
+from threading import current_thread, main_thread
+
+
+def is_main_thread() -> bool:
+    return current_thread() == main_thread()
+
+
 def package_app_script(filepath=None):
     from inspect import currentframe, getframeinfo
 
