@@ -1,7 +1,7 @@
 import envtest
 from typing import Optional, Tuple, Any
 
-from pymicroscope.utils.configurable import ConfigModel, ConfigurableStringProperty, ConfigurableNumericProperty, ConfigurationDialog
+from mytk.configurable import ConfigModel, ConfigurableStringProperty, ConfigurableNumericProperty, ConfigurationDialog
 from mytk import Dialog, Label, Entry
 import threading, atexit, sys
 
@@ -9,7 +9,7 @@ import threading, atexit, sys
 class TestObject(ConfigModel):
     pass
 
-class ConfigurableTestCase(envtest.CoreTestCase):
+class ConfigurableTestCase(envtest.MyTkTestCase):
     def test000_configurable_property(self) -> None:
         """
         Verify that the abstract ImageProvider cannot be instantiated directly.
@@ -464,4 +464,4 @@ class ConfigurableTestCase(envtest.CoreTestCase):
 
     
 if __name__ == "__main__":
-    envtest.main()
+    envtest.unittest.main()
