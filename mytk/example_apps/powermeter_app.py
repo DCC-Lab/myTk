@@ -37,9 +37,9 @@ class PowerMeterApp(App):
         self.save_button.grid_into(self.box, row=0, column=2, padx=10, pady=10)
         self.clear_button = Button("Clear graph", user_event_callback=self.click_clear)
         self.clear_button.grid_into(self.box, row=0, column=3, padx=10, pady=10)
-        self.wavelength_entry = LabelledEntry("Wavelength:", character_width=6)
+        self.wavelength_entry = LabelledEntry(label="Wavelength:", character_width=6)
         self.wavelength_entry.grid_into(self.box, row=0, column=4, sticky="e")
-        self.firmware_label = Label()
+        self.firmware_label = Label("")
         self.firmware_label.grid_into(self.window, row=3, column=0, columnspan=3, padx=25, pady=10, sticky="w")
 
         self.device = PowerMeterDevice()
