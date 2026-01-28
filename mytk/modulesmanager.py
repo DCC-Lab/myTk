@@ -1,7 +1,7 @@
 import subprocess
 import importlib
 import sys
-
+from tkinter import messagebox
 
 class ModulesManager:
     imported = {}
@@ -38,7 +38,7 @@ class ModulesManager:
         for pip_name, import_name in pip_modules.items():
             if cls.is_not_installed(import_name):
                 if ask_for_confirmation:
-                    result = askquestion(
+                    result = messagebox.askquestion(
                         f"""Module {pip_name} missing""",
                         f"""Do you want to install the missing module '{pip_name}'? If you do not wish to do so, the application may not work.""",
                         icon="warning",
