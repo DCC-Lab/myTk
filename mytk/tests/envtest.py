@@ -5,7 +5,6 @@ from mytk import App, View
 
 class MyTkTestCase(unittest.TestCase):
     def setUp(self):
-        timeout = 1000
         self.app = App()
         testcase_id = self.id()
         self.app.window.widget.title(testcase_id)
