@@ -68,7 +68,7 @@ class Bindable:
         in case this is part of a multiple inheritance (it is)
         """
         self.observing_me = []
-        super().__init__(*args, **kwargs)  # cooperative!
+        super().__init__()  # cooperative!
 
     def add_observer(self, observer, my_property_name, context=None):
         """

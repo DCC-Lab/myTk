@@ -68,7 +68,7 @@ class TestCustomDialog(envtest.MyTkTestCase):
         diag = MyDialog(
             title="Test Window",
             buttons_labels=[Dialog.Replies.Ok, Dialog.Replies.Cancel],
-            # auto_click=[Dialog.Replies.Ok, 1000],
+            auto_click=(Dialog.Replies.Ok, 100),
         )
         self.assertIsNotNone(diag)
         reply = diag.run()

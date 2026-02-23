@@ -16,10 +16,10 @@ class Entry(Base):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._widget_args = {"width": character_width}
+        self._widget_args["width"] = character_width
         self.value = value
         self.bind_properties("value", self, "value_variable")
-        self.value_variable = StringVar()
+        self.value_variable = StringVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
@@ -87,7 +87,7 @@ class FormattedEntry(Base):
         self.value_variable = StringVar(value=value)
         self._value = value
 
-        self._widget_args = {"width": character_width}
+        self._widget_args["width"] = character_width
 
     @property
     def value(self):
@@ -95,10 +95,11 @@ class FormattedEntry(Base):
 
     @value.setter
     def value(self, new_value):
-        self._value = new_value
-        self.value_variable.set(
-            value=self.format_string.format(self._actual_value)
-        )
+        if new_value != self._value:
+            self._value = new_value
+            self.value_variable.set(
+                value=self.format_string.format(self._value)
+            )
 
     @property
     def character_width(self):
@@ -207,17 +208,18 @@ class NumericEntry(FormattedEntry):
         increment=1,
         **kwargs,
     ):
+        super().__init__(*args, **kwargs)
+
         if "value" not in kwargs:
             kwargs["value"] = 0
 
-        self._widget_args = {
+        self._widget_args.update({
             "width": width,
             "from": minimum,
             "to": maximum,
             "increment": increment,
-        }
+        })
 
-        super().__init__(*args, **kwargs)
 
     def create_widget(self, master):
         self.parent = master
