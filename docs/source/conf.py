@@ -30,12 +30,6 @@ exclude_patterns = []
 
 autosummary_generate = True
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_static_path = ["_static"]
-
-import os
-import sys
-
-sys.path.insert(
-    0, os.path.abspath("../../mytk")
-)  # or your actual source folder
+# mytk must be installed (pip install -e .) for autodoc to find the package.

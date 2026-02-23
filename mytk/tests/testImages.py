@@ -17,10 +17,8 @@ class TestImage(envtest.MyTkTestCase):
         self.assertIsNotNone(Image())
 
     def test_resource_directory(self):
-        resource_directory = pathlib.Path(__file__).parent.parent / "resources"
-        self.assertEqual(
-            resource_directory, pathlib.Path("/Users/dccote/GitHub/myTk/mytk/resources")
-        )
+        self.assertTrue(self.resource_directory.exists())
+        self.assertTrue(self.resource_directory.is_dir())
 
     def test_init_with_path(self):
         self.assertIsNotNone(Image(filepath=self.resource_directory / "error.png"))

@@ -119,7 +119,7 @@ class EventCapable:
         """
         Cancels all currently scheduled tasks for this object.
         """
-        self.after_cancel_many(self.scheduled_tasks)
+        self.after_cancel_many(list(self.scheduled_tasks))
 
     def bind_event(self, event: str, callback: Callable):
         """

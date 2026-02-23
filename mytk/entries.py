@@ -19,7 +19,7 @@ class Entry(Base):
         self._widget_args["width"] = character_width
         self.value = value
         self.bind_properties("value", self, "value_variable")
-        self.value_variable = StringVar()
+        self.value_variable = StringVar(value=value)
 
     def create_widget(self, master):
         self.parent = master
