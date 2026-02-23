@@ -1,14 +1,3 @@
-import sys
-import os
-
-# append module root directory to sys.path
-this_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
-sys.path.insert(0, this_dir)
-
-# print(this_dir)
-
 import pathlib
 import unittest
 from mytk import App, View

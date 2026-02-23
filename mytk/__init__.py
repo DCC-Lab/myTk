@@ -1,17 +1,7 @@
+# Re-export tkinter so users can do `from mytk import *` and get a complete toolkit.
 from tkinter import *
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
-
-from functools import partial
-import platform
-import time
-import signal
-import subprocess
-import sys
-import weakref
-import json
-from enum import StrEnum
-import importlib
 
 from .modulesmanager import ModulesManager
 from .bindable import Bindable
@@ -31,7 +21,6 @@ from .entries import (
     CellEntry,
     NumericEntry,
     IntEntry,
-    CellEntry,
     LabelledEntry,
 )
 from .controls import Slider
@@ -44,4 +33,65 @@ from .fileviewer import FileTreeData, FileViewer
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
 
-__version__ = "0.9.12"
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("mytk")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
+__all__ = [
+    # Tkinter namespaces (re-exported for convenience)
+    "ttk",
+    "tkFont",
+    # Core
+    "ModulesManager",
+    "Bindable",
+    "App",
+    "Base",
+    "Window",
+    # Dialogs
+    "Dialog",
+    "SimpleDialog",
+    # Layout
+    "View",
+    "Box",
+    # Controls
+    "Button",
+    "Checkbox",
+    "RadioButton",
+    "PopupMenu",
+    "Slider",
+    # Labels
+    "Label",
+    "URLLabel",
+    # Entries
+    "Entry",
+    "FormattedEntry",
+    "CellEntry",
+    "NumericEntry",
+    "IntEntry",
+    "LabelledEntry",
+    # Canvas
+    "CanvasView",
+    # Indicators
+    "NumericIndicator",
+    "BooleanIndicator",
+    "Level",
+    # Images
+    "Image",
+    "DynamicImage",
+    "ImageWithGrid",
+    # Data
+    "TabularData",
+    "PostponeChangeCalls",
+    "TableView",
+    # File system
+    "FileTreeData",
+    "FileViewer",
+    # Plots
+    "Figure",
+    "XYPlot",
+    "Histogram",
+    # Video
+    "VideoView",
+]
