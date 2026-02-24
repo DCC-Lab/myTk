@@ -81,7 +81,8 @@ class App(Bindable, EventCapable):
         self.create_menu()
 
         App.app = self
-        self.after(self.run_loop_delay, self.run_main_queue)
+        if self.is_running:
+            self.after(self.run_loop_delay, self.run_main_queue)
 
     @property
     def widget(self):
@@ -152,7 +153,8 @@ class App(Bindable, EventCapable):
                     e,
                 )
 
-        self.after(self.run_loop_delay, self.run_main_queue)
+        if self.is_running:
+            self.after(self.run_loop_delay, self.run_main_queue)
 
     def create_menu(self):
         """
