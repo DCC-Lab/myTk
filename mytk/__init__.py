@@ -32,6 +32,14 @@ from .tableview import TableView
 from .fileviewer import FileTreeData, FileViewer
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
+from .configurable import (
+    Configurable,
+    ConfigModel,
+    ConfigurationDialog,
+    ConfigurableProperty,
+    ConfigurableStringProperty,
+    ConfigurableNumericProperty,
+)
 
 from importlib.metadata import version, PackageNotFoundError
 try:
