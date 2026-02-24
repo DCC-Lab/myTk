@@ -1,5 +1,4 @@
 from typing import Optional, Any, Callable
-from dataclasses import dataclass
 import numbers
 import re
 from mytk import Dialog, Label, Entry
@@ -7,19 +6,23 @@ from mytk import Dialog, Label, Entry
 def is_numeric(value) -> bool:
     return isinstance(value, numbers.Real)
 
-@dataclass
 class ConfigurableProperty:
-    # name is now optional so that when a property is declared as a class attribute
+    # name is optional so that when a property is declared as a class attribute
     # (the descriptor-based approach), Python supplies the name automatically via
     # __set_name__.  Existing code that passes name= explicitly still works.
-    name: str = None
-    default_value : Optional[Any] = None
-    displayed_name: str = None
-    validate_fct : Optional[Callable[[Any], bool]] = None
-    valid_set : set | list = None
-    value_type: Optional[type] = None
 
-    def __post_init__(self):
+    def __init__(self, name=None, default_value=None, displayed_name=None,
+                 validate_fct=None, valid_set=None, value_type=None):
+        self.name = name
+        self.default_value = default_value
+        self.displayed_name = displayed_name
+        self.validate_fct = validate_fct
+        self.valid_set = valid_set
+        self.value_type = value_type
+        self._validate()
+
+    def _validate(self):
+        # Infer value_type from the default when not given explicitly.
         if self.value_type is None and self.default_value is not None:
             self.value_type = type(self.default_value)
 
@@ -122,13 +125,17 @@ class ConfigurableProperty:
         return value
 
 
-@dataclass
 class ConfigurableStringProperty(ConfigurableProperty):
-    valid_regex:Optional[Any] = None
 
-    def __post_init__(self):
-        self.value_type = str
-        super().__post_init__()
+    def __init__(self, valid_regex=None, name=None, default_value=None,
+                 displayed_name=None, validate_fct=None, valid_set=None):
+        # valid_regex must be set before super().__init__() because _validate()
+        # calls self.is_valid(), which calls the regex check.
+        self.valid_regex = valid_regex
+        # value_type is always str for this class; not exposed as a parameter.
+        super().__init__(name=name, default_value=default_value,
+                         displayed_name=displayed_name, validate_fct=validate_fct,
+                         valid_set=valid_set, value_type=str)
 
     def is_valid(self, value: str) -> bool:
         if not super().is_valid(value):
@@ -139,12 +146,21 @@ class ConfigurableStringProperty(ConfigurableProperty):
 
         return True
 
-@dataclass
 class ConfigurableNumericProperty(ConfigurableProperty):
-    min_value: Optional[Any] = float("-inf")
-    max_value: Optional[Any] = float("+inf")
-    multiplier: int = 1
-    format_string : Optional[str] = None
+
+    def __init__(self, min_value=float("-inf"), max_value=float("+inf"),
+                 multiplier=1, format_string=None,
+                 name=None, default_value=None, displayed_name=None,
+                 validate_fct=None, valid_set=None, value_type=None):
+        # Range fields must be set before super().__init__() because _validate()
+        # calls self.is_valid(), which calls is_in_valid_range().
+        self.min_value = min_value
+        self.max_value = max_value
+        self.multiplier = multiplier
+        self.format_string = format_string
+        super().__init__(name=name, default_value=default_value,
+                         displayed_name=displayed_name, validate_fct=validate_fct,
+                         valid_set=valid_set, value_type=value_type)
 
     def is_valid_type(self, value: Any) -> bool:
         # When no explicit type is given, require any numeric value rather
