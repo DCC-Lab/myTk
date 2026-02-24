@@ -28,6 +28,7 @@ import os
 import subprocess
 from contextlib import redirect_stdout, suppress
 import io
+from queue import Queue as TQueue, Empty, Full
 from tkinter import Menu, TclError
 
 from .modulesmanager import ModulesManager
@@ -35,6 +36,7 @@ from .bindable import Bindable
 from .window import Window
 from .dialog import Dialog
 from .eventcapable import EventCapable
+from .utils import is_main_thread
 
 
 class App(Bindable, EventCapable):
@@ -55,13 +57,7 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self,
-        *args,
-        geometry=None,
-        name="myTk App",
-        help_url=None,
-        no_window=False,
-        **kwargs,
+        self, *args, geometry=None, name="myTk App", help_url=None, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
@@ -77,11 +73,16 @@ class App(Bindable, EventCapable):
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry=geometry, title=name, withdraw=no_window)
+        self.window = Window(geometry=geometry, title=name)
+        self.main_queue: TQueue = TQueue()
+        self.run_loop_delay: int = 20
+
         self.check_requirements()
         self.create_menu()
 
         App.app = self
+        if self.is_running:
+            self.after(self.run_loop_delay, self.run_main_queue)
 
     @property
     def widget(self):
@@ -131,7 +132,29 @@ class App(Bindable, EventCapable):
         """
         Enters the Tkinter main event loop.
         """
+        self.run_main_queue()
         self.window.widget.mainloop()
+
+    def schedule_on_main_thread(self, fct, args=None, kwargs=None):
+        self.main_queue.put((fct, args, kwargs))
+
+    def run_main_queue(self):
+        assert is_main_thread()
+
+        while not self.main_queue.empty():
+            try:
+                f, args, kwargs = self.main_queue.get_nowait()
+                f(*(args or []), **(kwargs or {}))
+            except Empty:
+                pass
+            except Exception as e:
+                print(
+                    "Unable to call scheduled function {fct} with arguments {args}:",
+                    e,
+                )
+
+        if self.is_running:
+            self.after(self.run_loop_delay, self.run_main_queue)
 
     def create_menu(self):
         """

@@ -48,7 +48,7 @@ class EventCapable:
         Initializes internal scheduling structures and sets up for cooperative multiple inheritance.
         """
         self.scheduled_tasks = []
-        super().__init__(*args, **kwargs)  # cooperative!
+        super().__init__()  # cooperative!
 
     # def __del__(self):
     #     """
@@ -119,7 +119,7 @@ class EventCapable:
         """
         Cancels all currently scheduled tasks for this object.
         """
-        self.after_cancel_many(self.scheduled_tasks)
+        self.after_cancel_many(list(self.scheduled_tasks))
 
     def bind_event(self, event: str, callback: Callable):
         """

@@ -7,7 +7,10 @@ from .button import Button
 from .popupmenu import PopupMenu
 import importlib
 import signal
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 
 
 class VideoView(Base):

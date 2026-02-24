@@ -1,17 +1,7 @@
+# Re-export tkinter so users can do `from mytk import *` and get a complete toolkit.
 from tkinter import *
 import tkinter.ttk as ttk
 import tkinter.font as tkFont
-
-from functools import partial
-import platform
-import time
-import signal
-import subprocess
-import sys
-import weakref
-import json
-from enum import StrEnum
-import importlib
 
 from .modulesmanager import ModulesManager
 from .bindable import Bindable
@@ -31,7 +21,6 @@ from .entries import (
     CellEntry,
     NumericEntry,
     IntEntry,
-    CellEntry,
     LabelledEntry,
 )
 from .controls import Slider
@@ -44,5 +33,18 @@ from .tableview import TableView
 from .fileviewer import FileTreeData, FileViewer
 from .figures import Figure, XYPlot, Histogram
 from .videoview import VideoView
+from .configurable import (
+    Configurable,
+    ConfigModel,
+    ConfigurationDialog,
+    ConfigurableProperty,
+    ConfigurableStringProperty,
+    ConfigurableNumericProperty,
+)
 
-__version__ = "0.9.11"
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("mytk")
+except PackageNotFoundError:
+    __version__ = "unknown"
+
