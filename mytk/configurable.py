@@ -367,6 +367,30 @@ class Configurable:
 #
 # Useful when the schema is constructed dynamically rather than declared
 # at class definition time.
+#
+# To show a dialog, create the properties, build a ConfigurationDialog,
+# and call run().  If the user clicked Ok, read the updated values back
+# from dialog.values:
+#
+#   exposure = ConfigurableNumericProperty(
+#       name="exposure_time", displayed_name="Exposure time (ms)",
+#       default_value=100, min_value=1, max_value=10000)
+#   gain = ConfigurableNumericProperty(
+#       name="gain", displayed_name="Gain",
+#       default_value=1.0, min_value=0.1, max_value=16.0)
+#
+#   dialog = ConfigurationDialog(
+#       properties=[exposure, gain],
+#       title="Microscope settings",
+#       buttons_labels=["Ok", "Cancel"])
+#   reply = dialog.run()
+#
+#   if reply == Dialog.Replies.Ok:
+#       print(dialog.values)   # {'exposure_time': ..., 'gain': ...}
+#
+# If you are using the Configurable mixin instead, you do not need
+# ConfigurationDialog directly — call scope.show_config_dialog() and
+# the values are applied back to the object automatically.
 # ----------------------------------------------------------------------
 
 class ConfigModel:
