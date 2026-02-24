@@ -1,3 +1,80 @@
+"""
+Configurable — easy settings management with automatic dialog generation
+========================================================================
+
+Scientific instruments and applications almost always have parameters that
+need to be adjusted by the user: exposure time, gain, wavelength, threshold
+values, file paths, and so on.  Managing those parameters by hand is
+tedious: you have to store each value somewhere, write code to check that
+the user has not entered something impossible (a negative exposure time, a
+wavelength outside the detector range), and build a dialog box so the user
+can change the settings interactively.
+
+This module takes care of all of that for you.
+
+The basic idea
+--------------
+You describe each parameter once — its name, its type, its allowed range,
+and a sensible default — and the framework handles validation, correction of
+bad values, and the dialog window automatically.
+
+There are two ways to use it.  The simple, recommended way is to inherit
+from ``Configurable`` and declare parameters as class attributes:
+
+    from mytk import App, Configurable, ConfigurableNumericProperty
+
+    class Microscope(Configurable):
+        exposure_time = ConfigurableNumericProperty(
+            default_value  = 100,
+            min_value      = 1,
+            max_value      = 10000,
+            displayed_name = "Exposure time (ms)")
+
+        gain = ConfigurableNumericProperty(
+            default_value  = 1.0,
+            min_value      = 0.1,
+            max_value      = 16.0,
+            displayed_name = "Gain")
+
+    scope = Microscope()
+
+    # Read and write parameters like ordinary Python attributes.
+    scope.exposure_time = 500
+    print(scope.exposure_time)   # 500
+
+    # Show a settings dialog.  The user edits the values and clicks Ok;
+    # the new values are applied to the object automatically.
+    scope.show_config_dialog(title="Microscope settings")
+
+    # Get all current values at once as a plain dict.
+    print(scope.values)   # {'exposure_time': 500, 'gain': 1.0}
+
+Values are always kept valid.  If you accidentally assign a value outside
+the allowed range it is silently clamped to the nearest boundary:
+
+    scope.exposure_time = 99999   # stored as 10000 (the maximum)
+    scope.exposure_time = -5      # stored as 1     (the minimum)
+
+The second way — ``ConfigModel`` — is for situations where you need to
+build the list of parameters programmatically rather than at class
+definition time.  Both approaches use the same ``ConfigurableProperty``
+building blocks and produce the same dialog.
+
+Available property types
+------------------------
+``ConfigurableNumericProperty``
+    For numbers (integers or floats).  You can set a minimum, maximum,
+    a display multiplier, and a format string for the dialog.
+
+``ConfigurableStringProperty``
+    For text values.  You can restrict accepted values with a regular
+    expression or a fixed set of allowed strings.
+
+``ConfigurableProperty``
+    The base class.  Use this when the built-in types do not fit; you
+    can supply any validation function you like via ``validate_fct``.
+"""
+
 from typing import Optional, Any, Callable
 import numbers
 import re
