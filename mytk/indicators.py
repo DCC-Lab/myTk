@@ -33,12 +33,18 @@ class NumericIndicator(Base):
 
 
 class BooleanIndicator(CanvasView):
-    def __init__(self, diameter=15):
-        super().__init__(width=diameter + 4, height=diameter + 4)
+    def __init__(self, diameter=15, **kwargs):
+        kwargs.setdefault("highlightthickness", 0)
+        super().__init__(width=diameter + 4, height=diameter + 4, **kwargs)
         self.diameter = diameter
 
     def create_widget(self, master, **kwargs):
-        super().create_widget(master, *kwargs)
+        if "background" not in self._widget_args:
+            try:
+                self._widget_args["background"] = master.cget("background")
+            except Exception:
+                pass
+        super().create_widget(master, **kwargs)
         self.value_variable = BooleanVar(value=False)
         self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
