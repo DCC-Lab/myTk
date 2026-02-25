@@ -2,6 +2,10 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.8] - 2026-02-25
+### Changed
+- `Box.is_disabled` now recursively propagates the disabled/enabled state to all descendant widgets; disabling a `Box` grays out all contained controls automatically
+
 ## [0.10.7] - 2026-02-25
 ### Added
 - `position` parameter on `App`, `Window`, and `Dialog` for named screen placement: `"center"`, `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`
