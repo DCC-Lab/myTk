@@ -73,7 +73,7 @@ class TestCustomDialog(envtest.MyTkTestCase):
         self.assertIsNotNone(diag)
         reply = diag.run()
         self.assertEqual(reply, Dialog.Replies.Ok)
-        print({id: entry.value for id, entry in diag.entries.items()})
+        self.assertEqual({id: entry.value for id, entry in diag.entries.items()}, {"SOME_PROPERTY1": 0, "SOME_PROPERTY2": 0, "SOME_PROPERTY3": 0})
 
 
 if __name__ == "__main__":

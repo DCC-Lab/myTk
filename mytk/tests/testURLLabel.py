@@ -74,9 +74,6 @@ class TestURLLabel(envtest.MyTkTestCase):
         self.ui_object.url = "Reverse"
         self.assertEqual(controller.to_property, "Reverse")
 
-    def test_open_url(self):
-        self.ui_object.open_url()
-
 
 if __name__ == "__main__":
     unittest.main()

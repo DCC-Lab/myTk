@@ -125,11 +125,14 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_sort_column_1_on_loop(self):
         self.subtest_recreate()
+        self._sort_result = None
 
         self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_1)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
+
+        self.assertEqual(self._sort_result, "<")
 
     def test_sort_column_1(self):
         self.subtest_recreate()
@@ -138,15 +141,18 @@ class TestTableview(envtest.MyTkTestCase):
 
     def click_header_1(self):
         self.tableview.click_header(column_name="a")
-        self.assertEqual(self.tableview.is_column_sorted(column_name="a"), "<")
+        self._sort_result = self.tableview.is_column_sorted(column_name="a")
 
     def test_sort_column_2_on_loop(self):
         self.subtest_recreate()
+        self._sort_result = None
 
         self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_2)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
+
+        self.assertEqual(self._sort_result, "<")
 
     def test_sort_column_2(self):
         self.subtest_recreate()
@@ -155,20 +161,23 @@ class TestTableview(envtest.MyTkTestCase):
 
     def click_header_2(self):
         self.tableview.click_header(column_name="b")
-        self.assertEqual(self.tableview.is_column_sorted(column_name="b"), "<")
+        self._sort_result = self.tableview.is_column_sorted(column_name="b")
 
     def click_header_2_twice(self):
         self.tableview.click_header(column_name="b")
         self.tableview.click_header(column_name="b")
-        self.assertEqual(self.tableview.is_column_sorted(column_name="b"), ">")
+        self._sort_result = self.tableview.is_column_sorted(column_name="b")
 
     def test_sort_column_2_twice_on_loop(self):
         self.subtest_recreate()
+        self._sort_result = None
 
         self.app.root.after(100, self.add_6_records)
         self.app.root.after(200, self.click_header_2_twice)
         self.app.root.after(400, self.app.quit)
         self.app.mainloop()
+
+        self.assertEqual(self._sort_result, ">")
 
     def subtest_validate_clear_tableview(self):
         self.assertTrue(self.tableview.data_source.record_count, 10)
