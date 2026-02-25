@@ -86,6 +86,32 @@ class Box(Base):
         )
 
     @property
+    def is_disabled(self):
+        """Whether the box and its children are disabled."""
+        return super().is_disabled
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        from .base import _BaseWidget
+        _BaseWidget.is_disabled.fset(self, value)
+        if self.widget is not None:
+            self._propagate_disabled(self.widget, value)
+
+    def _propagate_disabled(self, widget, disabled):
+        for child in widget.winfo_children():
+            try:
+                if disabled:
+                    child.state(["disabled"])
+                else:
+                    child.state(["!disabled"])
+            except AttributeError:
+                try:
+                    child.configure(state="disabled" if disabled else "normal")
+                except Exception:
+                    pass
+            self._propagate_disabled(child, disabled)
+
+    @property
     def label(self):
         """
         Gets or sets the label text of the Box.
