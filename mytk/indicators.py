@@ -1,3 +1,4 @@
+import sys
 from tkinter import DoubleVar, BooleanVar
 import tkinter.ttk as ttk
 
@@ -51,10 +52,13 @@ class BooleanIndicator(CanvasView):
                 except Exception:
                     pass
             if not bg:
-                try:
-                    bg = master.winfo_toplevel().cget("background")
-                except Exception:
-                    pass
+                if sys.platform == "darwin":
+                    bg = "systemWindowBackgroundColor"
+                else:
+                    try:
+                        bg = master.winfo_toplevel().cget("background")
+                    except Exception:
+                        pass
             if bg:
                 self._widget_args["background"] = bg
         super().create_widget(master, **kwargs)
