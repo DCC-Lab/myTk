@@ -40,10 +40,18 @@ class BooleanIndicator(CanvasView):
 
     def create_widget(self, master, **kwargs):
         if "background" not in self._widget_args:
+            bg = None
             try:
-                self._widget_args["background"] = master.cget("background")
+                bg = master.cget("background")
             except Exception:
                 pass
+            if not bg:
+                try:
+                    bg = ttk.Style().lookup(master.winfo_class(), "background")
+                except Exception:
+                    pass
+            if bg:
+                self._widget_args["background"] = bg
         super().create_widget(master, **kwargs)
         self.value_variable = BooleanVar(value=False)
         self.value_variable.trace_add("write", self.value_updated)
