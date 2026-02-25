@@ -58,7 +58,7 @@ class App(Bindable, EventCapable):
 
     def __init__(
         self, *args, geometry=None, name="myTk App", help_url=None,
-        bring_to_front=False, no_window=False, position=None, **kwargs
+        bring_to_front=False, no_window=False, position="center", **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
