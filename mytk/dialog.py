@@ -17,32 +17,35 @@ class Dialog(Base):
         Timedout = "Timedout"
 
     @classmethod
-    def showinfo(cls, message, title="Info", auto_click=(None, None)):
+    def showinfo(cls, message, title="Info", auto_click=(None, None), auto_position="center"):
         diag = SimpleDialog(
             dialog_type="info",
             title=title,
             message=message,
             auto_click=auto_click,
+            auto_position=auto_position,
         )
         return diag.run()
 
     @classmethod
-    def showwarning(cls, message, title="Warning", auto_click=(None, None)):
+    def showwarning(cls, message, title="Warning", auto_click=(None, None), auto_position="center"):
         diag = SimpleDialog(
             dialog_type="warning",
             title=title,
             message=message,
             auto_click=auto_click,
+            auto_position=auto_position,
         )
         return diag.run()
 
     @classmethod
-    def showerror(cls, message, title="Error", auto_click=(None, None)):
+    def showerror(cls, message, title="Error", auto_click=(None, None), auto_position="center"):
         diag = SimpleDialog(
             dialog_type="error",
             title=title,
             message=message,
             auto_click=auto_click,
+            auto_position=auto_position,
         )
         return diag.run()
 
@@ -58,14 +61,25 @@ class Dialog(Base):
         title,
         buttons_labels=None,
         geometry=None,
+        auto_position=None,
         auto_click=(None, None),
         *args,
         **kwargs
     ):
+        from .utils import parse_geometry
         super().__init__(*args, **kwargs)
+
+        _, offset_str = parse_geometry(geometry)
+        if offset_str is not None and auto_position is not None:
+            raise ValueError(
+                f"Conflicting position: geometry already contains an offset "
+                f"({offset_str!r}) and auto_position={auto_position!r} was also given. "
+                f"Use one or the other."
+            )
 
         self.title = title
         self.geometry = geometry
+        self.auto_position = auto_position
         self.reply = None
         self.auto_click = auto_click[0]
         self.timeout = auto_click[1]
@@ -87,6 +101,10 @@ class Dialog(Base):
         self.populate_widget_body()
         self.populate_buttons()
         self.all_resize_weight(1)
+        if self.auto_position is not None:
+            from .utils import parse_geometry, apply_window_position
+            size_str, _ = parse_geometry(self.geometry)
+            apply_window_position(self.widget, self.auto_position, size_str)
 
     def populate_buttons(self):
         cols, rows = self.widget.grid_size()

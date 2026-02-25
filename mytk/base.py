@@ -70,10 +70,20 @@ class _BaseWidget:
     def create_widget(self, master, **kwargs):
         """
         Actually create the widget as needed.
+
+        Subclasses must override this method to create self.widget.
+        As a convention, call self._bind_destroy_cancel() at the end of your
+        implementation so that any scheduled after() tasks are automatically
+        cancelled when the widget is destroyed. The placement methods
+        (grid_into, pack_into, place_into) also call it as a safety net.
         """
         raise NotImplementedError(
             "You must override create_widget in your class to create the widget"
         )
+
+    def _bind_destroy_cancel(self):
+        """No-op fallback. Overridden by EventCapable when present in the MRO."""
+        pass
 
     """
     Placing widgets in other widgets
@@ -108,6 +118,8 @@ class _BaseWidget:
         else:
             self.create_widget(master=parent.widget)
             widget = parent.widget
+
+        self._bind_destroy_cancel()
 
         column = 0
         if "column" in kwargs.keys():
@@ -202,6 +214,7 @@ class _BaseWidget:
         """
         self.create_widget(master=parent.widget)
         self.parent = parent
+        self._bind_destroy_cancel()
 
         if self.widget is not None:
             self.widget.pack(kwargs)
@@ -219,6 +232,7 @@ class _BaseWidget:
         """
         self.create_widget(master=parent.widget)
         self.parent = parent
+        self._bind_destroy_cancel()
 
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)

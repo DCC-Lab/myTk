@@ -57,13 +57,16 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, no_window=False, **kwargs
+        self, *args, geometry=None, auto_position="center", name="myTk App", help_url=None,
+        bring_to_front=False, no_window=False, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
 
         Args:
             geometry (str, optional): Geometry string for window size and position.
+            auto_position (str, optional): Named screen position: "center", "top-left", "top-right",
+                "bottom-left", or "bottom-right". Defaults to "center".
             name (str): The application name (used in menu and title).
             help_url (str, optional): URL to the documentation site.
             *args: Positional arguments passed to superclasses.
@@ -73,7 +76,7 @@ class App(Bindable, EventCapable):
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry=geometry, title=name, withdraw=no_window)
+        self.window = Window(geometry=geometry, title=name, withdraw=no_window, auto_position=auto_position)
         self.main_queue: TQueue = TQueue()
         self.run_loop_delay: int = 20
 
@@ -87,6 +90,20 @@ class App(Bindable, EventCapable):
             )
 
         App.app = self
+
+        def _cancel_all_afters(event):
+            if event.widget is self.root:
+                try:
+                    for after_id in self.root.tk.call('after', 'info'):
+                        try:
+                            self.root.after_cancel(after_id)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+        self.root.bind('<Destroy>', _cancel_all_afters)
+
         if self.is_running:
             self.after(self.run_loop_delay, self.run_main_queue)
 
