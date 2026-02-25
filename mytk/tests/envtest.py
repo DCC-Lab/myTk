@@ -6,7 +6,7 @@ from mytk import App, View
 class MyTkTestCase(unittest.TestCase):
     def setUp(self):
         timeout = 1000
-        self.app = App(no_window=True)
+        self.app = App()
         testcase_id = self.id()
         self.app.window.widget.title(testcase_id)
         empty_view = View(width=500, height=200)

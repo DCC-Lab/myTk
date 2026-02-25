@@ -57,7 +57,7 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, **kwargs
+        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, no_window=False, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
@@ -73,7 +73,7 @@ class App(Bindable, EventCapable):
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry=geometry, title=name)
+        self.window = Window(geometry=geometry, title=name, withdraw=no_window)
         self.main_queue: TQueue = TQueue()
         self.run_loop_delay: int = 20
 
