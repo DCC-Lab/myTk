@@ -50,6 +50,11 @@ class BooleanIndicator(CanvasView):
                     bg = ttk.Style().lookup(master.winfo_class(), "background")
                 except Exception:
                     pass
+            if not bg:
+                try:
+                    bg = master.winfo_toplevel().cget("background")
+                except Exception:
+                    pass
             if bg:
                 self._widget_args["background"] = bg
         super().create_widget(master, **kwargs)
