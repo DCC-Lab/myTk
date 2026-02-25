@@ -66,7 +66,16 @@ class Dialog(Base):
         *args,
         **kwargs
     ):
+        from .utils import parse_geometry
         super().__init__(*args, **kwargs)
+
+        _, offset_str = parse_geometry(geometry)
+        if offset_str is not None and position is not None:
+            raise ValueError(
+                f"Conflicting position: geometry already contains an offset "
+                f"({offset_str!r}) and position={position!r} was also given. "
+                f"Use one or the other."
+            )
 
         self.title = title
         self.geometry = geometry
@@ -93,8 +102,9 @@ class Dialog(Base):
         self.populate_buttons()
         self.all_resize_weight(1)
         if self.position is not None:
-            from .utils import apply_window_position
-            apply_window_position(self.widget, self.position, self.geometry)
+            from .utils import parse_geometry, apply_window_position
+            size_str, _ = parse_geometry(self.geometry)
+            apply_window_position(self.widget, self.position, size_str)
 
     def populate_buttons(self):
         cols, rows = self.widget.grid_size()

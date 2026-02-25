@@ -46,14 +46,23 @@ class Window(Base):
             *args: Positional arguments passed to the Base constructor.
             **kwargs: Keyword arguments passed to the Base constructor.
         """
+        from .utils import parse_geometry, apply_window_position
         super().__init__(*args, **kwargs)
+
+        size_str, offset_str = parse_geometry(geometry)
+        if offset_str is not None and position is not None:
+            raise ValueError(
+                f"Conflicting position: geometry already contains an offset "
+                f"({offset_str!r}) and position={position!r} was also given. "
+                f"Use one or the other."
+            )
+
         self.widget = Tk()
         if withdraw:
             self.widget.withdraw()
         self.widget.geometry(geometry)
         if position is not None:
-            from .utils import apply_window_position
-            apply_window_position(self.widget, position, geometry)
+            apply_window_position(self.widget, position, size_str)
 
         self.title = title
 
