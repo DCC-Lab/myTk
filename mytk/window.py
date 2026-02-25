@@ -53,7 +53,7 @@ class Window(Base):
         self.widget.geometry(geometry)
         if position is not None:
             from .utils import apply_window_position
-            apply_window_position(self.widget, position)
+            apply_window_position(self.widget, position, geometry)
 
         self.title = title
 

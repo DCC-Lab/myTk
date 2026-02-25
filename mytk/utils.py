@@ -5,20 +5,31 @@ def is_main_thread() -> bool:
     return current_thread() == main_thread()
 
 
-def apply_window_position(widget, position):
+def apply_window_position(widget, position, geometry=None):
     """Position a Tk or Toplevel window by name.
 
     Args:
         widget: A tk.Tk or tk.Toplevel instance.
         position (str): One of "center", "top-left", "top-right",
                         "bottom-left", "bottom-right".
+        geometry (str, optional): The geometry string previously applied to the
+            widget (e.g. "800x600").  When provided, the WxH size is parsed
+            from it so the user-specified dimensions are preserved.  When
+            omitted the widget's requested size is used (suitable for dialogs
+            whose size is determined by their content).
 
     Raises:
         ValueError: If position is not a recognised name.
     """
     widget.update_idletasks()
-    w = widget.winfo_reqwidth()
-    h = widget.winfo_reqheight()
+
+    # Prefer the explicit geometry size; fall back to content-requested size.
+    if geometry and "x" in geometry.split("+")[0]:
+        w, h = map(int, geometry.split("+")[0].split("x"))
+    else:
+        w = widget.winfo_reqwidth()
+        h = widget.winfo_reqheight()
+
     screen_w = widget.winfo_screenwidth()
     screen_h = widget.winfo_screenheight()
 

@@ -94,7 +94,7 @@ class Dialog(Base):
         self.all_resize_weight(1)
         if self.position is not None:
             from .utils import apply_window_position
-            apply_window_position(self.widget, self.position)
+            apply_window_position(self.widget, self.position, self.geometry)
 
     def populate_buttons(self):
         cols, rows = self.widget.grid_size()
