@@ -90,6 +90,20 @@ class App(Bindable, EventCapable):
             )
 
         App.app = self
+
+        def _cancel_all_afters(event):
+            if event.widget is self.root:
+                try:
+                    for after_id in self.root.tk.call('after', 'info'):
+                        try:
+                            self.root.after_cancel(after_id)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+        self.root.bind('<Destroy>', _cancel_all_afters)
+
         if self.is_running:
             self.after(self.run_loop_delay, self.run_main_queue)
 

@@ -77,17 +77,22 @@ def apply_window_position(widget, position, size_str=None):
         widget.withdraw()
 
         def _deferred():
-            widget.update_idletasks()
-            w = widget.winfo_width()
-            h = widget.winfo_height()
-            if w <= 1:  # not yet rendered, fall back to requested size
-                w = widget.winfo_reqwidth()
-                h = widget.winfo_reqheight()
-            _apply(w, h)
-            if not originally_withdrawn:
-                widget.deiconify()
+            try:
+                if not widget.winfo_exists():
+                    return
+                widget.update_idletasks()
+                w = widget.winfo_width()
+                h = widget.winfo_height()
+                if w <= 1:  # not yet rendered, fall back to requested size
+                    w = widget.winfo_reqwidth()
+                    h = widget.winfo_reqheight()
+                _apply(w, h)
+                if not originally_withdrawn:
+                    widget.deiconify()
+            except Exception:
+                return
 
-        widget.after_idle(_deferred)
+        widget.nametowidget('.').after_idle(_deferred)
 
 
 def package_app_script(filepath=None):
