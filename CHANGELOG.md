@@ -2,6 +2,10 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.6] - 2026-02-24
+### Fixed
+- `XYPlot.create_widget` was assigning to `self.first_axis` which is a read-only computed property, causing `AttributeError` via `Bindable.__setattr__`; fix calls `self.figure.add_subplot()` directly (same pattern as `Histogram`)
+
 ## [0.10.5] - 2026-02-24
 ### Fixed
 - `Histogram.create_widget` never added a subplot, leaving `first_axis` as `None` and causing a crash in `clear_plot()` / `update_plot()` when the histogram was updated (e.g. in `MicroscopeApp`)
