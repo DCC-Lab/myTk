@@ -2,6 +2,10 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.5] - 2026-02-24
+### Fixed
+- `Histogram.create_widget` never added a subplot, leaving `first_axis` as `None` and causing a crash in `clear_plot()` / `update_plot()` when the histogram was updated (e.g. in `MicroscopeApp`)
+
 ## [0.10.4] - 2026-02-24
 ### Fixed
 - `App(no_window=True)` now actually withdraws the main window — the parameter was previously accepted but silently ignored
