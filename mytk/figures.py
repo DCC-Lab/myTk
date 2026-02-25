@@ -251,7 +251,7 @@ class XYPlot(Figure):
         super().create_widget(master, *kwargs)
 
         if self.first_axis is None:
-            self.first_axis = self.figure.add_subplot()
+            self.figure.add_subplot()
 
         self.update_plot()
 
