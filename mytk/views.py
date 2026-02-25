@@ -7,7 +7,7 @@ Classes:
 """
 
 from tkinter import ttk
-from .base import Base
+from .base import Base, _BaseWidget
 
 
 class View(Base):
@@ -45,6 +45,17 @@ class View(Base):
         self.widget = ttk.Frame(
             master, **self._widget_args, **self.debug_kwargs
         )
+
+    @property
+    def is_disabled(self):
+        """Whether the view and its children are disabled."""
+        return super().is_disabled
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        _BaseWidget.is_disabled.fset(self, value)
+        if self.widget is not None:
+            self._propagate_disabled(self.widget, value)
 
 
 class Box(Base):
@@ -92,24 +103,9 @@ class Box(Base):
 
     @is_disabled.setter
     def is_disabled(self, value):
-        from .base import _BaseWidget
         _BaseWidget.is_disabled.fset(self, value)
         if self.widget is not None:
             self._propagate_disabled(self.widget, value)
-
-    def _propagate_disabled(self, widget, disabled):
-        for child in widget.winfo_children():
-            try:
-                if disabled:
-                    child.state(["disabled"])
-                else:
-                    child.state(["!disabled"])
-            except AttributeError:
-                try:
-                    child.configure(state="disabled" if disabled else "normal")
-                except Exception:
-                    pass
-            self._propagate_disabled(child, disabled)
 
     @property
     def label(self):

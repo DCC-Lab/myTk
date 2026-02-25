@@ -377,6 +377,20 @@ class _BaseWidget:
 
 
 class Base(_BaseWidget, Bindable, EventCapable):
+    def _propagate_disabled(self, widget, disabled):
+        for child in widget.winfo_children():
+            try:
+                if disabled:
+                    child.state(["disabled"])
+                else:
+                    child.state(["!disabled"])
+            except AttributeError:
+                try:
+                    child.configure(state="disabled" if disabled else "normal")
+                except Exception:
+                    pass
+            self._propagate_disabled(child, disabled)
+
     def bind_textvariable(self, variable):
         """
         Binds a textvariable (e.g., StringVar) to the widget.
