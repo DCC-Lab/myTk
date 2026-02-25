@@ -2,6 +2,16 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.7] - 2026-02-25
+### Added
+- `position` parameter on `App`, `Window`, and `Dialog` for named screen placement: `"center"`, `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`
+- `EventCapable._bind_destroy_cancel()`: automatically cancels all tracked `after()` tasks when a widget is destroyed; called by `grid_into`/`pack_into`/`place_into` as a safety net; convention is to also call it at the end of `create_widget()` overrides
+- `_BaseWidget._bind_destroy_cancel()`: no-op fallback so subclasses can safely call it regardless of MRO
+- `App.__init__` binds `<Destroy>` on root to cancel all pending Tcl `after`/`after_idle` events via `after info`
+
+### Fixed
+- `apply_window_position` deferred callback no longer causes `invalid command name` errors when the widget is destroyed before the `after_idle` fires
+
 ## [0.10.6] - 2026-02-24
 ### Fixed
 - `XYPlot.create_widget` was assigning to `self.first_axis` which is a read-only computed property, causing `AttributeError` via `Bindable.__setattr__`; fix calls `self.figure.add_subplot()` directly (same pattern as `Histogram`)
