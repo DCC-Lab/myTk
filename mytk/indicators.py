@@ -34,6 +34,7 @@ class NumericIndicator(Base):
 
 class BooleanIndicator(CanvasView):
     def __init__(self, diameter=15, **kwargs):
+        kwargs.setdefault("highlightthickness", 0)
         super().__init__(width=diameter + 4, height=diameter + 4, **kwargs)
         self.diameter = diameter
 
@@ -61,7 +62,7 @@ class BooleanIndicator(CanvasView):
             color = "red"
 
         self.widget.create_oval(
-            (4, 4, 4 + self.diameter, 4 + self.diameter),
+            (2, 2, 2 + self.diameter, 2 + self.diameter),
             outline="black",
             fill=color,
             width=border,
