@@ -57,7 +57,7 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self, *args, geometry=None, name="myTk App", help_url=None, **kwargs
+        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
@@ -79,6 +79,12 @@ class App(Bindable, EventCapable):
 
         self.check_requirements()
         self.create_menu()
+
+        if bring_to_front and platform.system() == "Darwin":
+            os.system(
+                "osascript -e 'tell application \"System Events\" to set frontmost of"
+                " the first process whose unix id is {} to true'".format(os.getpid())
+            )
 
         App.app = self
         if self.is_running:
