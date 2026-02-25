@@ -81,9 +81,10 @@ class App(Bindable, EventCapable):
         self.create_menu()
 
         if bring_to_front and platform.system() == "Darwin":
-            self.root.lift()
-            self.root.attributes("-topmost", True)
-            self.root.after(200, lambda: self.root.attributes("-topmost", False))
+            os.system(
+                "osascript -e 'tell application \"System Events\" to set frontmost of"
+                " the first process whose unix id is {} to true'".format(os.getpid())
+            )
 
         App.app = self
         if self.is_running:
