@@ -121,6 +121,18 @@ class EventCapable:
         """
         self.after_cancel_many(list(self.scheduled_tasks))
 
+    def _bind_destroy_cancel(self):
+        """
+        Binds a <Destroy> handler on the widget that cancels all scheduled
+        tasks when this widget is destroyed. Called automatically after
+        create_widget() in grid_into/pack_into/place_into.
+        """
+        if self.widget is not None:
+            self.widget.bind(
+                '<Destroy>',
+                lambda e: self.after_cancel_all() if e.widget is self.widget else None
+            )
+
     def bind_event(self, event: str, callback: Callable):
         """
         Binds a callback function to a specific event on the underlying widget.
