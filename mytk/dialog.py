@@ -46,6 +46,13 @@ class Dialog(Base):
         )
         return diag.run()
 
+    @classmethod
+    def showprogress(cls, message, title="Info", auto_click=(None, None)):
+        diag = Dialog(
+            dialog_type="error", title=title, message=message, auto_click=auto_click
+        )
+        return diag.run()
+
     def __init__(
         self,
         title,

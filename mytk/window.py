@@ -31,7 +31,9 @@ class Window(Base):
         widget (tk.Tk): The main Tkinter window object.
     """
 
-    def __init__(self, *args, geometry=None, title="Untitled", **kwargs):
+    def __init__(
+        self, *args, geometry=None, title="Untitled", withdraw=False, **kwargs
+    ):
         """
         Initializes a new top-level window with optional geometry and title.
 
@@ -42,7 +44,11 @@ class Window(Base):
             **kwargs: Keyword arguments passed to the Base constructor.
         """
         super().__init__(*args, **kwargs)
-        self.create_widget(master=None, geometry=geometry)
+        self.widget = Tk()
+        if withdraw:
+            self.widget.withdraw()
+        self.widget.geometry(geometry)
+
         self.title = title
 
     def create_widget(self, master, **kwargs):
