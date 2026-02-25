@@ -34,7 +34,6 @@ class NumericIndicator(Base):
 
 class BooleanIndicator(CanvasView):
     def __init__(self, diameter=15, **kwargs):
-        kwargs.setdefault("highlightthickness", 0)
         super().__init__(width=diameter + 4, height=diameter + 4, **kwargs)
         self.diameter = diameter
 
