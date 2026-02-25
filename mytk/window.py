@@ -32,17 +32,17 @@ class Window(Base):
     """
 
     def __init__(
-        self, *args, geometry=None, title="Untitled", withdraw=False, position=None, **kwargs
+        self, *args, geometry=None, auto_position=None, title="Untitled", withdraw=False, **kwargs
     ):
         """
         Initializes a new top-level window with optional geometry and title.
 
         Args:
             geometry (str, optional): A geometry string (e.g., "800x600+100+100"). If None, uses default.
+            auto_position (str, optional): Named screen position: "center", "top-left", "top-right",
+                "bottom-left", or "bottom-right". Applied after geometry.
             title (str, optional): Title to display in the window's title bar.
             withdraw (bool): If True, hide the window immediately after creation.
-            position (str, optional): Named screen position: "center", "top-left", "top-right",
-                "bottom-left", or "bottom-right". Applied after geometry.
             *args: Positional arguments passed to the Base constructor.
             **kwargs: Keyword arguments passed to the Base constructor.
         """
@@ -50,10 +50,10 @@ class Window(Base):
         super().__init__(*args, **kwargs)
 
         size_str, offset_str = parse_geometry(geometry)
-        if offset_str is not None and position is not None:
+        if offset_str is not None and auto_position is not None:
             raise ValueError(
                 f"Conflicting position: geometry already contains an offset "
-                f"({offset_str!r}) and position={position!r} was also given. "
+                f"({offset_str!r}) and auto_position={auto_position!r} was also given. "
                 f"Use one or the other."
             )
 
@@ -61,8 +61,8 @@ class Window(Base):
         if withdraw:
             self.widget.withdraw()
         self.widget.geometry(geometry)
-        if position is not None:
-            apply_window_position(self.widget, position, size_str)
+        if auto_position is not None:
+            apply_window_position(self.widget, auto_position, size_str)
 
         self.title = title
 
