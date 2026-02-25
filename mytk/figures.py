@@ -263,6 +263,7 @@ class XYPlot(Figure):
 
     def update_plot(self):
         # with plt.style.context(self.style):
+        self.first_axis.clear()
         self.first_axis.plot(self.x, self.y, "k-")
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
