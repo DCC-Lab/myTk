@@ -32,7 +32,7 @@ class Window(Base):
     """
 
     def __init__(
-        self, *args, geometry=None, title="Untitled", withdraw=False, **kwargs
+        self, *args, geometry=None, title="Untitled", withdraw=False, position=None, **kwargs
     ):
         """
         Initializes a new top-level window with optional geometry and title.
@@ -40,6 +40,9 @@ class Window(Base):
         Args:
             geometry (str, optional): A geometry string (e.g., "800x600+100+100"). If None, uses default.
             title (str, optional): Title to display in the window's title bar.
+            withdraw (bool): If True, hide the window immediately after creation.
+            position (str, optional): Named screen position: "center", "top-left", "top-right",
+                "bottom-left", or "bottom-right". Applied after geometry.
             *args: Positional arguments passed to the Base constructor.
             **kwargs: Keyword arguments passed to the Base constructor.
         """
@@ -48,6 +51,9 @@ class Window(Base):
         if withdraw:
             self.widget.withdraw()
         self.widget.geometry(geometry)
+        if position is not None:
+            from .utils import apply_window_position
+            apply_window_position(self.widget, position)
 
         self.title = title
 

@@ -5,6 +5,38 @@ def is_main_thread() -> bool:
     return current_thread() == main_thread()
 
 
+def apply_window_position(widget, position):
+    """Position a Tk or Toplevel window by name.
+
+    Args:
+        widget: A tk.Tk or tk.Toplevel instance.
+        position (str): One of "center", "top-left", "top-right",
+                        "bottom-left", "bottom-right".
+
+    Raises:
+        ValueError: If position is not a recognised name.
+    """
+    widget.update_idletasks()
+    w = widget.winfo_reqwidth()
+    h = widget.winfo_reqheight()
+    screen_w = widget.winfo_screenwidth()
+    screen_h = widget.winfo_screenheight()
+
+    positions = {
+        "center":       ((screen_w - w) // 2, (screen_h - h) // 2),
+        "top-left":     (0, 0),
+        "top-right":    (screen_w - w, 0),
+        "bottom-left":  (0, screen_h - h),
+        "bottom-right": (screen_w - w, screen_h - h),
+    }
+    if position not in positions:
+        raise ValueError(
+            f"Unknown position '{position}'. Choose from: {list(positions)}"
+        )
+    x, y = positions[position]
+    widget.geometry(f"{w}x{h}+{x}+{y}")
+
+
 def package_app_script(filepath=None):
     from inspect import currentframe, getframeinfo
 

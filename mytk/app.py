@@ -57,7 +57,8 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, no_window=False, **kwargs
+        self, *args, geometry=None, name="myTk App", help_url=None,
+        bring_to_front=False, no_window=False, position=None, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
@@ -66,6 +67,8 @@ class App(Bindable, EventCapable):
             geometry (str, optional): Geometry string for window size and position.
             name (str): The application name (used in menu and title).
             help_url (str, optional): URL to the documentation site.
+            position (str, optional): Named screen position: "center", "top-left", "top-right",
+                "bottom-left", or "bottom-right".
             *args: Positional arguments passed to superclasses.
             **kwargs: Keyword arguments passed to superclasses.
         """
@@ -73,7 +76,7 @@ class App(Bindable, EventCapable):
 
         self.name = name
         self.help_url = help_url
-        self.window = Window(geometry=geometry, title=name, withdraw=no_window)
+        self.window = Window(geometry=geometry, title=name, withdraw=no_window, position=position)
         self.main_queue: TQueue = TQueue()
         self.run_loop_delay: int = 20
 
