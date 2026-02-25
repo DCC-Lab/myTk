@@ -57,7 +57,7 @@ class App(Bindable, EventCapable):
     app = None
 
     def __init__(
-        self, *args, geometry=None, name="myTk App", help_url=None, **kwargs
+        self, *args, geometry=None, name="myTk App", help_url=None, bring_to_front=False, **kwargs
     ):
         """
         Initializes the application, including window and menu setup.
@@ -79,6 +79,11 @@ class App(Bindable, EventCapable):
 
         self.check_requirements()
         self.create_menu()
+
+        if bring_to_front and platform.system() == "Darwin":
+            self.root.lift()
+            self.root.attributes("-topmost", True)
+            self.root.after(200, lambda: self.root.attributes("-topmost", False))
 
         App.app = self
         if self.is_running:
