@@ -81,5 +81,37 @@ class TestDialog(envtest.MyTkTestCase):
     #         )
 
 
+class DialogWithBody(Dialog):
+    def populate_widget_body(self):
+        label = Label("Test content")
+        label.grid_into(widget=self.widget, column=0, row=0)
+
+
+class TestDialogDisablePropagation(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.diag = DialogWithBody(title="Test")
+        self.diag.create_widget(master=None)
+
+    def tearDown(self):
+        self.diag.widget.destroy()
+        super().tearDown()
+
+    def test_disable_propagates_to_buttons(self):
+        self.diag.disable()
+
+        self.assertTrue(self.diag.is_disabled)
+        ok_button = self.diag.buttons[Dialog.Replies.Ok]
+        self.assertTrue(ok_button.is_disabled)
+
+    def test_enable_propagates_to_buttons(self):
+        self.diag.disable()
+        self.diag.enable()
+
+        self.assertFalse(self.diag.is_disabled)
+        ok_button = self.diag.buttons[Dialog.Replies.Ok]
+        self.assertFalse(ok_button.is_disabled)
+
+
 if __name__ == "__main__":
     unittest.main()

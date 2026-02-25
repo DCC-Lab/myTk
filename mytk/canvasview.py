@@ -2,7 +2,7 @@ from tkinter import Canvas
 from tkinter import font
 from math import cos, sin, sqrt
 import subprocess
-from .base import Base, BaseNotification
+from .base import Base, BaseNotification, _BaseWidget
 from .vectors import Vector, Point, Basis, Doublet, DynamicBasis
 import os
 from pathlib import Path
@@ -34,6 +34,17 @@ class CanvasView(Base):
         self.widget = Canvas(master=master, **self._widget_args)
         self.widget.bind("<Configure>", self.on_resize)
         self._update_relative_size_basis()
+
+    @property
+    def is_disabled(self):
+        """Whether the canvas and its children are disabled."""
+        return getattr(self, '_disabled', False)
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        self._disabled = value
+        if self.widget is not None:
+            self._propagate_disabled(self.widget, value)
 
     def on_resize(self, event):
         self._update_relative_size_basis()

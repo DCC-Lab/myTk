@@ -1,5 +1,6 @@
 from tkinter import Toplevel
 from .base import *
+from .base import _BaseWidget
 from .button import Button
 from .views import View
 from .images import Image
@@ -90,6 +91,17 @@ class Dialog(Base):
         else:
             self.buttons_labels = buttons_labels
         self.buttons = {}
+
+    @property
+    def is_disabled(self):
+        """Whether the dialog and its children are disabled."""
+        return getattr(self, '_disabled', False)
+
+    @is_disabled.setter
+    def is_disabled(self, value):
+        self._disabled = value
+        if self.widget is not None:
+            self._propagate_disabled(self.widget, value)
 
     def create_widget(self, master, **kwargs):
         self.parent = None
