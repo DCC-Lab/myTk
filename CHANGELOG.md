@@ -2,6 +2,10 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.10] - 2026-02-25
+### Changed
+- `CanvasView.is_disabled` and `Dialog.is_disabled` now propagate disabled/enabled state to all descendant widgets
+
 ## [0.10.9] - 2026-02-25
 ### Changed
 - `View.is_disabled` now recursively propagates the disabled/enabled state to all descendant widgets (same behaviour as `Box`)
