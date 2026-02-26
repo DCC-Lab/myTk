@@ -95,6 +95,10 @@ class FormattedEntry(Base):
 
     @value.setter
     def value(self, new_value):
+        try:
+            new_value = float(new_value)
+        except (ValueError, TypeError):
+            return
         if new_value != self._value:
             self._value = new_value
             self.value_variable.set(

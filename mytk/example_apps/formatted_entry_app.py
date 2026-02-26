@@ -16,13 +16,7 @@ if __name__ == "__main__":
 
         readout = Label("–")
         readout.grid_into(parent, row=row, column=2, padx=8, pady=4, sticky="w")
-
-        def update_readout():
-            readout.value = f"kept value = {entry.value!r}"
-
-        # Refresh readout whenever focus returns to the window (after FocusOut on entry)
-        entry.widget.bind("<FocusOut>", lambda e: parent.widget.after(10, update_readout))
-        update_readout()
+        entry.bind_property_to_widget_value("value", readout)
 
         return entry
 
