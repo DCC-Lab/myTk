@@ -130,7 +130,10 @@ class FormattedEntry(Base):
     def event_focus_out(self, event):
         match = re.search(self.reverse_regex, self.value_variable.get())
         if match is not None and match.group(1) is not None:
-            self.value = float(match.group(1))
+            try:
+                self.value = float(match.group(1))
+            except ValueError:
+                self.value = 0
         else:
             self.value = 0
 

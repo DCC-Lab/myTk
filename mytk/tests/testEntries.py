@@ -287,6 +287,20 @@ class TestFormattedEntry(envtest.MyTkTestCase):
         self.app.mainloop()
         self.assertEqual(result[0], 0)
 
+    def test_focus_out_invalid_float_with_default_regex_defaults_to_zero(self):
+        entry = FormattedEntry(value=5.0, format_string="{0:.2f}")
+        entry.grid_into(self.app.window, row=0, column=0)
+        result = []
+
+        def do_edit():
+            entry.value_variable.set("notanumber")
+            entry.widget.event_generate("<FocusOut>")
+            result.append(entry.value)
+
+        self.start_timed_mainloop(function=do_edit, timeout=400)
+        self.app.mainloop()
+        self.assertEqual(result[0], 0)
+
 
 class TestCellEntry(envtest.MyTkTestCase):
     def setUp(self):
