@@ -2,6 +2,7 @@ import envtest
 import unittest
 from mytk import *
 from mytk.entries import *
+from mytk.tableview import TableView
 
 
 class TestController(Bindable):
@@ -215,6 +216,241 @@ class TestFormattedEntry(envtest.MyTkTestCase):
         entry.value = 1.2345
         # self.assertEqual(entry.value_variable.get(), 1.2345)
         entry.value_variable.set(value="1.234")
+
+    def test_create_widget(self):
+        entry = FormattedEntry(value=1.0, format_string="{0:.2f}")
+        entry.grid_into(self.app.window, row=0, column=0)
+        self.assertIsNotNone(entry.widget)
+        self.assertEqual(entry.value_variable.get(), "1.00")
+
+    def test_character_width_before_creation(self):
+        entry = FormattedEntry(character_width=10)
+        self.assertEqual(entry.character_width, 10)
+        entry.character_width = 20
+        self.assertEqual(entry.character_width, 20)
+
+    def test_character_width_after_creation(self):
+        entry = FormattedEntry(character_width=10)
+        entry.grid_into(self.app.window, row=0, column=0)
+        self.assertEqual(entry.character_width, 10)
+        entry.character_width = 20
+        self.assertEqual(entry.character_width, 20)
+
+    def test_event_return_releases_focus(self):
+        entry = FormattedEntry()
+        entry.grid_into(self.app.window, row=0, column=0)
+        result = []
+
+        def press_return():
+            entry.widget.focus()
+            self.assertTrue(entry.has_focus)
+            entry.widget.event_generate("<Return>")
+            result.append(entry.has_focus)
+
+        self.start_timed_mainloop(function=press_return, timeout=400)
+        self.app.mainloop()
+        self.assertFalse(result[0])
+
+    def test_focus_out_parses_valid_value(self):
+        entry = FormattedEntry(
+            value=1.0,
+            format_string="{0:.2f}",
+            reverse_regex=r"([-+]?\d*\.?\d+)",
+        )
+        entry.grid_into(self.app.window, row=0, column=0)
+        result = []
+
+        def do_edit():
+            entry.value_variable.set("3.14")
+            entry.widget.event_generate("<FocusOut>")
+            result.append(entry.value)
+
+        self.start_timed_mainloop(function=do_edit, timeout=400)
+        self.app.mainloop()
+        self.assertAlmostEqual(result[0], 3.14)
+
+    def test_focus_out_no_match_defaults_to_zero(self):
+        entry = FormattedEntry(
+            value=5.0,
+            format_string="{0:.2f}",
+            reverse_regex=r"([-+]?\d*\.?\d+)",
+        )
+        entry.grid_into(self.app.window, row=0, column=0)
+        result = []
+
+        def do_edit():
+            entry.value_variable.set("notanumber")
+            entry.widget.event_generate("<FocusOut>")
+            result.append(entry.value)
+
+        self.start_timed_mainloop(function=do_edit, timeout=400)
+        self.app.mainloop()
+        self.assertEqual(result[0], 0)
+
+
+class TestCellEntry(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tableview = TableView({"name": "Name", "score": "Score"})
+        self.tableview.grid_into(self.app.window, row=0, column=0)
+        record = self.tableview.data_source.append_record(
+            {"name": "Alice", "score": 42.0}
+        )
+        self.item_id = record["__uuid"]
+
+    def test_init_str_column(self):
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="name",
+        )
+        self.assertIsNotNone(ce)
+        self.assertEqual(ce.value_type, str)
+
+    def test_init_typed_column(self):
+        self.tableview.data_source.update_field_properties(
+            "score", {"type": float}
+        )
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="score",
+        )
+        self.assertEqual(ce.value_type, float)
+
+    def test_create_widget_str_column(self):
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="name",
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+        self.assertIsNotNone(ce.widget)
+        self.assertEqual(ce.value_variable.get(), "Alice")
+
+    def test_create_widget_numeric_column(self):
+        self.tableview.data_source.update_field_properties(
+            "score", {"type": float}
+        )
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="score",
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+        self.assertIsNotNone(ce.widget)
+        self.assertEqual(ce.value_variable.get(), "42")
+
+    def test_return_key_updates_record(self):
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="name",
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+
+        def edit_and_press_return():
+            ce.widget.focus_set()
+            ce.value_variable.set("Bob")
+            ce.widget.event_generate("<Return>")
+
+        self.start_timed_mainloop(function=edit_and_press_return, timeout=400)
+        self.app.mainloop()
+
+        record = self.tableview.data_source.record(self.item_id)
+        self.assertEqual(record["name"], "Bob")
+
+    def test_return_key_invalid_value_sets_none(self):
+        self.tableview.data_source.update_field_properties(
+            "score", {"type": float}
+        )
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="score",
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+        result = []
+
+        def edit_and_press_return():
+            ce.widget.focus_set()
+            ce.value_variable.set("notanumber")
+            ce.widget.event_generate("<Return>")
+            result.append(
+                self.tableview.data_source.record(self.item_id)["score"]
+            )
+
+        self.start_timed_mainloop(function=edit_and_press_return, timeout=400)
+        self.app.mainloop()
+        self.assertIsNone(result[0])
+
+    def test_focusout_destroys_widget(self):
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="name",
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+        destroyed = []
+
+        def focus_out():
+            ce.widget.event_generate("<FocusOut>")
+            try:
+                destroyed.append(not ce.widget.winfo_exists())
+            except Exception:
+                destroyed.append(True)
+
+        self.start_timed_mainloop(function=focus_out, timeout=400)
+        self.app.mainloop()
+        self.assertTrue(destroyed[0])
+
+    def test_focusout_calls_user_callback(self):
+        callback_args = []
+
+        def my_callback(event, cell):
+            callback_args.append(cell)
+
+        ce = CellEntry(
+            tableview=self.tableview,
+            item_id=self.item_id,
+            column_name="name",
+            user_event_callback=my_callback,
+        )
+        ce.grid_into(self.app.window, row=1, column=0)
+
+        def focus_out():
+            ce.widget.event_generate("<FocusOut>")
+
+        self.start_timed_mainloop(function=focus_out, timeout=400)
+        self.app.mainloop()
+
+        self.assertEqual(len(callback_args), 1)
+        self.assertIs(callback_args[0], ce)
+
+
+class TestLabelledEntry(envtest.MyTkTestCase):
+    def test_init(self):
+        le = LabelledEntry(label="Name:")
+        self.assertIsNotNone(le)
+        self.assertIsNotNone(le.label)
+        self.assertIsNotNone(le.entry)
+
+    def test_init_with_text(self):
+        le = LabelledEntry(label="Name:", text="hello")
+        self.assertEqual(le.entry.value, "hello")
+
+    def test_create_widget(self):
+        le = LabelledEntry(label="Name:", text="world")
+        le.grid_into(self.app.window, row=0, column=0)
+        self.assertIsNotNone(le.widget)
+        self.assertIsNotNone(le.label.widget)
+        self.assertIsNotNone(le.entry.widget)
+
+    def test_value_variable_is_entry_value_variable(self):
+        le = LabelledEntry(label="Name:", text="hello")
+        le.grid_into(self.app.window, row=0, column=0)
+        self.assertIs(le.value_variable, le.entry.value_variable)
+        self.assertEqual(le.value_variable.get(), "hello")
 
 
 if __name__ == "__main__":
