@@ -255,6 +255,13 @@ class TestTabularDataSource(unittest.TestCase):
         t = TabularData(required_fields=["a", "b"])
         record = t.append_record({"a": 1, "b": 2})
 
+    def test_required_fields_do_not_grow_on_repeated_appends(self):
+        t = TabularData(required_fields=["a", "b"])
+        original_length = len(t.required_fields)
+        for _ in range(5):
+            t.append_record({"a": 1, "b": 2})
+        self.assertEqual(len(t.required_fields), original_length)
+
     def test_missing_fields(self):
         t = TabularData(required_fields=["a", "b"])
         t.error_on_missing_field = True

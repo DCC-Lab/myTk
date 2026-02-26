@@ -162,9 +162,7 @@ class TabularData(Bindable):
             record["__puuid"] = None
 
         if self.required_fields is not None:
-            all_required_fields = self.required_fields
-            all_required_fields.append("__uuid")
-            all_required_fields.append("__puuid")
+            all_required_fields = self.required_fields + ["__uuid", "__puuid"]
 
             for field_name in all_required_fields:
                 if field_name not in record.keys():
