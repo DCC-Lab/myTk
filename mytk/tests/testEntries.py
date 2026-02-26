@@ -156,6 +156,9 @@ class TestNumericEntry(envtest.MyTkTestCase):
         super().setUp()
         self.ui_object = None
 
+    def test_numeric_entry_is_alias_for_int_entry(self):
+        self.assertIs(NumericEntry, IntEntry)
+
     def test_init_entry(self):
         self.ui_object = NumericEntry(value=0)
         self.assertIsNotNone(self.ui_object)
