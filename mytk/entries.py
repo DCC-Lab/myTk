@@ -18,8 +18,8 @@ class Entry(Base):
         super().__init__(*args, **kwargs)
         self._widget_args["width"] = character_width
         self.value = value
-        self.bind_properties("value", self, "value_variable")
         self.value_variable = StringVar(value=value)
+        self.bind_properties("value", self, "value_variable")
 
     def create_widget(self, master):
         self.parent = master
@@ -84,8 +84,8 @@ class FormattedEntry(Base):
         self.reverse_regex = reverse_regex
         if self.reverse_regex is None:
             self.reverse_regex = r"(.+)"
-        self.value_variable = StringVar(value=value)
         self._value = value
+        self.value_variable = StringVar(value=self.format_string.format(value))
 
         self._widget_args["width"] = character_width
 
@@ -194,7 +194,7 @@ class CellEntry(Base):
 
     def event_focusout_callback(self, event):
         if self.user_event_callback is not None:
-            self.user_event_callback(event, cell)
+            self.user_event_callback(event, self)
         self.widget.destroy()
 
 
@@ -366,7 +366,7 @@ class IntEntry(Base):
 class LabelledEntry(View):
     def __init__(self, *args, label, text="", character_width=None, **kwargs):
         super().__init__(*args, width=200, height=25, **kwargs)
-        self.entry = Entry(text=text, character_width=character_width)
+        self.entry = Entry(value=text, character_width=character_width)
         self.label = Label(text=label)
 
     def create_widget(self, master):
