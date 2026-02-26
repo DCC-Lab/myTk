@@ -230,7 +230,7 @@ class TabularData(Bindable):
         if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(index_or_uuid)
+            index = self.field("__uuid").index(str(index_or_uuid))
 
         if self.records[index] != values:
             self.records[index].update(values)
@@ -246,7 +246,7 @@ class TabularData(Bindable):
         if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(index_or_uuid)
+            index = self.field("__uuid").index(str(index_or_uuid))
 
         return self.records[index]
 

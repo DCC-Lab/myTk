@@ -401,6 +401,198 @@ class TestTableview(envtest.MyTkTestCase):
         self.tableview.data_source.enable_change_calls()
 
 
+class TestTableViewInit(envtest.MyTkTestCase):
+    def test_init_without_data_source(self):
+        tv = TableView({"a": "A", "b": "B"}, create_data_source=False)
+        self.assertIsNone(tv.data_source)
+
+    def test_init_is_treetable(self):
+        tv = TableView({"a": "A", "b": "B"}, is_treetable=True)
+        tv.grid_into(self.app.window, row=0, column=0)
+        self.assertIsNotNone(tv.widget)
+
+    def test_column_info_before_creation_raises(self):
+        tv = TableView({"a": "A", "b": "B"})
+        with self.assertRaises(TableView.WidgetNotYetCreated):
+            tv.column_info("a")
+
+    def test_headings_setter_before_creation(self):
+        tv = TableView({"a": "A", "b": "B"})
+        tv.headings = ["Col A", "Col B"]
+        self.assertEqual(tv.headings, ["Col A", "Col B"])
+
+    def test_columns_setter_before_creation_raises(self):
+        tv = TableView({"a": "A", "b": "B"})
+        with self.assertRaises(ValueError):
+            tv.columns = ["x", "y"]
+
+
+class TestTableViewColumnHelpers(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tv = TableView({"name": "Name", "score": "Score"})
+        self.tv.grid_into(self.app.window, row=0, column=0)
+
+    def test_get_column_name_by_id(self):
+        self.assertEqual(self.tv.get_column_name(column_id=1), "name")
+        self.assertEqual(self.tv.get_column_name(column_id=2), "score")
+
+    def test_get_column_name_zero_is_tree_column(self):
+        self.assertEqual(self.tv.get_column_name(column_id=0), "#0")
+
+    def test_get_column_name_by_display_number(self):
+        self.assertEqual(self.tv.get_column_name(display_column_number=1), "name")
+
+    def test_get_column_name_display_zero_is_tree_column(self):
+        self.assertEqual(self.tv.get_column_name(display_column_number=0), "#0")
+
+    def test_get_column_id(self):
+        self.assertEqual(self.tv.get_column_id("name"), 1)
+        self.assertEqual(self.tv.get_column_id("score"), 2)
+
+    def test_get_column_id_tree_column(self):
+        self.assertEqual(self.tv.get_column_id("#0"), 0)
+
+    def test_get_logical_column_id(self):
+        self.assertEqual(self.tv.get_logical_column_id("name"), 0)
+        self.assertEqual(self.tv.get_logical_column_id("score"), 1)
+
+    def test_get_logical_column_id_tree_column_returns_none(self):
+        self.assertIsNone(self.tv.get_logical_column_id("#0"))
+
+
+class TestTableViewDataOps(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tv = TableView({"a": "Column A", "b": "Column B"})
+        self.tv.grid_into(self.app.window, row=0, column=0)
+
+    def test_empty_clears_records(self):
+        self.tv.data_source.append_record({"a": "x", "b": "y"})
+        self.tv.data_source.append_record({"a": "p", "b": "q"})
+        self.tv.empty()
+        self.assertEqual(len(self.tv.widget.get_children()), 0)
+
+    def test_source_data_deleted_removes_widget_item(self):
+        record = self.tv.data_source.append_record({"a": "x", "b": "y"})
+        uid = record["__uuid"]
+        self.assertIn(uid, self.tv.widget.get_children())
+        self.tv.data_source.remove_record(uid)
+        self.assertNotIn(uid, self.tv.widget.get_children())
+
+    def test_none_value_formatted_as_empty_string(self):
+        record = self.tv.data_source.append_record({"a": None, "b": "y"})
+        values = self.tv.record_to_formatted_widget_values(record)
+        self.assertEqual(values[0].strip(), "")
+
+    def test_column_format_with_format_string(self):
+        self.tv.column_formats["b"] = {"format_string": "{0:.2f}", "multiplier": None}
+        record = {"a": "label", "b": 3.14159}
+        values = self.tv.record_to_formatted_widget_values(record)
+        self.assertIn("3.14", values[1])
+
+    def test_column_format_with_multiplier(self):
+        self.tv.column_formats["b"] = {"format_string": "{0:.1f}", "multiplier": 1000}
+        record = {"a": "label", "b": 3000.0}
+        values = self.tv.record_to_formatted_widget_values(record)
+        self.assertIn("3.0", values[1])
+
+    def test_column_format_error_falls_back_to_str(self):
+        self.tv.column_formats["b"] = {"format_string": "{0:.2f}", "multiplier": None}
+        record = {"a": "label", "b": "notanumber"}
+        values = self.tv.record_to_formatted_widget_values(record)
+        self.assertIn("notanumber", values[1])
+
+    def test_click_header_invalid_column_raises(self):
+        with self.assertRaises(ValueError):
+            self.tv.click_header(column_name="nonexistent")
+
+    def test_stub_methods_do_not_raise(self):
+        self.assertIsNone(self.tv.extract_record_from_formatted_widget_values())
+        self.assertIsNone(self.tv.widget_data_changed())
+
+    def test_delegate_source_data_changed_called(self):
+        called = []
+
+        class Delegate:
+            def source_data_changed(self, tableview):
+                called.append(tableview)
+
+        self.tv.delegate = Delegate()
+        self.tv.data_source.append_record({"a": "x", "b": "y"})
+        self.assertEqual(len(called), 1)
+
+    def test_selection_changed_calls_delegate(self):
+        called = []
+
+        class Delegate:
+            def selection_changed(self, event, tableview):
+                called.append(tableview)
+
+        self.tv.delegate = Delegate()
+        self.tv.selection_changed(None)
+        self.assertEqual(len(called), 1)
+        self.assertIs(called[0], self.tv)
+
+    def test_identify_column_name(self):
+        from unittest.mock import patch
+        with patch.object(self.tv.widget, "identify_column", return_value="#1"):
+            name = self.tv.identify_column_name(event_x=50)
+        self.assertEqual(name, "a")
+
+    def test_identify_column_name_tree_column(self):
+        from unittest.mock import patch
+        with patch.object(self.tv.widget, "identify_column", return_value="#0"):
+            name = self.tv.identify_column_name(event_x=0)
+        self.assertEqual(name, "#0")
+
+    def test_sorted_column_tree_column_returns_children(self):
+        self.tv.data_source.append_record({"a": "x", "b": "y"})
+        result = self.tv.sorted_column(column_name="#0")
+        self.assertIsNotNone(result)
+
+    def test_click_header_calls_delegate(self):
+        called = []
+
+        class Delegate:
+            def click_header(self, column_name, tableview):
+                called.append(column_name)
+                return False  # stop default sort behaviour
+
+        self.tv.delegate = Delegate()
+        self.tv.click_header(column_name="a")
+        self.assertEqual(called, ["a"])
+
+    def test_click_header_delegate_exception_wrapped(self):
+        class BrokenDelegate:
+            def click_header(self, column_name, tableview):
+                raise RuntimeError("delegate error")
+
+        self.tv.delegate = BrokenDelegate()
+        with self.assertRaises(TableView.DelegateError):
+            self.tv.click_header(column_name="a")
+
+    def test_is_editable_returns_flag(self):
+        self.assertTrue(self.tv.is_editable("a", "b"))
+        self.tv.all_elements_are_editable = False
+        self.assertFalse(self.tv.is_editable("a", "b"))
+
+
+class TestTableViewHierarchical(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.tv = TableView({"a": "A", "b": "B"}, is_treetable=True)
+        self.tv.grid_into(self.app.window, row=0, column=0)
+
+    def test_insert_child_record_uses_parent_id(self):
+        parent = self.tv.data_source.append_record({"a": "parent", "b": "1"})
+        self.tv.data_source.insert_child_records(
+            None, [{"a": "child", "b": "2"}], pid=parent["__uuid"]
+        )
+        children = self.tv.widget.get_children(parent["__uuid"])
+        self.assertEqual(len(children), 1)
+
+
 if __name__ == "__main__":
     # unittest.main(defaultTest=['TestTableview.test_impossible_to_change_column_after_setting_them'])
     unittest.main()
