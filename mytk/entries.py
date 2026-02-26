@@ -205,88 +205,6 @@ class CellEntry(Base):
         self.widget.destroy()
 
 
-class NumericEntry(FormattedEntry):
-    def __init__(
-        self,
-        *args,
-        width=None,
-        minimum=0,
-        maximum=100,
-        increment=1,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-
-        if "value" not in kwargs:
-            kwargs["value"] = 0
-
-        self._widget_args.update({
-            "width": width,
-            "from": minimum,
-            "to": maximum,
-            "increment": increment,
-        })
-
-
-    def create_widget(self, master):
-        self.parent = master
-        self.widget = ttk.Spinbox(master, **self._widget_args)
-        self.bind_textvariable(self.value_variable)
-
-    @property
-    def value(self):
-        return float(self.value_variable.get())
-
-    @value.setter
-    def value(self, value):
-        if value > self.maximum:
-            self.value_variable.set(value=self.maximum)
-        elif value < self.minimum:
-            self.value_variable.set(value=self.minimum)
-        else:
-            self.value_variable.set(value=value)
-
-    @property
-    def minimum(self):
-        if self.widget is None:
-            return self._widget_args.get("from")
-        else:
-            return self.widget["from"]
-
-    @minimum.setter
-    def minimum(self, value):
-        if self.widget is None:
-            self._widget_args["from"] = value
-        else:
-            self.widget["from"] = value
-
-    @property
-    def maximum(self):
-        if self.widget is None:
-            return self._widget_args.get("to")
-        else:
-            return self.widget["to"]
-
-    @maximum.setter
-    def maximum(self, value):
-        if self.widget is None:
-            self._widget_args["to"] = value
-        else:
-            self.widget["to"] = value
-
-    @property
-    def increment(self):
-        if self.widget is None:
-            return self._widget_args.get("increment")
-        else:
-            return self.widget["increment"]
-
-    @increment.setter
-    def increment(self, value):
-        if self.widget is None:
-            self._widget_args["increment"] = value
-        else:
-            self.widget["increment"] = value
 
 
 class IntEntry(Base):
@@ -368,6 +286,9 @@ class IntEntry(Base):
             self._widget_args["increment"] = value
         else:
             self.widget["increment"] = value
+
+
+NumericEntry = IntEntry  # backward-compatible alias
 
 
 class LabelledEntry(View):
