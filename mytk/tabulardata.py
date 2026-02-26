@@ -162,9 +162,7 @@ class TabularData(Bindable):
             record["__puuid"] = None
 
         if self.required_fields is not None:
-            all_required_fields = self.required_fields
-            all_required_fields.append("__uuid")
-            all_required_fields.append("__puuid")
+            all_required_fields = self.required_fields + ["__uuid", "__puuid"]
 
             for field_name in all_required_fields:
                 if field_name not in record.keys():
@@ -232,7 +230,7 @@ class TabularData(Bindable):
         if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(index_or_uuid)
+            index = self.field("__uuid").index(str(index_or_uuid))
 
         if self.records[index] != values:
             self.records[index].update(values)
@@ -248,7 +246,7 @@ class TabularData(Bindable):
         if isinstance(index_or_uuid, str):
             index = self.field("__uuid").index(index_or_uuid)
         elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(index_or_uuid)
+            index = self.field("__uuid").index(str(index_or_uuid))
 
         return self.records[index]
 

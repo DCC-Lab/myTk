@@ -240,6 +240,8 @@ class SimpleDialog(Dialog):
         self.column_resize_weight(1, 1)
         self.widget.resizable(False, False)
 
+    def populate_buttons(self):
+        super().populate_buttons()
         self.assign_default_key_shortcuts()
 
     def assign_default_key_shortcuts(self):

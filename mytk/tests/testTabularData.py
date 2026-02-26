@@ -255,6 +255,13 @@ class TestTabularDataSource(unittest.TestCase):
         t = TabularData(required_fields=["a", "b"])
         record = t.append_record({"a": 1, "b": 2})
 
+    def test_required_fields_do_not_grow_on_repeated_appends(self):
+        t = TabularData(required_fields=["a", "b"])
+        original_length = len(t.required_fields)
+        for _ in range(5):
+            t.append_record({"a": 1, "b": 2})
+        self.assertEqual(len(t.required_fields), original_length)
+
     def test_missing_fields(self):
         t = TabularData(required_fields=["a", "b"])
         t.error_on_missing_field = True
@@ -318,6 +325,166 @@ class TestTabularDataSource(unittest.TestCase):
         # Record = collections.namedtuple('Record', ['a','b'])
 
         # print(t.records_as_namedtuples())
+
+
+class TestTabularDataFieldProperties(unittest.TestCase):
+    def test_get_field_property(self):
+        t = TabularData()
+        t.update_field_properties("score", {"type": float, "format_string": "{0:.2f}"})
+        self.assertEqual(t.get_field_property("score", "type"), float)
+        self.assertEqual(t.get_field_property("score", "format_string"), "{0:.2f}")
+
+    def test_update_field_properties_merges(self):
+        t = TabularData()
+        t.update_field_properties("score", {"type": float})
+        t.update_field_properties("score", {"format_string": "{0:.2f}"})
+        self.assertEqual(t.get_field_property("score", "type"), float)
+        self.assertEqual(t.get_field_property("score", "format_string"), "{0:.2f}")
+
+    def test_field_type_conversion_on_insert(self):
+        # Type conversion in _normalize_record uses record_fields() which
+        # iterates existing records — so a seed record is needed first.
+        t = TabularData(required_fields=["score"])
+        t.update_field_properties("score", {"type": float})
+        t.append_record({"score": 0.0})  # seed so record_fields() is non-empty
+        record = t.append_record({"score": "3.14"})
+        self.assertAlmostEqual(record["score"], 3.14)
+
+    def test_field_type_conversion_error_sets_none(self):
+        t = TabularData(required_fields=["score"])
+        t.update_field_properties("score", {"type": float})
+        t.append_record({"score": 1.0})  # seed a record so record_fields() is non-empty
+        record = t.append_record({"score": "notanumber"})
+        self.assertIsNone(record["score"])
+
+
+class TestTabularDataRecordOps(unittest.TestCase):
+    def test_remove_all_records(self):
+        t = TabularData()
+        t.append_record({"a": 1})
+        t.append_record({"a": 2})
+        t.append_record({"a": 3})
+        self.assertEqual(t.record_count, 3)
+        t.remove_all_records()
+        self.assertEqual(t.record_count, 0)
+
+    def test_empty_record_has_uuid_and_puuid(self):
+        t = TabularData()
+        r = t.empty_record()
+        self.assertIn("__uuid", r)
+        self.assertIn("__puuid", r)
+
+    def test_empty_record_fills_required_fields(self):
+        t = TabularData(required_fields=["a", "b"])
+        r = t.empty_record()
+        self.assertIn("a", r)
+        self.assertIn("b", r)
+        self.assertEqual(r["a"], "")
+        self.assertEqual(r["b"], "")
+
+    def test_new_record_with_parent(self):
+        t = TabularData()
+        parent = t.append_record({"x": 1})
+        child = t.new_record({"x": 2}, pid=parent["__uuid"])
+        self.assertEqual(child["__puuid"], parent["__uuid"])
+
+    def test_new_record_without_parent(self):
+        t = TabularData()
+        record = t.new_record({"x": 1})
+        self.assertIsNone(record["__puuid"])
+
+    def test_records_as_namedtuples_default_type(self):
+        t = TabularData(required_fields=["name", "size"])
+        t.append_record({"name": "Alice", "size": 42})
+        tuples = t.records_as_namedtuples()
+        self.assertEqual(len(tuples), 1)
+        self.assertEqual(tuples[0].name, "Alice")
+        self.assertEqual(tuples[0].size, 42)
+
+    def test_records_as_namedtuples_custom_type(self):
+        t = TabularData(required_fields=["name", "size"])
+        t.append_record({"name": "Bob", "size": 10})
+        MyRecord = collections.namedtuple("MyRecord", ["name", "size", "uuid", "puuid"])
+        tuples = t.records_as_namedtuples(NamedtupleType=MyRecord)
+        self.assertEqual(tuples[0].name, "Bob")
+
+    def test_record_access_by_uuid_string(self):
+        t = TabularData()
+        inserted = t.append_record({"a": 99})
+        fetched = t.record(inserted["__uuid"])
+        self.assertEqual(fetched["a"], 99)
+
+    def test_update_record_by_uuid_string(self):
+        t = TabularData()
+        inserted = t.append_record({"a": 1})
+        uid = inserted["__uuid"]
+        t.update_record(uid, {**inserted, "a": 99})
+        self.assertEqual(t.record(uid)["a"], 99)
+
+    def test_record_depth_level_root(self):
+        t = TabularData()
+        parent = t.append_record({"x": 1})
+        self.assertEqual(t.record_depth_level(parent["__uuid"]), 1)
+
+    def test_record_depth_level_child(self):
+        t = TabularData()
+        parent = t.append_record({"x": 1})
+        child = t.insert_record(None, {"x": 2}, pid=parent["__uuid"])
+        self.assertEqual(t.record_depth_level(child["__uuid"]), 2)
+
+    def test_record_depth_level_grandchild(self):
+        t = TabularData()
+        parent = t.append_record({"x": 1})
+        child = t.insert_record(None, {"x": 2}, pid=parent["__uuid"])
+        grandchild = t.insert_record(None, {"x": 3}, pid=child["__uuid"])
+        self.assertEqual(t.record_depth_level(grandchild["__uuid"]), 3)
+
+    def test_new_record_raises_on_non_dict(self):
+        t = TabularData()
+        with self.assertRaises(RuntimeError):
+            t.new_record([1, 2, 3])
+
+    def test_insert_child_records(self):
+        t = TabularData()
+        parent = t.append_record({"x": 1})
+        t.insert_child_records(None, [{"x": 2}, {"x": 3}], pid=parent["__uuid"])
+        self.assertEqual(t.record_count, 3)
+        children = t.record_childs(parent["__uuid"])
+        self.assertEqual(len(children), 2)
+
+    def test_record_access_by_uuid_object(self):
+        t = TabularData()
+        inserted = t.append_record({"a": 42})
+        uid_obj = uuid.UUID(inserted["__uuid"])
+        fetched = t.record(uid_obj)
+        self.assertEqual(fetched["a"], 42)
+
+    def test_update_record_by_uuid_object(self):
+        t = TabularData()
+        inserted = t.append_record({"a": 1})
+        uid_obj = uuid.UUID(inserted["__uuid"])
+        t.update_record(uid_obj, {**inserted, "a": 99})
+        self.assertEqual(t.record(uid_obj)["a"], 99)
+
+    def test_sorted_records_uuids_with_filter(self):
+        t = TabularData()
+        r1 = t.append_record({"a": 3})
+        r2 = t.append_record({"a": 1})
+        r3 = t.append_record({"a": 2})
+        subset = [r1["__uuid"], r3["__uuid"]]
+        sorted_uuids = t.sorted_records_uuids("a", only_uuids=subset)
+        self.assertEqual(len(sorted_uuids), 2)
+
+    def test_load_tabular_data_wrapper(self):
+        with self.assertRaises(TabularData.UnrecognizedFileFormat):
+            t = TabularData()
+            t.load_tabular_data("/tmp/test.unknownformat")
+
+    def test_load_unrecognized_format_raises(self):
+        with self.assertRaises(TabularData.UnrecognizedFileFormat):
+            t = TabularData()
+            t.load_dataframe_from_tabular_data("/tmp/test.unknownformat")
+
 
 if __name__ == "__main__":
     unittest.main()
