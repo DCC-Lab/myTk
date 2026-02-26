@@ -2,6 +2,17 @@
 
 All notable changes to myTk are documented here.
 
+## [0.10.11] - 2026-02-26
+### Fixed
+- `TabularData._normalize_record()` no longer mutates `required_fields` on every insert
+- `TabularData.record()` and `update_record()` now correctly look up records by UUID objects (not just strings)
+- `SimpleDialog` key shortcuts (`<Return>`, `<Escape>`) now assigned after buttons are created, not before
+- Several bugs fixed in `entries.py`: `Entry` binding order, `FormattedEntry` display initialisation, `FormattedEntry` crash on non-numeric input, `FormattedEntry.value` setter coercion, `CellEntry` focusout reference, `LabelledEntry` value passthrough
+- `NumericEntry` consolidated into `IntEntry`; `NumericEntry` kept as alias for backwards compatibility
+
+### Added
+- `formatted_entry_app.py` example demonstrating `FormattedEntry` with various format strings
+
 ## [0.10.10] - 2026-02-25
 ### Changed
 - `CanvasView.is_disabled` and `Dialog.is_disabled` now propagate disabled/enabled state to all descendant widgets
