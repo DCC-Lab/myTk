@@ -495,5 +495,27 @@ class TestTabularDataRecordOps(unittest.TestCase):
             t.load_dataframe_from_tabular_data("/tmp/test.unknownformat")
 
 
+    def test_resolve_index_with_invalid_type(self):
+        t = TabularData()
+        t.append_record({"a": 1})
+        with self.assertRaises(TypeError):
+            t.record(3.14)
+
+    def test_ordered_records_with_orphan(self):
+        t = TabularData()
+        t.append_record({"a": 1})
+        # Manually insert an orphan record with a non-existent parent
+        t.records.append({"__uuid": "orphan-uuid", "__puuid": "nonexistent-parent", "a": 2})
+        ordered = t.ordered_records()
+        self.assertEqual(len(ordered), 2)
+
+    def test_init_with_tableview(self):
+        class FakeTableView:
+            pass
+        tv = FakeTableView()
+        t = TabularData(tableview=tv)
+        self.assertIsNotNone(t.delegate)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -386,17 +386,18 @@ class TabularData(Bindable):
 
     def load_dataframe_from_tabular_data(self, filepath, header_row=None):
         """Load a CSV or Excel file into a pandas DataFrame."""
+        filepath = Path(filepath)
+        if filepath.suffix not in (".csv", ".xls", ".xlsx"):
+            raise TabularData.UnrecognizedFileFormatError(f"Format not recognized: {filepath}")
+
         import pandas
 
-        filepath = Path(filepath)
         if filepath.suffix == ".csv":
             df = pandas.read_csv(
                 filepath, sep=r"[\s+,]", header=header_row, engine="python"
             )
-        elif filepath.suffix in [".xls", ".xlsx"]:
-            df = pandas.read_excel(filepath, header=header_row)
         else:
-            raise TabularData.UnrecognizedFileFormatError(f"Format not recognized: {filepath}")
+            df = pandas.read_excel(filepath, header=header_row)
 
         return df
 
