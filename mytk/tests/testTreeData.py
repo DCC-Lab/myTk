@@ -1,9 +1,6 @@
-import envtest
 import unittest
-import os
+
 from mytk import *
-import tempfile
-import uuid
 
 
 class TreeData(TabularData):

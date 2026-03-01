@@ -1,10 +1,11 @@
-import envtest
-import unittest
-import os
-from mytk import *
-import re
-import io
 import contextlib
+import io
+import re
+import unittest
+
+import envtest
+
+from mytk import *
 
 
 class Success(Exception):

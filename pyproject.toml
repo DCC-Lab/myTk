@@ -57,8 +57,27 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "D", "B", "SIM", "N"]
+ignore = [
+    "E501",
+    "D100",   # module docstrings — added manually for key modules
+    "D104",   # package docstrings
+    "D105",   # magic method docstrings
+    "D107",   # __init__ docstrings — often redundant with class docstring
+    "D203",   # conflicts with D211 (no blank line before class docstring)
+    "D213",   # conflicts with D212 (summary on first line)
+    "N812",   # lowercase imported as non-lowercase — common with tkinter
+    "N803",   # argument name should be lowercase — some are physics/math conventions
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"mytk/tests/*" = ["D", "F403", "F405", "F841", "F811", "N802", "N806", "N818", "B007", "B017", "B018", "E722"]
+"mytk/example_apps/*" = ["D", "F403", "F405", "F841", "N806", "B007", "SIM", "E721", "E722", "W291"]
+"mytk/lab/*" = ["D", "F403", "F405", "B905"]
+"mytk/__main__.py" = ["N802", "N806"]
 
 [tool.pytest.ini_options]
 testpaths = ["mytk/tests"]

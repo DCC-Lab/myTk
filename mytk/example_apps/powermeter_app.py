@@ -1,7 +1,9 @@
+import random
+from tkinter import filedialog
+
 from mytk import *
 from mytk.indicators import *
-from tkinter import filedialog
-import random
+
 
 class PowerMeterApp(App):
     def __init__(self):
@@ -9,11 +11,11 @@ class PowerMeterApp(App):
 
         self.window.widget.title("Powermeter")
 
-        self.window.row_resize_weight(0,0) 
+        self.window.row_resize_weight(0,0)
         self.window.row_resize_weight(1,0)
         self.window.row_resize_weight(2,1)
-        self.window.column_resize_weight(0,1) 
-        self.window.column_resize_weight(1,1) 
+        self.window.column_resize_weight(0,1)
+        self.window.column_resize_weight(1,1)
 
         size = 60
         self.bigb_font = tkFont.Font(family='Helvetica', size=size, weight='bold')
@@ -68,7 +70,7 @@ class PowerMeterApp(App):
 
         power = self.device.power
         self.measurement_label.value_variable.set(f"{power:.2f} mW")
-        
+
         last = len(self.plot.x)
         self.plot.append(last, power)
         self.plot.update_plot()

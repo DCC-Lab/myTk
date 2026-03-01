@@ -1,8 +1,7 @@
-from tkinter import DoubleVar
-from tkinter import filedialog
 import os
+from tkinter import DoubleVar, filedialog
 
-from mytk.canvasview import Rectangle, Oval, Line, Arrow, CanvasLabel
+from mytk.canvasview import Arrow, CanvasLabel, Line, Oval, Rectangle
 from mytk.vectors import Point
 
 if __name__ == "__main__":

@@ -1,15 +1,14 @@
-from mytk import *
-
 import os
 import re
-import json
-import tempfile
 import shutil
-import webbrowser
-import urllib
-import zipfile
 import subprocess
+import tempfile
+import webbrowser
+import zipfile
 from pathlib import Path
+
+from mytk import *
+
 
 class FilterDBApp(App):
     def __init__(self):
@@ -38,7 +37,7 @@ class FilterDBApp(App):
         self.filter_data = TableView(columns_labels={"wavelength":"Wavelength", "transmission":"Transmission"})
         self.filter_data.grid_into(self.window, row=0, column=1, padx=10, pady=10, sticky='nsew')
         self.filter_data.widget.column(column=0, width=70)
-        
+
         self.controls = View(width=400, height=50)
         self.controls.grid_into(self.window, row=1, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
         self.controls.widget.grid_columnconfigure(0, weight=1)
@@ -84,7 +83,7 @@ class FilterDBApp(App):
 
         with zipfile.ZipFile('filters_data.zip', 'r') as zip_ref:
             zip_ref.extractall(self.temp_root)
-        
+
         return os.path.join(self.temp_root, 'filters_data'), os.path.join(self.temp_root, 'filters_data', 'filters.json')
 
     def save(self):
@@ -103,11 +102,11 @@ class FilterDBApp(App):
                             x = float(match.group(1))
                             y = float(match.group(2))
                             data.append((x,y))
-                        except Exception as err:
+                        except Exception:
                             # not an actual data line
                             pass
 
-            except Exception as err:
+            except Exception:
                 if len(data) == 0:
                     return None
 
@@ -121,7 +120,7 @@ class FilterDBApp(App):
                 for line in lines:
                     records = line.split('\t')
                     data.append(records)
-            except Exception as err:
+            except Exception:
                 if len(data) == 0:
                     return None
 
@@ -178,7 +177,7 @@ class FilterDBApp(App):
             filetypes=[('Zip files','.zip')],
         )
         if zip_filepath:
-            with zipfile.ZipFile(zip_filepath, 'w') as zip_ref:          
+            with zipfile.ZipFile(zip_filepath, 'w') as zip_ref:
                 zip_ref.mkdir(self.filepath_root)
                 for filepath in Path(self.filepath_root).iterdir():
                     zip_ref.write(filepath, arcname=os.path.join(self.filepath_root,filepath.name))
@@ -196,12 +195,12 @@ class FilterDBApp(App):
                 record = item['values']
 
                 filename_idx = list(self.filters.column_names()).index('filename')
-                filename = record[filename_idx] 
+                filename = record[filename_idx]
 
                 filepath = os.path.join(self.filepath_root, filename)
                 if os.path.isfile(filepath):
                     data = self.load_filter_data(filepath)
-                    
+
                     text = ""
                     for x,y in data:
                         text = text + "{0}\t{1}\n".format(x,y)
@@ -223,7 +222,7 @@ class FilterDBApp(App):
             record = item['values']
 
             filename_idx = list(self.filters.columns).index('filename')
-            filename = record[filename_idx] 
+            filename = record[filename_idx]
             filepath = os.path.join(self.filepath_root, filename)
             if os.path.exists(filepath) and not os.path.isdir(filepath):
 
@@ -271,12 +270,12 @@ class FilterDBApp(App):
         button_cancel.grid_into(widget=dlg.widget, row=2, column=0, padx=10, pady=10, sticky='e')
         button_ok = Button("Ok")
         button_ok.grid_into(widget=dlg.widget, row=2, column=1, padx=10, pady=10, sticky='e')
-        
+
         dlg.run()
 
 
 
 if __name__ == "__main__":
     ModulesManager.validate_environment(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
-    app = FilterDBApp()    
+    app = FilterDBApp()
     app.mainloop()

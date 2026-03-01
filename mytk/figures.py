@@ -1,9 +1,11 @@
+import importlib
+
 from .base import Base
 from .modulesmanager import ModulesManager
-import importlib
 
 
 class Figure(Base):
+    """Wrapper around matplotlib Figure for embedding plots in tkinter."""
 
     def __init__(self, figure=None, figsize=None):
         Base.__init__(self)
@@ -16,6 +18,7 @@ class Figure(Base):
         self.toolbar = None
 
     def is_environment_valid(self):
+        """Check that matplotlib is installed and importable."""
         ModulesManager.install_and_import_modules_if_absent(
             {"matplotlib": "matplotlib"}
         )
@@ -42,6 +45,7 @@ class Figure(Base):
         )
 
     def create_widget(self, master):
+        """Create the matplotlib canvas and navigation toolbar."""
         self.parent = master
         if self.figure is None:
             self.figure = self.MPLFigure(figsize=self.figsize, dpi=100)
@@ -56,6 +60,7 @@ class Figure(Base):
 
     @property
     def figure(self):
+        """The underlying matplotlib Figure."""
         return self._figure
 
     @figure.setter
@@ -68,6 +73,7 @@ class Figure(Base):
 
     @property
     def first_axis(self):
+        """The first axes of the figure, or None if unavailable."""
         if self.figure is not None:
             axes = self.figure.axes
             if len(axes) > 0:
@@ -76,11 +82,13 @@ class Figure(Base):
 
     @property
     def axes(self):
+        """All axes of the figure, or None if the figure is not set."""
         if self.figure is not None:
             return self.figure.axes
         return None
 
     def styles_pointmarker(self, linestyle=""):
+        """Return a list of point-marker style dictionaries for plotting."""
         default_size = 8
         plain_black = dict(
             fillstyle="full",
@@ -160,6 +168,7 @@ class Figure(Base):
         return styles
 
     def styles_points_linemarkers(self, linestyle="-"):
+        """Return a list of point-and-line marker style dictionaries for plotting."""
         default_size = 8
         plain_black = dict(
             fillstyle="full",
@@ -240,6 +249,8 @@ class Figure(Base):
 
 
 class XYPlot(Figure):
+    """Simple XY line plot backed by matplotlib."""
+
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
         self.x = []
@@ -248,6 +259,7 @@ class XYPlot(Figure):
         # self.style = "https://raw.githubusercontent.com/dccote/Enseignement/master/SRC/dccote-basic.mplstyle"
 
     def create_widget(self, master, **kwargs):
+        """Create the plot widget and draw the initial plot."""
         super().create_widget(master, *kwargs)
 
         if self.first_axis is None:
@@ -256,12 +268,14 @@ class XYPlot(Figure):
         self.update_plot()
 
     def clear_plot(self):
+        """Clear all data and redraw the plot."""
         self.x = []
         self.y = []
         self.first_axis.clear()
         self.update_plot()
 
     def update_plot(self):
+        """Redraw the plot with the current data."""
         # with plt.style.context(self.style):
         self.first_axis.clear()
         self.first_axis.plot(self.x, self.y, "k-")
@@ -269,6 +283,7 @@ class XYPlot(Figure):
         self.figure.canvas.flush_events()
 
     def append(self, x, y):
+        """Append a data point to the plot."""
         self.x.append(x)
         self.y.append(y)
 
@@ -277,12 +292,15 @@ class XYPlot(Figure):
 
 
 class Histogram(Figure):
+    """Histogram plot backed by matplotlib and numpy."""
+
     def __init__(self, figsize):
         super().__init__(figsize=figsize)
         self.x = []
         self.y = []
 
     def is_environment_valid(self):
+        """Check that matplotlib and numpy are installed and importable."""
         if super().is_environment_valid():
             ModulesManager.install_and_import_modules_if_absent({"numpy": "numpy"})
             return ModulesManager.imported["numpy"]
@@ -290,6 +308,7 @@ class Histogram(Figure):
             return False
 
     def create_widget(self, master, **kwargs):
+        """Create the histogram widget and draw the initial plot."""
         super().create_widget(master, *kwargs)
 
         if self.first_axis is None:
@@ -298,11 +317,13 @@ class Histogram(Figure):
         self.update_plot()
 
     def clear_plot(self):
+        """Clear all histogram data and the axes."""
         self.x = []
         self.y = []
         self.first_axis.clear()
 
     def update_plot(self):
+        """Redraw the histogram with the current data."""
         if len(self.x) > 1:
             colors = ["red", "green", "blue"]
             for i, y in enumerate(self.y):

@@ -1,17 +1,11 @@
-from .base import Base
-import re
-import os
-import time
-from contextlib import suppress
-import platform
 import collections
+import os
+import platform
+import re
+import time
 
-from tkinter import END
-import tkinter.ttk as ttk
-from .bindable import Bindable
-from .entries import CellEntry
 from .tableview import TableView
-from .tabulardata import TabularData, PostponeChangeCalls
+from .tabulardata import TabularData
 
 FileRecord = collections.namedtuple(
     "FileRecord",
@@ -32,6 +26,8 @@ FileRecord = collections.namedtuple(
 
 
 class FileTreeData(TabularData):
+    """A TabularData subclass that reads file system directory contents."""
+
     def __init__(self, root_dir, tableview, required_fields):
         super().__init__(tableview=tableview, required_fields=required_fields)
         self.root_dir = root_dir
@@ -51,6 +47,7 @@ class FileTreeData(TabularData):
         self.insert_child_records_for_directory(self.root_dir)
 
     def is_system_file(self, filename):
+        """Return whether the filename matches a known system file pattern."""
         is_system_file = False
         for regex in self.system_files_regex:
             if re.search(regex, filename) is not None:
@@ -59,25 +56,27 @@ class FileTreeData(TabularData):
         return is_system_file
 
     def is_directory(self, fullpath):
+        """Return whether the path is a directory, treating macOS bundles as files."""
         is_directory = os.path.isdir(fullpath)
-        if is_directory:
-            if platform.system() == "Darwin":
-                _, ext = os.path.splitext(fullpath)
-                if (
-                    ext in self.bundle_package_ext
-                    and not self.treat_bundles_as_directories
-                ):
-                    is_directory = False
+        if is_directory and platform.system() == "Darwin":
+            _, ext = os.path.splitext(fullpath)
+            if (
+                ext in self.bundle_package_ext
+                and not self.treat_bundles_as_directories
+            ):
+                is_directory = False
 
         return is_directory
 
     def recordid_with_fullpath(self, fullpath):
+        """Return the UUID of the record matching the given full path, or None."""
         for record in self.records:
             if record["fullpath"] == fullpath:
                 return record["__uuid"]
         return None
 
     def insert_child_records_for_directory(self, root_dir, pid=None):
+        """Scan a directory and insert its entries as child records."""
         records_to_add = self.records_directory_content(root_dir)
 
         if self.filter_out_system_files:
@@ -99,6 +98,7 @@ class FileTreeData(TabularData):
                 self.insert_child_records(None, [placeholder], record["__uuid"])
 
     def records_directory_content(self, root_dir):
+        """Return a list of file records for the contents of a directory."""
         records_to_add = []
         if not os.access(root_dir, os.R_OK):
             record = self.new_record(
@@ -142,6 +142,8 @@ class FileTreeData(TabularData):
 
 
 class FileViewer(TableView):
+    """A tree-style file browser widget built on TableView."""
+
     def __init__(self, root_dir, columns_labels=None, custom_columns=None):
         if columns_labels is None:
             columns_labels = {
@@ -179,6 +181,7 @@ class FileViewer(TableView):
         self.hide_system_files = True
 
     def source_data_changed(self, records):
+        """Update the widget, optionally filtering out system files."""
         if self.hide_system_files:
             trimmed_records = [
                 record for record in records if not record["is_system_file"]
@@ -188,6 +191,7 @@ class FileViewer(TableView):
             super().source_data_changed(records)
 
     def create_widget(self, master):
+        """Create the file viewer widget with default column layout."""
         super().create_widget(master)
         self.widget.configure(displaycolumns=["name", "size", "modification_date"])
         self.widget.column("#0", width=40, stretch=False)
@@ -197,6 +201,7 @@ class FileViewer(TableView):
         self.source_data_changed(self.data_source.records)
 
     def selection_changed(self, event):
+        """Lazily load directory contents when a folder is selected."""
         item_id = self.widget.focus()
         if item_id != "":
             record = self.data_source.record(item_id)

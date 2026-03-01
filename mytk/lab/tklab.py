@@ -1,7 +1,7 @@
-from mytk import *
-from tkinter import filedialog, DoubleVar
 import os
-import csv
+from tkinter import DoubleVar, filedialog
+
+from mytk import *
 
 
 class StageControllerView(View):

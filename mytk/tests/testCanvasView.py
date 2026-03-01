@@ -1,6 +1,7 @@
-import envtest
 import unittest
-import os
+
+import envtest
+
 from mytk import *
 
 

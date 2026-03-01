@@ -1,12 +1,14 @@
+import importlib
+import signal
 import tkinter.ttk as ttk
+from tkinter import filedialog
 
-from .modulesmanager import ModulesManager
 from .app import App
 from .base import Base
 from .button import Button
+from .modulesmanager import ModulesManager
 from .popupmenu import PopupMenu
-import importlib
-import signal
+
 try:
     import cv2
 except ImportError:
@@ -14,6 +16,8 @@ except ImportError:
 
 
 class VideoView(Base):
+    """Live video capture and display widget backed by OpenCV."""
+
     def __init__(self, device=0, zoom_level=3, auto_start=True):
         super().__init__()
 
@@ -40,6 +44,7 @@ class VideoView(Base):
         self.next_scheduled_update_histogram = None
 
     def is_environment_valid(self):
+        """Check that OpenCV and Pillow are available, installing them if needed."""
         ModulesManager.install_and_import_modules_if_absent(
             {"opencv-python": "cv2", "Pillow": "PIL"}
         )
@@ -57,6 +62,7 @@ class VideoView(Base):
         )
 
     def signal_handler(self, sig, frame):
+        """Handle SIGINT to stop capture gracefully before propagating."""
         print(f"Handling signal {sig} ({signal.Signals(sig).name}).")
         if sig == signal.SIGINT:
             if self.is_running:
@@ -66,38 +72,43 @@ class VideoView(Base):
 
     @classmethod
     def available_devices(cls):
+        """Return a list of indices for available video capture devices."""
         available_devices = []
         try:
             index = 0
             while True:
-                cap = self.cv2.VideoCapture(index)
+                cap = cv2.VideoCapture(index)
                 if not cap.read()[0]:
                     break
                 else:
                     available_devices.append(index)
                 cap.release()
                 index += 1
-        except Exception as err:
+        except Exception:
             pass
 
         return available_devices
 
     def create_widget(self, master):
+        """Create the label widget used to display video frames."""
         self.widget = ttk.Label(master, borderwidth=2, relief="groove")
         if self.auto_start:
             self.start_capturing()
 
     @property
     def is_running(self):
+        """Return True if video capture is currently active."""
         return self.capture is not None
 
     @property
     def startstop_button_label(self):
+        """Return the appropriate label for the start/stop button."""
         if self.is_running:
             return "Stop"
         return "Start"
 
     def start_capturing(self):
+        """Open the video device and begin reading frames."""
         if not self.is_running:
             try:
                 self.capture = self.cv2.VideoCapture(self.device)
@@ -108,6 +119,7 @@ class VideoView(Base):
                 self.capture = None
 
     def stop_capturing(self):
+        """Release the video device and cancel scheduled display updates."""
         if self.is_running:
             if self.next_scheduled_update is not None:
                 App.app.root.after_cancel(self.next_scheduled_update)
@@ -115,6 +127,7 @@ class VideoView(Base):
             self.capture = None
 
     def start_streaming(self, filepath):
+        """Begin writing captured frames to a video file at the given path."""
         width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
         height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
         fourcc = self.cv2.VideoWriter_fourcc("I", "4", "2", "0")
@@ -123,11 +136,13 @@ class VideoView(Base):
         )
 
     def stop_streaming(self):
+        """Stop writing frames and release the video writer."""
         if self.videowriter is not None:
             self.videowriter.release()
             self.videowriter = None
 
     def update_display(self, readonly_frame=None):
+        """Read the next frame, update the display widget, and schedule the next refresh."""
         ret = True
         if readonly_frame is None and self.is_running:
             ret, readonly_frame = self.capture.read()
@@ -141,9 +156,8 @@ class VideoView(Base):
             if self.videowriter is not None:
                 self.videowriter.write(frame)
 
-            if len(frame.shape) == 3:
-                if frame.shape[2] == 3:
-                    frame = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2RGB)
+            if len(frame.shape) == 3 and frame.shape[2] == 3:
+                frame = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2RGB)
             # frame = cv.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # convert to PIL image
@@ -178,6 +192,7 @@ class VideoView(Base):
             self.previous_handler(signal.SIGINT, 0)
 
     def update_histogram(self):
+        """Recompute and redraw the per-channel histogram from the current image."""
         if self.histogram_xyplot is not None:
             self.histogram_xyplot.clear_plot()
             values = self.image.histogram()
@@ -199,6 +214,7 @@ class VideoView(Base):
             )
 
     def create_behaviour_popups(self):
+        """Create a popup menu listing available camera devices."""
         popup_camera = PopupMenu(
             menu_items=VideoView.available_devices(),
             user_callback=self.camera_selection_changed,
@@ -209,6 +225,7 @@ class VideoView(Base):
         return popup_camera
 
     def create_behaviour_buttons(self):
+        """Create start/stop, save, and stream buttons with their callbacks."""
         start_button = Button(self.startstop_button_label)
         save_button = Button("Save…")
         stream_button = Button("Stream to disk…")
@@ -220,18 +237,23 @@ class VideoView(Base):
         return start_button, save_button, stream_button
 
     def bind_button_to_startstop_behaviour(self, button):
+        """Bind a button to toggle video capture on and off."""
         button.user_event_callback = self.click_start_stop_button
 
     def bind_button_to_save_behaviour(self, button):
+        """Bind a button to save the current frame as an image file."""
         button.user_event_callback = self.click_save_button
 
     def bind_button_to_stream_behaviour(self, button):
+        """Bind a button to start streaming frames to a video file."""
         button.user_event_callback = self.click_stream_button
 
     def bind_popup_to_camera_selection_behaviour(self, popup):
+        """Bind a popup menu to switch the active camera device."""
         popup.user_event_callback = self.camera_selection_changed
 
     def click_start_stop_button(self, event, button):
+        """Toggle capture and update the button label accordingly."""
         if self.is_running:
             self.stop_capturing()
         else:
@@ -239,6 +261,7 @@ class VideoView(Base):
         button.widget.configure(text=self.startstop_button_label)
 
     def click_save_button(self, event, button):
+        """Prompt the user for a filename and save the current frame."""
         exts = self.PILImage.registered_extensions()
         supported_extensions = [
             (f, ex) for ex, f in exts.items() if f in self.PILImage.SAVE
@@ -253,6 +276,7 @@ class VideoView(Base):
             self.image.save(filepath)
 
     def click_stream_button(self, event, button):
+        """Prompt for a filename and begin streaming frames to an AVI file."""
         filepath = filedialog.asksaveasfilename(
             parent=button.widget,
             title="Choose a filename for movie:",
@@ -262,11 +286,13 @@ class VideoView(Base):
             self.start_streaming(filepath)
 
     def camera_selection_changed(self, index):
+        """Switch capture to a different camera device by index."""
         self.stop_capturing()
         self.device = index
         self.start_capturing()
 
     def prop_ids(self):
+        """Print all major OpenCV capture properties to stdout."""
         capture = self.capture
         print(
             "CV_CAP_PROP_FRAME_WIDTH: '{}'".format(
@@ -315,17 +341,11 @@ class VideoView(Base):
         )
 
     def get_prop_id(self, prop_id):
-        """
-        Important prop_id:
-        CAP_PROP_POS_MSEC Current position of the video file in milliseconds or video capture timestamp.
-        CAP_PROP_POS_FRAMES 0-based index of the frame to be decoded/captured next.
-        CAP_PROP_FRAME_WIDTH Width of the frames in the video stream.
-        CAP_PROP_FRAME_HEIGHT Height of the frames in the video stream.
-        CAP_PROP_FPS Frame rate.
-        CAP_PROP_FOURCC 4-character code of codec.
-        CAP_PROP_FORMAT Format of the Mat objects returned by retrieve() .
-        CAP_PROP_MODE Backend-specific value indicating the current capture mode.
-        CAP_PROP_CONVERT_RGB Boolean flags indicating whether images should be converted to RGB.
+        """Return the value of an OpenCV capture property, or None if not capturing.
+
+        Common *prop_id* constants include CAP_PROP_FRAME_WIDTH,
+        CAP_PROP_FRAME_HEIGHT, CAP_PROP_FPS, CAP_PROP_FOURCC, and
+        CAP_PROP_CONVERT_RGB.
         """
         if self.capture is not None:
             return self.capture.get(prop_id)

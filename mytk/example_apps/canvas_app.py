@@ -1,19 +1,18 @@
-from tkinter import DoubleVar
+import colorsys
 from tkinter import filedialog
+
+import pyperclip
+from numpy import isfinite
+from raytracing import *
+
 from mytk import *
 from mytk.base import BaseNotification
 from mytk.canvasview import *
 from mytk.dataviews import *
-from mytk.vectors import Point, PointDefault, DynamicBasis
 from mytk.labels import Label
 from mytk.notificationcenter import NotificationCenter
+from mytk.vectors import DynamicBasis, Point, PointDefault
 
-import time
-from numpy import linspace, isfinite
-from raytracing import *
-import colorsys
-import pyperclip
-from contextlib import suppress
 
 class CanvasApp(App):
     def __init__(self):
@@ -244,13 +243,13 @@ class CanvasApp(App):
             self.controls, column=0, row=6, pady=5, padx=5, sticky="nsew"
         )
 
-        self.object_conjugate = PopupMenu(menu_items=['Finite object','Infinite object'])        
+        self.object_conjugate = PopupMenu(menu_items=['Finite object','Infinite object'])
         self.object_conjugate.grid_into(
             self.conjugation_box, column=0, row=0, pady=5, padx=5, sticky="w"
         )
         self.object_conjugate.selection_changed(0)
 
-        self.image_conjugate = PopupMenu(menu_items=['Finite image','Infinite image'])        
+        self.image_conjugate = PopupMenu(menu_items=['Finite image','Infinite image'])
         self.image_conjugate.grid_into(
             self.conjugation_box, column=1, row=0, pady=5, padx=5, sticky="w"
         )
@@ -396,7 +395,7 @@ class CanvasApp(App):
         if isfinite(conjugate.d):
             image_position = user_provided_path.L + conjugate.d
             finite_imaging_path = self.get_path_from_ui(without_apertures=False, max_position=image_position)
-        
+
         finite_path = finite_imaging_path
         if finite_path is None:
             finite_path = self.get_path_from_ui(without_apertures=False, max_position=self.coords.axes_limits[0][1])
@@ -436,7 +435,7 @@ class CanvasApp(App):
 
         self.coords.axes_limits = ((0, path.L), (min(y_min,-half_diameter)*1.1, max(y_max,half_diameter)*1.1))
 
-        
+
     def raytraces_limits(self, raytraces):
         ys = []
         for raytrace in raytraces:
@@ -716,7 +715,7 @@ class CanvasApp(App):
             z += delta
 
         if max_position is not None:
-            if path.L < max_position:
+            if max_position > path.L:
                 path.append(Space(d=max_position-path.L))
 
         return path
@@ -790,7 +789,7 @@ path.display(rays=rays)
             script += f"rays = UniformRays(yMax={self.max_height}, thetaMax={self.max_fan_angle}, M={self.number_of_heights}, N={self.number_of_angles})\n"
             script += f"path.display(rays=rays, onlyPrincipalAndAxialRays=False, removeBlocked={self.dont_show_blocked_rays})\n"
         else:
-            script += f"path.display(onlyPrincipalAndAxialRays=True)\n"
+            script += "path.display(onlyPrincipalAndAxialRays=True)\n"
 
         return script
 
@@ -813,7 +812,7 @@ path.display(rays=rays)
         image_position = imaging_path.L
 
         data_source.append_record(
-            {"property": "Object position", "value": f"0.0 (always)"}
+            {"property": "Object position", "value": "0.0 (always)"}
         )
         data_source.append_record(
             {"property": "Image position", "value": f"{image_position:.2f}"}
@@ -852,17 +851,17 @@ path.display(rays=rays)
             )
         else:
             data_source.append_record(
-                {"property": "AS position", "value": f"Inexistent"}
+                {"property": "AS position", "value": "Inexistent"}
             )
-            data_source.append_record({"property": "AS size", "value": f"Inexistent"})
+            data_source.append_record({"property": "AS size", "value": "Inexistent"})
 
             data_source.append_record(
-                {"property": "Axial ray θ_max", "value": f"Inexistent [no AS]"}
+                {"property": "Axial ray θ_max", "value": "Inexistent [no AS]"}
             )
             data_source.append_record(
                 {
                     "property": "NA",
-                    "value": f"Inexistent",
+                    "value": "Inexistent",
                 }
             )
 
@@ -885,11 +884,11 @@ path.display(rays=rays)
             )
             if field_stop.z < image_position:
                 data_source.append_record(
-                    {"property": "Has vignetting [FS before image]", "value": f"True"}
+                    {"property": "Has vignetting [FS before image]", "value": "True"}
                 )
             else:
                 data_source.append_record(
-                    {"property": "Has vignetting [FS before image]", "value": f"False"}
+                    {"property": "Has vignetting [FS before image]", "value": "False"}
                 )
             principal_ray = imaging_path.principalRay()
             data_source.append_record(
@@ -897,15 +896,15 @@ path.display(rays=rays)
             )
         else:
             data_source.append_record(
-                {"property": "FS position", "value": f"Inexistent"}
+                {"property": "FS position", "value": "Inexistent"}
             )
-            data_source.append_record({"property": "FS size", "value": f"Inexistent"})
+            data_source.append_record({"property": "FS size", "value": "Inexistent"})
             data_source.append_record(
-                {"property": "Has vignetting [FS before image]", "value": f"Inexistent"}
+                {"property": "Has vignetting [FS before image]", "value": "Inexistent"}
             )
 
             data_source.append_record(
-                {"property": "Principal ray y_max", "value": f"Inexistent [no FS]"}
+                {"property": "Principal ray y_max", "value": "Inexistent [no FS]"}
             )
 
 
@@ -934,19 +933,19 @@ path.display(rays=rays)
             )
         else:
             data_source.append_record(
-                {"property": "Field of view [FOV]", "value": f"Infinite [no FS]"}
+                {"property": "Field of view [FOV]", "value": "Infinite [no FS]"}
             )
             data_source.append_record(
-                {"property": "Object size [same as FOV]", "value": f"Infinite [no FS]"}
+                {"property": "Object size [same as FOV]", "value": "Infinite [no FS]"}
             )
             data_source.append_record(
-                {"property": "Image size", "value": f"Infinite [no FS]"}
+                {"property": "Image size", "value": "Infinite [no FS]"}
             )
             data_source.append_record(
-                {"property": "Magnification [Transverse]", "value": f"Inexistent"}
+                {"property": "Magnification [Transverse]", "value": "Inexistent"}
             )
             data_source.append_record(
-                {"property": "Magnification [Angular]", "value": f"Inexistent"}
+                {"property": "Magnification [Angular]", "value": "Inexistent"}
             )
 
         self.results_tableview.sort_column(column_name='property')

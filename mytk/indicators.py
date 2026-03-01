@@ -1,11 +1,14 @@
-from tkinter import DoubleVar, BooleanVar
+import contextlib
 import tkinter.ttk as ttk
+from tkinter import BooleanVar, DoubleVar, TclError
 
 from .base import Base
 from .canvasview import CanvasView
 
 
 class NumericIndicator(Base):
+    """A label that displays a formatted numeric value from a tkinter variable."""
+
     def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
         self.format_string = format_string
@@ -16,14 +19,17 @@ class NumericIndicator(Base):
         self.value_variable.trace_add("write", self.value_updated)
 
     def create_widget(self, master):
+        """Create the label widget and display the initial value."""
         self.parent = master
         self.widget = ttk.Label(master, **self.debug_kwargs)
         self.update_text()
 
     def value_updated(self, var, index, mode):
+        """Callback triggered when the value variable changes."""
         self.update_text()
 
     def update_text(self):
+        """Format the current value and update the label text."""
         try:
             formatted_text = self.format_string.format(self.value_variable.get())
             if self.widget is not None:
@@ -33,27 +39,29 @@ class NumericIndicator(Base):
 
 
 class BooleanIndicator(CanvasView):
+    """A colored circle indicator that is green when True and red when False."""
+
     def __init__(self, diameter=15):
         super().__init__(width=diameter + 4, height=diameter + 4)
         self.diameter = diameter
 
     def create_widget(self, master, **kwargs):
+        """Create the canvas widget and draw the initial indicator."""
         super().create_widget(master, *kwargs)
         self.value_variable = BooleanVar(value=False)
         self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
 
     def value_updated(self, var, index, mode):
+        """Callback triggered when the boolean variable changes."""
         self.draw_canvas()
 
     def draw_canvas(self):
+        """Draw the indicator circle with the appropriate color."""
         border = 1
 
         value = self.value_variable.get()
-        if value is True:
-            color = "green2"
-        else:
-            color = "red"
+        color = "green2" if value is True else "red"
 
         self.widget.create_oval(
             (4, 4, 4 + self.diameter, 4 + self.diameter),
@@ -64,6 +72,8 @@ class BooleanIndicator(CanvasView):
 
 
 class Level(CanvasView):
+    """A horizontal bar indicator that fills proportionally to a value."""
+
     def __init__(self, maximum=100, width=200, height=20):
         super().__init__()
         self.maximum = maximum
@@ -71,17 +81,17 @@ class Level(CanvasView):
         self.height = height
 
     def create_widget(self, master, **kwargs):
+        """Create the canvas widget and draw the initial level bar."""
         super().create_widget(master, *kwargs)
         self.value_variable = DoubleVar()
         self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
 
     def value_updated(self, var, index, mode):
+        """Clamp the value to the valid range and redraw the bar."""
         value = 0
-        try:
+        with contextlib.suppress(TclError):
             value = self.value_variable.get()
-        except TclError as err:
-            pass
 
         if value < 0:
             value = 0
@@ -92,6 +102,7 @@ class Level(CanvasView):
         self.draw_canvas()
 
     def draw_canvas(self):
+        """Draw the level bar reflecting the current value."""
         border = 2
 
         width = float(self.widget["width"])

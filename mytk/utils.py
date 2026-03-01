@@ -3,6 +3,7 @@ from threading import current_thread, main_thread
 
 
 def is_main_thread() -> bool:
+    """Check whether the current thread is the main thread."""
     return current_thread() == main_thread()
 
 
@@ -96,6 +97,7 @@ def apply_window_position(widget, position, size_str=None):
 
 
 def package_app_script(filepath=None):
+    """Bundle the utility module and an optional script into a single self-contained string."""
     from inspect import currentframe, getframeinfo
 
     frameinfo = getframeinfo(currentframe())
@@ -119,5 +121,5 @@ def package_app_script(filepath=None):
         import pyperclip
 
         pyperclip.copy(script)
-    except:
+    except ImportError:
         pass

@@ -1,5 +1,7 @@
-import envtest
 import unittest
+
+import envtest
+
 from mytk import *
 from mytk.entries import *
 from mytk.tableview import TableView

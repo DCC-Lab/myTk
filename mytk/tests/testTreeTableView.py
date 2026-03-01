@@ -1,12 +1,12 @@
-import envtest
-import unittest
 import os
-import tempfile
-import collections
-import random
 import time
+import unittest
+
+import envtest
+
 from mytk import *
 from mytk.fileviewer import FileRecord
+
 
 class TestTreeTableview(envtest.MyTkTestCase):
     def source_data_changed(self, records):
@@ -125,7 +125,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
 
     def test_get_files_right_order(self):
         self.tableview = FileViewer("/Users")
-        
+
         seen_ids = [None]
         for record in self.tableview.data_source.ordered_records():
             self.assertTrue(record['__puuid'] in seen_ids)
@@ -133,7 +133,7 @@ class TestTreeTableview(envtest.MyTkTestCase):
 
     def test_get_files_right_order2(self):
         self.tableview = FileViewer("/Applications")
-        
+
         seen_ids = [None]
         for record in self.tableview.data_source.ordered_records():
             self.assertTrue(record['__puuid'] in seen_ids)

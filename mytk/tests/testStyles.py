@@ -1,8 +1,9 @@
-import envtest
 import unittest
-from mytk import *
 from tkinter.ttk import Style
-import tkinter.font as TkFont
+
+import envtest
+
+from mytk import *
 
 
 class TestFont(envtest.MyTkTestCase):

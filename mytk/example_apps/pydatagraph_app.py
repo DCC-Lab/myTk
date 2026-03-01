@@ -1,17 +1,9 @@
-from mytk import *
-
 import os
-import re
-import json
-import tempfile
-import shutil
-import webbrowser
-import urllib
-import zipfile
-import subprocess
-import pandas
 from pathlib import Path
 from tkinter import filedialog
+
+from mytk import *
+
 
 class PyDatagraphApp(App):
     def __init__(self):
@@ -49,25 +41,25 @@ class PyDatagraphApp(App):
 
         colors = ['black','red','blue','green','white']
         self.facecolor_label = Label("Face color: ")
-        self.facecolor_label.grid_into(self.inspector, row=2, column=0, padx=10, pady=2, sticky='ne')        
+        self.facecolor_label.grid_into(self.inspector, row=2, column=0, padx=10, pady=2, sticky='ne')
         self.marker_facecolor = PopupMenu(colors,user_callback=self.column_inspector_data_changed)
         self.marker_facecolor.grid_into(self.inspector, row=2, column=1, padx=10, pady=2, sticky='nw')
         self.marker_facecolor.widget['width'] = 5
 
         self.edgecolor_label = Label("Edge color: ")
-        self.edgecolor_label.grid_into(self.inspector, row=3, column=0, padx=10, pady=2, sticky='ne')        
+        self.edgecolor_label.grid_into(self.inspector, row=3, column=0, padx=10, pady=2, sticky='ne')
         self.marker_edgecolor = PopupMenu(colors,user_callback=self.column_inspector_data_changed)
         self.marker_edgecolor.grid_into(self.inspector, row=3, column=1, padx=10, pady=2, sticky='nw')
         self.marker_edgecolor.widget['width'] = 5
 
         self.linestyle_label = Label("Line Style: ")
-        self.linestyle_label.grid_into(self.inspector, row=4, column=0, padx=10, pady=2, sticky='ne')        
+        self.linestyle_label.grid_into(self.inspector, row=4, column=0, padx=10, pady=2, sticky='ne')
         self.linestyle = PopupMenu(['','-','--'],user_callback=self.column_inspector_data_changed)
         self.linestyle.grid_into(self.inspector, row=4, column=1, padx=10, pady=2, sticky='nw')
         self.linestyle.widget['width'] = 5
 
         self.linecolor_label = Label("Line color: ")
-        self.linecolor_label.grid_into(self.inspector, row=5, column=0, padx=10, pady=2, sticky='ne')        
+        self.linecolor_label.grid_into(self.inspector, row=5, column=0, padx=10, pady=2, sticky='ne')
         self.linecolor = PopupMenu(colors, user_callback=self.column_inspector_data_changed)
         self.linecolor.grid_into(self.inspector, row=5, column=1, padx=10, pady=2, sticky='nw')
         self.linecolor.widget['width'] = 5
@@ -197,9 +189,9 @@ class PyDatagraphApp(App):
     def load_data(self, filepath):
         try:
             df = self.data_source.load_tabular_data(filepath)
-        except TabularData.UnrecognizedFileFormat:
+        except TabularData.UnrecognizedFileFormatError:
             diag=Dialog.showerror(
-                title=f"Unknown file format",
+                title="Unknown file format",
                 message=f"The file '{filepath}' does not have readable data organized in a table manner. The module pandas is used, check the supported file formats.",
             )
             return
@@ -222,7 +214,7 @@ class PyDatagraphApp(App):
             self.tableview.clear_widget_content()
             self.tableview.columns = list(df.columns).copy()
             self.tableview.headings = [ name.upper() for name in self.tableview.columns]
-        
+
             for column_name in self.tableview.columns:
                 self.tableview.widget.column(column_name, width=30)
 
@@ -303,5 +295,5 @@ class PyDatagraphApp(App):
 
 if __name__ == "__main__":
     ModulesManager.install_and_import_modules_if_absent(pip_modules={"requests":"requests","pyperclip":"pyperclip"}, ask_for_confirmation=False)
-    app = PyDatagraphApp()    
+    app = PyDatagraphApp()
     app.mainloop()

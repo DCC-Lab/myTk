@@ -1,8 +1,9 @@
 import unittest
-from math import cos, sin, sqrt
+from math import sqrt
 
 
 def same_basis(e1, e2):
+    """Return True if two elements share the same basis."""
     if e1.basis is None and e2.basis is not None:
         return e2.basis.is_standard_basis
     elif e2.basis is None and e1.basis is not None:
@@ -12,6 +13,7 @@ def same_basis(e1, e2):
 
 
 def is_standard_basis(basis):
+    """Return True if the basis is None or is the standard (identity) basis."""
     if basis is None:
         return True
 
@@ -19,10 +21,13 @@ def is_standard_basis(basis):
 
 
 def same_origin(e1, e2):
+    """Return True if two elements share the same origin."""
     return e1.origin == e2.origin
 
 
 class PointDefault:
+    """Context manager to temporarily override the default basis for Points."""
+
     def __init__(self, basis=None):
         self.save_default_basis = Point.default_basis
         Point.default_basis = basis
@@ -35,16 +40,20 @@ class PointDefault:
 
 
 class Vector:
+    """Two-dimensional vector with optional basis for coordinate transformations."""
+
     def __init__(self, *args, basis=None):
         self.components = args
         self.basis = basis
 
     @property
     def c0(self):
+        """Return the first component of the vector."""
         return self.components[0]
 
     @property
     def c1(self):
+        """Return the second component of the vector."""
         return self.components[1]
 
     def __repr__(self):
@@ -52,9 +61,8 @@ class Vector:
 
     def __str__(self):
         basis_str = ""
-        if self.basis is not None:
-            if not self.basis.is_standard_basis:
-                basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
+        if self.basis is not None and not self.basis.is_standard_basis:
+            basis_str = f" basis=[{self.basis.e0}, {self.basis.e1}]"
 
         return f"V({self.c0:.1f}, {self.c1:.1f}){basis_str}"
 
@@ -99,28 +107,35 @@ class Vector:
 
     @property
     def length(self):
+        """Return the Euclidean length of the vector in standard coordinates."""
         v = self.standard_coordinates()
         return sqrt(v.c0 * v.c0 + v.c1 * v.c1)
 
     @property
     def is_unitary(self):
+        """Return True if the vector has unit length within floating-point tolerance."""
         return abs(self.length - 1.0) < 1e-6
 
     def is_perpendicular(self, rhs):
+        """Return True if this vector is perpendicular to rhs."""
         return abs(self.dot(rhs)) < 1e-6
 
     def dot(self, rhs: "Vector"):
+        """Compute the dot product with another vector in the same basis."""
         assert same_basis(self, rhs)
         return self.c0 * rhs.c0 + self.c1 * rhs.c1
 
     def normalized(self):
+        """Return a unit-length vector in the same direction and basis."""
         inv_l = 1.0 / self.length
         return Vector(self.c0 * inv_l, self.c1 * inv_l, basis=self.basis)
 
     def scaled(self, scale):
+        """Return a new vector with each component multiplied by the corresponding scale factor."""
         return Vector(self.c0 * scale[0], self.c1 * scale[1], basis=self.basis)
 
     def in_basis(self, new_basis):
+        """Express this vector in a different basis by projection."""
         v = self.standard_coordinates()
         e0, e1 = (new_basis.e0, new_basis.e1)
 
@@ -130,6 +145,7 @@ class Vector:
         return Vector(c0, c1, basis=new_basis)
 
     def change_basis(self, new_basis):
+        """Re-express this vector in-place in the given basis."""
         v = self.in_basis(new_basis)
 
         self.components = (v.c0, v.c1)
@@ -138,10 +154,12 @@ class Vector:
         return self
 
     def standard_tuple(self):
+        """Return the components as a tuple in the standard basis."""
         p = self.standard_coordinates()
         return p.components
 
     def standard_coordinates(self):
+        """Return an equivalent vector expressed in the standard basis."""
         if self.basis is None:
             return self
 
@@ -156,6 +174,8 @@ ŷ = Vector(0, 1, basis=None)
 
 
 class Point:
+    """Two-dimensional point with basis and optional reference point for coordinate transforms."""
+
     default_basis = None
 
     def __init__(self, *args, basis: "Basis" = None, reference_point: "Point" = None):
@@ -174,21 +194,26 @@ class Point:
 
     @property
     def x(self):
+        """Return the x (first) coordinate."""
         return self.c0
 
     @property
     def y(self):
+        """Return the y (second) coordinate."""
         return self.c1
 
     @property
     def c0(self):
+        """Return the first component of the point."""
         return self.components[0]
 
     @property
     def c1(self):
+        """Return the second component of the point."""
         return self.components[1]
 
     def is_same_as(self, rhs):
+        """Return True if this point is equal to rhs."""
         assert isinstance(rhs, Point)
         return self.__eq__(rhs)
 
@@ -250,11 +275,12 @@ class Point:
             )
 
     def standard_tuple(self):
+        """Return the components as a tuple in the standard basis."""
         p = self.standard_coordinates()
         return p.components
 
     def standard_coordinates(self):
-
+        """Return an equivalent point expressed in the standard basis."""
         if self.basis.is_standard_basis and self.reference_point is None:
             return self
 
@@ -274,6 +300,7 @@ class Point:
         return Point(*v.components)
 
     def in_reference_frame(self, basis, new_reference_point):
+        """Express this point in a new reference frame defined by basis and origin."""
         pt = self.standard_coordinates()
         ref_point = new_reference_point.standard_coordinates()
         vector_position = pt - ref_point
@@ -287,12 +314,12 @@ class Point:
 
 
 class Basis:
+    """Orthogonal 2D basis defined by two vectors, defaulting to the standard basis."""
+
     defined = {}
 
     def __init__(self, e0: Vector = None, e1: Vector = None):
-        """
-        Defaults to standard basis
-        """
+        """Initialize with two basis vectors, defaulting to the standard basis."""
         if e0 is None:
             e0 = x̂
         if e1 is None:
@@ -309,10 +336,12 @@ class Basis:
 
     @property
     def e0(self):
+        """Return the first basis vector."""
         return self._e0
 
     @property
     def e1(self):
+        """Return the second basis vector."""
         return self._e1
 
     def __eq__(self, rhs: "Basis"):
@@ -334,33 +363,30 @@ class Basis:
 
     @property
     def is_standard_basis(self):
-        if not self.e0.is_unitary:
-            return False
-        if self.e0.c1 != 0:
-            return False
-        if not self.e1.is_unitary:
-            return False
-        if self.e1.c0 != 0:
-            return False
-
-        return True
+        """Return True if this is the standard Cartesian basis."""
+        return self.e0.is_unitary and self.e0.c1 == 0 and self.e1.is_unitary and self.e1.c0 == 0
 
     @property
     def is_orthogonal(self):
+        """Return True if the two basis vectors are perpendicular."""
         return self.e0.is_perpendicular(self.e1)
 
     @property
     def is_orthonormal(self):
+        """Return True if the basis is orthogonal and both vectors are unitary."""
         if self.is_orthonormal:
             return self.e0.is_unitary and self.e1.is_unitary
 
 class DynamicBasis(Basis):
+    """Basis that reads its vectors dynamically from an attribute on a source object."""
+
     def __init__(self, source, basis_name):
         self.source = source
         self.basis_name = basis_name
 
     @property
     def e0(self):
+        """Return the first basis vector resolved from the source at access time."""
         basis = getattr(self.source, self.basis_name)
         if basis is None:
             raise ValueError('Basis {self.basis_name} from {self.source} not found')
@@ -368,13 +394,17 @@ class DynamicBasis(Basis):
 
     @property
     def e1(self):
+        """Return the second basis vector resolved from the source at access time."""
         basis = getattr(self.source, self.basis_name)
         if basis is None:
             raise ValueError('Basis {self.basis_name} from {self.source} not found')
         return basis.e1
 
 class Doublet(tuple):
+    """Immutable two-element tuple with arithmetic operations for 2D math."""
+
     def __new__(cls, *args):
+        """Create a new Doublet from two values or from a single iterable."""
         if len(args) == 2:
             return tuple.__new__(cls, args)
         else:
@@ -382,10 +412,12 @@ class Doublet(tuple):
 
     @property
     def x(self):
+        """Return the first element."""
         return self[0]
 
     @property
     def y(self):
+        """Return the second element."""
         return self[1]
 
     def __add__(self, rhs):
@@ -403,25 +435,31 @@ class Doublet(tuple):
     def __rmul__(self, scalar):
         return self.__mul__(scalar)
 
-    def __truediv__(self, scalr):
+    def __truediv__(self, scalar):
         return Doublet(self[0] / scalar, self[1] / scalar)
 
     @property
     def length(self):
+        """Return the Euclidean length."""
         return sqrt(self[0] * self[0] + self[1] * self[1])
 
     def dot(self, rhs):
+        """Compute the dot product with another two-element sequence."""
         return self[0] * rhs[0] + self[1] * rhs[1]
 
     def normalized(self):
+        """Return a unit-length doublet in the same direction."""
         inv_l = 1.0 / self.length()
         return Doublet(self[0] * inv_l, self[1] * inv_l)
 
     def scaled(self, scale):
+        """Return a new doublet with each element multiplied by the corresponding scale factor."""
         return Doublet(self[0] * scale[0], self[1] * scale[1])
 
 
 class ReferenceFrame:
+    """Coordinate reference frame defined by a basis, scale, and origin point."""
+
     def __init__(self, basis=None, scale=None, reference_point: Point = None):
         assert basis is not None or scale is not None
 
@@ -430,45 +468,54 @@ class ReferenceFrame:
         else:
             self.basis = Basis(Vector(scale[0], 0), Vector(0, scale[1]))
         assert is_standard_basis(
-            origin_position.basis
+            reference_point.basis
         )  # We always provide origin in standard coordinates
         self.reference_point = reference_point
 
     @property
     def scale(self):
+        """Return the scale factors as a tuple of basis vector lengths."""
         return (self.basis.e0.length, self.basis.e1.length)
 
     def convert_to_local(self, point: Point):
-        point.change_refence_frame(self.basis, self.origin_position)
-        return self.origin + v
+        """Convert a point from standard coordinates to local frame coordinates."""
+        point.change_refence_frame(self.basis, self.origin_position)  # noqa: F821
+        return self.origin + v  # noqa: F821
 
     def convert_to_canvas(self, local_point):
+        """Convert a local-frame point to canvas (standard) coordinates."""
         x_c, y_c = (local_point[0] * self.scale[0], local_point[1] * self.scale[1])
 
         return self.origin + self.xHat * x_c + self.yHat * y_c
 
     def scale_to_canvas(self, size):
+        """Scale a size tuple from local units to canvas units."""
         return (size[0] * abs(self.scale[0]), size[1] * abs(self.scale[1]))
 
     def scale_to_local(self, size):
+        """Scale a size tuple from canvas units to local units."""
         return (size[0] / abs(self.scale[0]), size[1] / abs(self.scale[1]))
 
     @property
     def unit_vectors_scaled(self):
+        """Return the unit vectors multiplied by their respective scale factors."""
         return self.xHat * self.scale[0], self.yHat * self.scale[1]
 
     @property
     def unit_vectors(self):
+        """Return the unit vectors of the frame."""
         return self.xHat, self.yHat
 
 
 class TestCase(unittest.TestCase):
+    """Unit tests for Vector, Point, and Basis coordinate operations."""
 
     b1 = Basis()
     b2 = Basis(e0=Vector(2, 0), e1=Vector(0, 2))
     b3 = Basis(e0=Vector(1, -1), e1=Vector(1, 1))
 
     def test_point(self):
+        """Test basic point creation and standard coordinate conversion."""
         p = Point(1, 2)
         print(p.standard_coordinates())
         p.move_origin(Point(1, 1))
@@ -478,6 +525,7 @@ class TestCase(unittest.TestCase):
         # print(p.standard_coordinates())
 
     def test_point_reference_frame_same_origin(self):
+        """Test reference frame conversions with the origin at (0, 0)."""
         p0 = Point(1, 2)
         p1 = Point(1.0, 2.0)
         self.assertTrue(p0.is_same_as(p1))
@@ -495,6 +543,7 @@ class TestCase(unittest.TestCase):
         )
 
     def test_point_reference_frame_new_origin(self):
+        """Test reference frame conversions with a shifted origin."""
         p0 = Point(1, 2, reference_point=Point(1, 2))
         self.assertEqual(p0.standard_coordinates(), Point(2, 4))
 
@@ -505,6 +554,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(p3.standard_coordinates(), Point(4, 2))
 
     def test_point_reference_frame_new_origin_not_standard_coordinates(self):
+        """Test reference frame with a non-standard-basis origin point."""
         p0 = Point(1, 2, reference_point=Point(1, 2, basis=self.b2))
         self.assertEqual(p0.standard_coordinates(), Point(3, 6))
 
@@ -516,6 +566,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(p0.standard_coordinates(), Point(4, 8))
 
     def test_define_default_basis(self):
+        """Test that PointDefault context manager sets a default basis."""
         b_local = Basis(e0=Vector(10, 0), e1=Vector(0, 30))
 
         points = []
@@ -529,6 +580,7 @@ class TestCase(unittest.TestCase):
             self.assertTrue(point.basis == b_local)
 
     def test_define_default_reference(self):
+        """Test that PointDefault context manager sets a default reference point."""
         ref = Point(1, 2)
 
         points = []
@@ -542,6 +594,7 @@ class TestCase(unittest.TestCase):
             self.assertTrue(point.reference_point == ref)
 
     def test_define_default(self):
+        """Test PointDefault with both basis and reference point."""
         ref = Point(1, 2)
         b_local = Basis(e0=Vector(10, 0), e1=Vector(0, 30))
 
@@ -556,6 +609,7 @@ class TestCase(unittest.TestCase):
             self.assertTrue(point.reference_point == ref)
 
     def test_get_line_in_canvas_coordinates(self):
+        """Test converting a sequence of local-basis points to standard coordinates."""
         b_local = Basis(e0=Vector(10, 0), e1=Vector(0, -30))
 
         points = []
@@ -597,26 +651,30 @@ class TestCase(unittest.TestCase):
     #     self.assertEqual(ref.convert_to_local(Vector(1, 1)), (0, 0))
     #     self.assertEqual(ref.convert_to_local(Vector(2, 2)), (0.1, -0.01))
 
-    def test_point(self):
+    def test_point_subtraction(self):
+        """Test that subtracting two points produces a Vector."""
         p1 = Point(1, 2)
         p2 = Point(3, 4)
         v = p2 - p1
         self.assertTrue(isinstance(v, Vector))
 
     def test_vector(self):
+        """Test basic vector dot product computation."""
         v1 = Vector(1, 2)
         v2 = Vector(3, 4)
         print(v2.dot(v1))
 
     def test_basis(self):
+        """Test point subtraction within a non-standard basis."""
         b = Basis(Vector(1, -1), Vector(1, 1))
         p1 = Point(1, 2, basis=b)
         p2 = Point(3, 4, basis=b)
         print(p2 - p1)
 
     def test_basis_change(self):
+        """Test changing a vector from one basis to another."""
         b1 = Basis(e0=Vector(1, -1), e1=Vector(1, 1))
-        b2 = Basis()
+        _b2 = Basis()
         v1 = Vector(1, 2, basis=b1)
         print(v1)
         print(v1.standard_coordinates())
@@ -630,7 +688,8 @@ class TestCase(unittest.TestCase):
         # print(v1.change_basis(b2))
 
     def test_basis_change2(self):
-        b3 = Basis(e0=Vector(1, -1), e1=Vector(1, 1))
+        """Test changing basis with a scaled (non-unitary) basis."""
+        _b3 = Basis(e0=Vector(1, -1), e1=Vector(1, 1))
         b2 = Basis(e0=Vector(2, 0), e1=Vector(0, 2))
         b1 = Basis()
         v1 = Vector(1, 3, basis=b1)

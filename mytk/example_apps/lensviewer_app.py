@@ -1,9 +1,12 @@
-from mytk import *
-import raytracing as rt
-import raytracing.thorlabs as thorlabs
-import raytracing.eo as eo
-from raytracing.figure import GraphicOf
 from contextlib import suppress
+
+import raytracing as rt
+import raytracing.eo as eo
+import raytracing.thorlabs as thorlabs
+from raytracing.figure import GraphicOf
+
+from mytk import *
+
 
 class OpticalComponentViewer(App):
     def __init__(self):
@@ -48,7 +51,7 @@ class OpticalComponentViewer(App):
         self.table.delegate = self
         self.table.grid_into(self.header, sticky="nsew", padx=5)
         self.table.all_elements_are_editable = False
-        
+
         self.table.column_formats['backFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['frontFocalLength'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}
         self.table.column_formats['effectiveFocalLengths'] = {'format_string':"{0:.2f}", 'multiplier':1, 'anchor':''}

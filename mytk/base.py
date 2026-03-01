@@ -1,14 +1,13 @@
-"""
-Base module for custom Tkinter widget behavior.
+"""Base module for custom Tkinter widget behavior.
 
-This module defines a `Base` class that extends `Bindable` to provide a 
-unified interface for managing Tkinter widget state, dynamic geometry placement, 
+This module defines a `Base` class that extends `Bindable` to provide a
+unified interface for managing Tkinter widget state, dynamic geometry placement,
 event binding, and lifecycle scheduling.
 
 Includes support for property observation, variable binding, and diagnostic output.
 """
+import contextlib
 import re
-from contextlib import suppress
 from enum import Enum
 
 from .bindable import Bindable
@@ -16,8 +15,7 @@ from .eventcapable import EventCapable
 
 
 def _class_nice_(cls):
-    """
-    Returns a nicely formatted class name string for debugging or introspection.
+    """Returns a nicely formatted class name string for debugging or introspection.
 
     Args:
         cls: An instance whose class name should be extracted.
@@ -32,16 +30,13 @@ def _class_nice_(cls):
 
 
 class BaseNotification(Enum):
-    """
-    Enum for core notification messages emitted by Base-derived classes.
-    """
+    """Enum for core notification messages emitted by Base-derived classes."""
 
     did_resize = "did_resize"
 
 
 class _BaseWidget:
-    """
-    Abstract base class for all UI related methods in the framework.
+    """Abstract base class for all UI related methods in the framework.
 
     Provides:
     - Tkinter state management (enabled, selected, focused)
@@ -55,9 +50,7 @@ class _BaseWidget:
     debug = False
 
     def __init__(self, *args, **kwargs):
-        """
-        Initializes the widget base: sets up properties, and environment validation.
-        """
+        """Initializes the widget base with properties and environment validation."""
         super().__init__(*args, **kwargs)
         self.widget = None
         self.parent = None
@@ -68,8 +61,7 @@ class _BaseWidget:
         self.is_environment_valid()
 
     def create_widget(self, master, **kwargs):
-        """
-        Actually create the widget as needed.
+        """Actually create the widget as needed.
 
         Subclasses must override this method to create self.widget.
         As a convention, call self._bind_destroy_cancel() at the end of your
@@ -90,15 +82,12 @@ class _BaseWidget:
     """
 
     def add_rows(self, elements, start_row, column, **kwargs):
-        """
-        Add several elementws in a column with similar settings. Typically Label or Entries.
-        """
+        """Adds several elements in a column with similar grid settings."""
         for i, element in enumerate(elements):
             element.grid_into(self, row=start_row + i, column=column, **kwargs)
 
     def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
-        """
-        Places the widget into a grid layout.
+        """Places the widget into a grid layout.
 
         Args:
             parent (Base): Parent widget wrapper.
@@ -122,15 +111,15 @@ class _BaseWidget:
         self._bind_destroy_cancel()
 
         column = 0
-        if "column" in kwargs.keys():
+        if "column" in kwargs:
             column = kwargs["column"]
 
         row = 0
-        if "row" in kwargs.keys():
+        if "row" in kwargs:
             row = kwargs["row"]
 
         sticky = ""
-        if "sticky" in kwargs.keys():
+        if "sticky" in kwargs:
             sticky = kwargs["sticky"].lower()
 
         if self.widget is not None:
@@ -179,8 +168,7 @@ class _BaseWidget:
         return self.widget.grid_size()
 
     def all_resize_weight(self, weight):
-        """
-        Applies the same resize weight to all rows and columns of the widget's grid.
+        """Applies the same resize weight to all rows and columns of the widget's grid.
 
         Args:
             weight (int): Resize weight to apply.
@@ -205,8 +193,7 @@ class _BaseWidget:
         self.widget.grid_propagate(value)
 
     def pack_into(self, parent, **kwargs):
-        """
-        Packs the widget into the parent using the pack geometry manager.
+        """Packs the widget into the parent using the pack geometry manager.
 
         Args:
             parent (Base): Parent widget.
@@ -220,8 +207,7 @@ class _BaseWidget:
             self.widget.pack(kwargs)
 
     def place_into(self, parent, x, y, width, height):
-        """
-        Places the widget into absolute coordinates inside the parent.
+        """Places the widget into absolute coordinates inside the parent.
 
         Args:
             parent (Base): Parent widget.
@@ -239,8 +225,7 @@ class _BaseWidget:
 
     @property
     def debug_kwargs(self):
-        """
-        Returns debug border styling if class-level `debug` is True.
+        """Returns debug border styling if class-level `debug` is True.
 
         Returns:
             dict: Widget keyword arguments like borderwidth and relief.
@@ -250,9 +235,7 @@ class _BaseWidget:
         return {}
 
     def is_environment_valid(self):
-        """
-        Check environment (TODO)
-        """
+        """Validates the runtime environment."""
         return True
 
     @property
@@ -377,6 +360,8 @@ class _BaseWidget:
 
 
 class Base(_BaseWidget, Bindable, EventCapable):
+    """Composite base class combining widget management, binding, and event capabilities."""
+
     def _propagate_disabled(self, widget, disabled):
         for child in widget.winfo_children():
             try:
@@ -385,15 +370,12 @@ class Base(_BaseWidget, Bindable, EventCapable):
                 else:
                     child.state(["!disabled"])
             except AttributeError:
-                try:
+                with contextlib.suppress(Exception):
                     child.configure(state="disabled" if disabled else "normal")
-                except Exception:
-                    pass
             self._propagate_disabled(child, disabled)
 
     def bind_textvariable(self, variable):
-        """
-        Binds a textvariable (e.g., StringVar) to the widget.
+        """Binds a textvariable (e.g., StringVar) to the widget.
 
         Args:
             variable (tk.Variable): The variable to bind.
@@ -404,8 +386,7 @@ class Base(_BaseWidget, Bindable, EventCapable):
             self.widget.update()
 
     def bind_variable(self, variable):
-        """
-        Binds a general-purpose variable (e.g., BooleanVar, IntVar).
+        """Binds a general-purpose variable (e.g., BooleanVar, IntVar).
 
         Args:
             variable (tk.Variable): The variable to bind.

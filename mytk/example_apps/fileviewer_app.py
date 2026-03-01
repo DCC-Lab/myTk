@@ -1,5 +1,7 @@
-from mytk import *
 from tkinter import filedialog
+
+from mytk import *
+
 
 class FileViewerApp(App):
     def __init__(self):

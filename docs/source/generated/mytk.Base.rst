@@ -15,6 +15,7 @@
    
       ~Base.__init__
       ~Base.add_observer
+      ~Base.add_rows
       ~Base.after
       ~Base.after_cancel
       ~Base.after_cancel_all

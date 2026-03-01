@@ -1,5 +1,4 @@
-"""
-checkbox.py — Checkbox widget for myTk UI framework.
+"""checkbox.py — Checkbox widget for myTk UI framework.
 
 This module defines a `Checkbox` class that wraps a `ttk.Checkbutton` widget,
 providing data binding via `BooleanVar`, user-defined callbacks, and convenient
@@ -17,14 +16,13 @@ Example:
     box = Checkbox(label="Accept terms", user_callback=on_toggle)
 """
 
-from tkinter import ttk, BooleanVar
+from tkinter import BooleanVar, ttk
 
 from .base import Base
 
 
 class Checkbox(Base):
-    """
-    A wrapper around ttk.Checkbutton that supports data binding and a user callback.
+    """A wrapper around ttk.Checkbutton that supports data binding and a user callback.
 
     Provides:
     - BooleanVar synchronization
@@ -33,12 +31,13 @@ class Checkbox(Base):
     """
 
     def __init__(self, *args, label="", user_callback=None, **kwargs):
-        """
-        Initializes the checkbox with an optional label and callback.
+        """Initializes the checkbox with an optional label and callback.
 
         Args:
+            *args: Additional positional arguments passed to Base.
             label (str, optional): Text label displayed next to the checkbox.
             user_callback (Callable, optional): A function called when the checkbox value changes.
+            **kwargs: Additional keyword arguments passed to Base.
         """
         super().__init__(*args, **kwargs)
         self.label = label
@@ -46,8 +45,7 @@ class Checkbox(Base):
 
     @property
     def value(self):
-        """
-        Gets the current checked state of the checkbox.
+        """Gets the current checked state of the checkbox.
 
         Returns:
             bool: True if checked, False if unchecked.
@@ -56,8 +54,7 @@ class Checkbox(Base):
 
     @value.setter
     def value(self, value):
-        """
-        Sets the checked state of the checkbox.
+        """Sets the checked state of the checkbox.
 
         Args:
             value (bool): True to check the box, False to uncheck.
@@ -65,11 +62,11 @@ class Checkbox(Base):
         return self.value_variable.set(value=value)
 
     def create_widget(self, master, **kwargs):
-        """
-        Creates the ttk.Checkbutton widget and binds its variable.
+        """Creates the ttk.Checkbutton widget and binds its variable.
 
         Args:
             master (tk.Widget): The parent widget into which this widget is placed.
+            **kwargs: Additional keyword arguments.
         """
         self.widget = ttk.Checkbutton(
             master,
@@ -85,8 +82,7 @@ class Checkbox(Base):
             self.bind_variable(self.value_variable)
 
     def value_changed(self):
-        """
-        Called when the checkbox value changes. Invokes the user callback if defined.
+        """Called when the checkbox value changes. Invokes the user callback if defined.
 
         Raises:
             RuntimeError: If the user callback raises an exception.

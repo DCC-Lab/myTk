@@ -1,11 +1,8 @@
-import envtest
 import unittest
-import os
+
+import envtest
+
 from mytk import *
-import tempfile
-import collections
-import random
-import pathlib
 
 
 class TestImage(envtest.MyTkTestCase):

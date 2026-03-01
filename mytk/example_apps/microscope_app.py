@@ -1,16 +1,6 @@
-from mytk import *
-from tkinter import filedialog
-import os
-import csv
-import re
-import time
-import gc
-from collections import deque
 
-import numpy as np
-import scipy
-import threading as Th
-from queue import Queue, Empty
+
+from mytk import *
 
 
 class MicroscopeApp(App):

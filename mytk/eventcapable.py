@@ -1,5 +1,4 @@
-"""
-event_capable.py — Event mixin class for widget behavior
+"""Event mixin class for widget behavior.
 
 Provides the `EventCapable` class, a mixin designed to add event-related
 capabilities to GUI widgets that expose a `widget` attribute compatible with
@@ -12,15 +11,13 @@ Also includes the `HasWidget` protocol to allow static checking of widget
 presence for type-checkers.
 """
 
-from contextlib import suppress
-from typing import Protocol, runtime_checkable, Callable, Sequence
 import tkinter as tk
+from typing import Callable, Protocol, Sequence, runtime_checkable
 
 
 @runtime_checkable
 class HasWidget(Protocol):
-    """
-    Protocol for objects that expose a `widget` attribute of type `tk.Widget`.
+    """Protocol for objects that expose a `widget` attribute of type `tk.Widget`.
 
     This can be used with `isinstance(obj, HasWidget)` to check interface compliance.
     """
@@ -29,8 +26,7 @@ class HasWidget(Protocol):
 
 
 class EventCapable:
-    """
-    Mixin class providing event-related methods for classes exposing a `widget` attribute.
+    """Mixin class providing event-related methods for classes exposing a `widget` attribute.
 
     Designed to be used alongside other base classes that define `self.widget`
     as a `tk.Widget`. This class should not be used on its own.
@@ -44,9 +40,7 @@ class EventCapable:
     widget: "tk.Widget"  # Hint for static type checkers and linters like pylint
 
     def __init__(self, *args, **kwargs):
-        """
-        Initializes internal scheduling structures and sets up for cooperative multiple inheritance.
-        """
+        """Initialize internal scheduling structures for cooperative multiple inheritance."""
         self.scheduled_tasks = []
         super().__init__()  # cooperative!
 
@@ -64,8 +58,7 @@ class EventCapable:
     #             super_del()  # pylint: disable=not-callable
 
     def _valid_mixin_class(self):
-        """
-        Ensures that `self.widget` exists before performing widget operations.
+        """Ensures that `self.widget` exists before performing widget operations.
 
         Raises:
             AttributeError: If `self` does not define a `widget` attribute.
@@ -76,8 +69,7 @@ class EventCapable:
             )
 
     def after(self, delay: int, function: Callable) -> int:
-        """
-        Schedules a function to be called after a given time delay.
+        """Schedules a function to be called after a given time delay.
 
         Args:
             delay (int): Delay in milliseconds.
@@ -94,8 +86,7 @@ class EventCapable:
         return task_id
 
     def after_cancel(self, task_id: int):
-        """
-        Cancels a previously scheduled task by its ID.
+        """Cancels a previously scheduled task by its ID.
 
         Args:
             task_id (int): ID of the task returned by `after()`.
@@ -106,8 +97,7 @@ class EventCapable:
             self.scheduled_tasks.remove(task_id)
 
     def after_cancel_many(self, task_ids: Sequence[int]):
-        """
-        Cancels multiple tasks given a sequence of IDs.
+        """Cancels multiple tasks given a sequence of IDs.
 
         Args:
             task_ids (Sequence[int]): List or tuple of task IDs to cancel.
@@ -116,16 +106,13 @@ class EventCapable:
             self.after_cancel(task_id)
 
     def after_cancel_all(self):
-        """
-        Cancels all currently scheduled tasks for this object.
-        """
+        """Cancel all currently scheduled tasks for this object."""
         self.after_cancel_many(list(self.scheduled_tasks))
 
     def _bind_destroy_cancel(self):
-        """
-        Binds a <Destroy> handler on the widget that cancels all scheduled
-        tasks when this widget is destroyed. Called automatically after
-        create_widget() in grid_into/pack_into/place_into.
+        """Bind a Destroy handler that cancels all scheduled tasks on widget destruction.
+
+        Called automatically after create_widget() in grid_into/pack_into/place_into.
         """
         if self.widget is not None:
             self.widget.bind(
@@ -134,8 +121,7 @@ class EventCapable:
             )
 
     def bind_event(self, event: str, callback: Callable):
-        """
-        Binds a callback function to a specific event on the underlying widget.
+        """Binds a callback function to a specific event on the underlying widget.
 
         Args:
             event (str): Tkinter event string (e.g. "<Button-1>").
@@ -145,8 +131,7 @@ class EventCapable:
         self.widget.bind(event, callback)
 
     def event_generate(self, event: str):
-        """
-        Triggers an event on the underlying widget programmatically.
+        """Triggers an event on the underlying widget programmatically.
 
         Args:
             event (str): Event name to trigger (e.g., "<<CustomEvent>>").

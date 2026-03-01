@@ -1,12 +1,11 @@
-import envtest
 import unittest
+
+import envtest
+
 from mytk import (
     Dialog,
-    SimpleDialog,
-    Label,
-    IntEntry,
-    DoubleVar,
     FormattedEntry,
+    Label,
     View,
 )
 

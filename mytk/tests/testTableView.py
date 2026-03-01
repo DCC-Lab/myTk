@@ -1,12 +1,11 @@
-import envtest
-import unittest
-
-import os
-import tempfile
-import collections
 import random
-from mytk import *
+import unittest
 from tkinter import TclError
+
+import envtest
+
+from mytk import *
+
 
 class TestTableview(envtest.MyTkTestCase):
     def source_data_changed(self, records):
@@ -221,7 +220,7 @@ class TestTableview(envtest.MyTkTestCase):
 
     def test_heading_info_no_widget(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
-        with self.assertRaises(TableView.WidgetNotYetCreated):
+        with self.assertRaises(TableView.WidgetNotYetCreatedError):
             hinfo = self.tableview.heading_info("a")
 
     def test_item_info(self):
@@ -241,7 +240,7 @@ class TestTableview(envtest.MyTkTestCase):
     def test_item_info_no_widget(self):
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
 
-        with self.assertRaises(TableView.WidgetNotYetCreated):
+        with self.assertRaises(TableView.WidgetNotYetCreatedError):
             iinfo = self.tableview.item_info("abc")
 
     def test_item_modification(self):
@@ -254,7 +253,7 @@ class TestTableview(envtest.MyTkTestCase):
         self.app.mainloop()
 
     def test_impossible_to_change_column_after_setting_them_in_display(self):
-        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name 
+        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name
 
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
@@ -268,13 +267,13 @@ class TestTableview(envtest.MyTkTestCase):
             self.tableview.widget.configure(columns=("c", "d", "e"))
 
         self.assertTrue(len(self.tableview.displaycolumns) != 0)
-        self.tableview.columns = ("c", "d", "e") 
+        self.tableview.columns = ("c", "d", "e")
         self.assertTrue(len(self.tableview.displaycolumns) == 3)
 
         self.tableview.widget["columns"] = ("c", "d", "e")
 
     def test_columns_change_in_tkinter_resets_headings(self):
-        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name 
+        # We must clear display columns to avoid having a displaycolumn that includes a deleted column_name
 
         self.tableview = TableView({"a": "Column A", "b": "Column B"})
         self.tableview.grid_into(self.app.window, row=0, column=0)
@@ -380,21 +379,21 @@ class TestTableview(envtest.MyTkTestCase):
 
         self.tableview.data_source.disable_change_calls()
         parent_record = self.tableview.data_source.append_record(
-            {"a": f"value a1", "b": b}
+            {"a": "value a1", "b": b}
         )
         parent_record2 = self.tableview.data_source.insert_record(
             index=None,
-            values={"a": f"value a2", "b": b},
+            values={"a": "value a2", "b": b},
             pid=parent_record["__puuid"],
         )
         record3 = self.tableview.data_source.insert_child_records(
             index=None,
-            records=[{"a": f"value a3", "b": b}],
+            records=[{"a": "value a3", "b": b}],
             pid=parent_record2["__puuid"],
         )
         record4 = self.tableview.data_source.insert_child_records(
             index=None,
-            records=[{"a": f"value a3", "b": b}],
+            records=[{"a": "value a3", "b": b}],
             pid=parent_record2["__puuid"],
         )
 
@@ -413,7 +412,7 @@ class TestTableViewInit(envtest.MyTkTestCase):
 
     def test_column_info_before_creation_raises(self):
         tv = TableView({"a": "A", "b": "B"})
-        with self.assertRaises(TableView.WidgetNotYetCreated):
+        with self.assertRaises(TableView.WidgetNotYetCreatedError):
             tv.column_info("a")
 
     def test_headings_setter_before_creation(self):

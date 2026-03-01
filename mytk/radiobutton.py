@@ -1,5 +1,4 @@
-"""
-radiobutton.py — A myTk wrapper for ttk.Radiobutton with group linking and observation.
+"""radiobutton.py — A myTk wrapper for ttk.Radiobutton with group linking and observation.
 
 This module defines a `RadioButton` class that wraps a `ttk.Radiobutton` widget
 and provides a convenience method `linked_group()` to create a group of radio buttons
@@ -21,13 +20,13 @@ Example:
     )
 """
 
-from tkinter import ttk, IntVar
+from tkinter import IntVar, ttk
+
 from .base import Base
 
 
 class RadioButton(Base):
-    """
-    A bindable wrapper around ttk.Radiobutton.
+    """A bindable wrapper around ttk.Radiobutton.
 
     Provides:
     - Optional user callback on selection change
@@ -37,8 +36,7 @@ class RadioButton(Base):
 
     @classmethod
     def linked_group(cls, labels_values, user_callback=None):
-        """
-        Creates a group of mutually exclusive radio buttons that share the same value variable.
+        """Creates a group of mutually exclusive radio buttons that share the same value variable.
 
         Args:
             labels_values (dict[str, int]): Dictionary mapping labels to integer values.
@@ -57,8 +55,7 @@ class RadioButton(Base):
         return radios
 
     def __init__(self, label, value, user_callback=None):
-        """
-        Initializes a single radio button.
+        """Initializes a single radio button.
 
         Args:
             label (str): The text label for the button.
@@ -71,11 +68,11 @@ class RadioButton(Base):
         self.user_callback = user_callback
 
     def create_widget(self, master, **kwargs):
-        """
-        Creates the ttk.Radiobutton widget and binds it to the value variable.
+        """Creates the ttk.Radiobutton widget and binds it to the value variable.
 
         Args:
             master (tk.Widget): The parent container.
+            **kwargs: Additional keyword arguments.
         """
         self.widget = ttk.Radiobutton(
             master,
@@ -86,10 +83,7 @@ class RadioButton(Base):
         self.bind_variable(self.value_variable)
 
     def value_changed(self):
-        """
-        Callback invoked when the radio button is selected.
-        This triggers the user-defined callback if available.
-        """
+        """Invoke the user-defined callback when the radio button is selected."""
         if self.user_callback is not None:
             try:
                 self.user_callback(self)
@@ -97,8 +91,7 @@ class RadioButton(Base):
                 raise RuntimeError("Unable complete callback") from err
 
     def bind_variable(self, variable):
-        """
-        Binds the radio button to a shared IntVar and sets up an observer for changes.
+        """Binds the radio button to a shared IntVar and sets up an observer for changes.
 
         Notes:
             The `command` callback of a Radiobutton is only triggered by user clicks.
@@ -113,8 +106,7 @@ class RadioButton(Base):
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
-        """
-        Handles updates to the shared variable even when changed programmatically.
+        """Handles updates to the shared variable even when changed programmatically.
 
         Args:
             observed_object: The object being observed (usually self).

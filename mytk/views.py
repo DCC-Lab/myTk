@@ -1,5 +1,4 @@
-"""
-This module defines basic container widgets for layout composition in a Tkinter UI framework.
+"""This module defines basic container widgets for layout composition in a Tkinter UI framework.
 
 Classes:
     - View: A generic frame for layout grouping.
@@ -7,12 +6,12 @@ Classes:
 """
 
 from tkinter import ttk
+
 from .base import Base, _BaseWidget
 
 
 class View(Base):
-    """
-    A generic frame container used to group widgets together.
+    """A generic frame container used to group widgets together.
 
     Inherits from Base and wraps a ttk.Frame. Can be used to structure layouts or as a logical container.
 
@@ -24,22 +23,23 @@ class View(Base):
     """
 
     def __init__(self, width, height, *args, **kwargs):
-        """
-        Initializes the View with a fixed width and height.
+        """Initializes the View with a fixed width and height.
 
         Args:
             width (int): Width of the frame in pixels.
             height (int): Height of the frame in pixels.
+            *args: Additional positional arguments passed to Base.
+            **kwargs: Additional keyword arguments passed to Base.
         """
         super().__init__(*args, **kwargs)
         self._widget_args = {"width": width, "height": height}
 
     def create_widget(self, master, **kwargs):
-        """
-        Creates the underlying ttk.Frame widget.
+        """Creates the underlying ttk.Frame widget.
 
         Args:
             master (tk.Widget): The parent widget.
+            **kwargs: Additional keyword arguments (unused).
         """
         self.parent = master
         self.widget = ttk.Frame(
@@ -59,8 +59,7 @@ class View(Base):
 
 
 class Box(Base):
-    """
-    A labeled frame (ttk.LabelFrame) used to visually group widgets with an optional title and fixed size.
+    """A labeled frame (ttk.LabelFrame) used to visually group widgets with an optional title and fixed size.
 
     Args:
         label (str): The title displayed on the box.
@@ -71,23 +70,24 @@ class Box(Base):
     """
 
     def __init__(self, *args, label="", width=None, height=None, **kwargs):
-        """
-        Initializes the Box with an optional label, width, and height.
+        """Initializes the Box with an optional label, width, and height.
 
         Args:
             label (str): Label to display as the frame's title.
             width (int, optional): Frame width.
             height (int, optional): Frame height.
+            *args: Additional positional arguments passed to Base.
+            **kwargs: Additional keyword arguments passed to Base.
         """
         super().__init__(*args, **kwargs)
         self._widget_args = {"width": width, "height": height, "text": label}
 
     def create_widget(self, master, **kwargs):
-        """
-        Creates the underlying ttk.LabelFrame widget.
+        """Creates the underlying ttk.LabelFrame widget.
 
         Args:
             master (tk.Widget): The parent widget.
+            **kwargs: Additional keyword arguments (unused).
         """
         self.parent = master
         self.widget = ttk.LabelFrame(
@@ -109,8 +109,7 @@ class Box(Base):
 
     @property
     def label(self):
-        """
-        Gets or sets the label text of the Box.
+        """Gets or sets the label text of the Box.
 
         Returns:
             str: The current label text.
@@ -122,8 +121,7 @@ class Box(Base):
 
     @label.setter
     def label(self, value):
-        """
-        Sets the label text of the Box.
+        """Sets the label text of the Box.
 
         Args:
             value (str): The new label text to display.

@@ -1,7 +1,8 @@
-import envtest
 import unittest
+
+import envtest
+
 from mytk import *
-from tkinter.ttk import Style
 
 
 class TestController(Bindable):

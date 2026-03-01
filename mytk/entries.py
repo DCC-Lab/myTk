@@ -1,13 +1,15 @@
-from tkinter import StringVar, IntVar, DoubleVar
-import tkinter.ttk as ttk
-from .base import Base
-from .views import View
-from .labels import Label
-import tkinter.font as tkFont
 import re
+import tkinter.ttk as ttk
+from tkinter import IntVar, StringVar
+
+from .base import Base
+from .labels import Label
+from .views import View
 
 
 class Entry(Base):
+    """A single-line text entry widget wrapping ttk.Entry."""
+
     def __init__(
         self,
         *args,
@@ -22,6 +24,7 @@ class Entry(Base):
         self.bind_properties("value", self, "value_variable")
 
     def create_widget(self, master):
+        """Create the ttk.Entry widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
@@ -31,6 +34,7 @@ class Entry(Base):
 
     @property
     def character_width(self):
+        """Get or set the entry width in characters."""
         if self.widget is None:
             return self._widget_args["width"]
         else:
@@ -45,6 +49,11 @@ class Entry(Base):
 
     @property
     def width(self):
+        """Get the entry width in pixels.
+
+        Raises:
+            NotImplementedError: If the widget has not been placed yet.
+        """
         if self.widget is None:
             raise NotImplementedError(
                 "It is not possible to get the width in pixels for an Entry before placing it into a window."
@@ -60,10 +69,13 @@ class Entry(Base):
         )
 
     def event_return_callback(self, event):
+        """Move focus to the parent widget when Return is pressed."""
         self.parent.focus_set()
 
 
 class FormattedEntry(Base):
+    """A text entry that formats its numeric value using a format string and regex."""
+
     def __init__(
         self,
         *args,
@@ -91,6 +103,7 @@ class FormattedEntry(Base):
 
     @property
     def value(self):
+        """Get or set the numeric value, applying the format string on change."""
         return self._value
 
     @value.setter
@@ -107,6 +120,7 @@ class FormattedEntry(Base):
 
     @property
     def character_width(self):
+        """Get or set the entry width in characters."""
         if self.widget is None:
             return self._widget_args["width"]
         else:
@@ -120,6 +134,7 @@ class FormattedEntry(Base):
             self.widget["width"] = value
 
     def create_widget(self, master):
+        """Create the ttk.Entry widget with format and focus bindings."""
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
@@ -129,9 +144,11 @@ class FormattedEntry(Base):
         self.widget.update()
 
     def event_return_callback(self, event):
+        """Move focus to the parent widget when Return is pressed."""
         self.parent.focus_set()
 
     def event_focus_out(self, event):
+        """Parse the displayed text back into a numeric value on focus loss."""
         match = re.search(self.reverse_regex, self.value_variable.get())
         if match is not None and match.group(1) is not None:
             try:
@@ -145,6 +162,8 @@ class FormattedEntry(Base):
 
 
 class CellEntry(Base):
+    """An inline entry widget for editing a single cell in a TableView."""
+
     def __init__(
         self,
         *args,
@@ -170,9 +189,10 @@ class CellEntry(Base):
         self.user_event_callback = user_event_callback
 
     def create_widget(self, master):
+        """Create the ttk.Entry widget pre-filled with the current cell value."""
         record = self.tableview.data_source.record(self.item_id)
 
-        if self.value_type != str:
+        if self.value_type is not str:
             selected_text = f"{(record[self.column_name]):g}"
         else:
             selected_text = str(record[self.column_name])
@@ -185,6 +205,7 @@ class CellEntry(Base):
         self.widget.insert(0, selected_text)
 
     def event_return_callback(self, event):
+        """Commit the edited value back to the data source on Return."""
         record = dict(self.tableview.data_source.record(self.item_id))
 
         try:
@@ -200,6 +221,7 @@ class CellEntry(Base):
         self.event_generate("<FocusOut>")
 
     def event_focusout_callback(self, event):
+        """Invoke the user callback and destroy the entry widget on focus out."""
         if self.user_event_callback is not None:
             self.user_event_callback(event, self)
         self.widget.destroy()
@@ -208,6 +230,8 @@ class CellEntry(Base):
 
 
 class IntEntry(Base):
+    """An integer spinbox entry with configurable minimum, maximum, and increment."""
+
     def __init__(
         self,
         *args,
@@ -228,12 +252,14 @@ class IntEntry(Base):
         self.value_variable = IntVar(value=value)
 
     def create_widget(self, master):
+        """Create the ttk.Spinbox widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Spinbox(master, **self._widget_args)
         self.bind_textvariable(self.value_variable)
 
     @property
     def value(self):
+        """Get or set the integer value, clamped to the configured range."""
         return self.value_variable.get()
 
     @value.setter
@@ -247,6 +273,7 @@ class IntEntry(Base):
 
     @property
     def minimum(self):
+        """Get or set the minimum allowed value."""
         if self.widget is None:
             return self._widget_args.get("from")
         else:
@@ -261,6 +288,7 @@ class IntEntry(Base):
 
     @property
     def maximum(self):
+        """Get or set the maximum allowed value."""
         if self.widget is None:
             return self._widget_args.get("to")
         else:
@@ -275,6 +303,7 @@ class IntEntry(Base):
 
     @property
     def increment(self):
+        """Get or set the step increment for the spinbox."""
         if self.widget is None:
             return self._widget_args.get("increment")
         else:
@@ -292,12 +321,15 @@ NumericEntry = IntEntry  # backward-compatible alias
 
 
 class LabelledEntry(View):
+    """A composite widget combining a Label and an Entry side by side."""
+
     def __init__(self, *args, label, text="", character_width=None, **kwargs):
         super().__init__(*args, width=200, height=25, **kwargs)
         self.entry = Entry(value=text, character_width=character_width)
         self.label = Label(text=label)
 
     def create_widget(self, master):
+        """Create the label and entry widgets arranged in a single row."""
         super().create_widget(master)
         self.all_resize_weight(1)
         self.label.grid_into(self, row=0, column=0, padx=5)

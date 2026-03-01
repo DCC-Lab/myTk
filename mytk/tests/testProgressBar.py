@@ -1,5 +1,7 @@
-import envtest
 import unittest
+
+import envtest
+
 from mytk import *
 from mytk.notificationcenter import NotificationCenter
 

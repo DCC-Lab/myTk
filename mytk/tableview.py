@@ -1,26 +1,21 @@
-from tkinter import END, DoubleVar
 import tkinter.ttk as ttk
-from .base import Base
-import json
-import uuid
-import weakref
-import collections
-import re
-import os
-import time
 from collections.abc import Iterable
-from contextlib import contextmanager, suppress
+from contextlib import suppress
+from tkinter import END
 
-from .bindable import Bindable
+from .base import Base
 from .entries import CellEntry
 from .tabulardata import TabularData
 
-class TableView(Base):
-    class DelegateError(Exception):
-        pass
 
-    class WidgetNotYetCreated(Exception):
-        pass
+class TableView(Base):
+    """A table widget wrapping tkinter Treeview with data binding and editing support."""
+
+    class DelegateError(Exception):
+        """Raised when a delegate callback raises an unexpected error."""
+
+    class WidgetNotYetCreatedError(Exception):
+        """Raised when accessing widget properties before the widget is created."""
 
     def __init__(self, columns_labels, is_treetable=False, create_data_source=True):
         Base.__init__(self)
@@ -30,7 +25,7 @@ class TableView(Base):
             )
         self._columns_labels = columns_labels  # keep until widget created
         self.is_treetable = is_treetable
-        self.column_formats = {} # Dict with column_name: 'format_string', 'multiplier', 'type','anchor' 
+        self.column_formats = {} # Dict with column_name: 'format_string', 'multiplier', 'type','anchor'
 
         self.delegate = None
         self.all_elements_are_editable = True
@@ -44,6 +39,7 @@ class TableView(Base):
 
     @property
     def columns(self):
+        """Return the list of column names."""
         if self.widget is not None:
             return list(self.widget["columns"])
         else:
@@ -52,14 +48,14 @@ class TableView(Base):
     @columns.setter
     def columns(self, new_values):
         if self.widget is not None:
-            # If displaycolumns has been set, it cannot contain columns 
+            # If displaycolumns has been set, it cannot contain columns
             # that are being deleted. We start by removing them from displaycolumns
             # We will modify the list, we need to make a copy
             # displayed_column_names = self.displaycolumns.copy()
 
             # for old_column_name in displayed_column_names:
             #     if old_column_name not in new_values:
-            #         self.displaycolumns.remove(old_column_name)                    
+            #         self.displaycolumns.remove(old_column_name)
 
             self.displaycolumns = ["#all"] # necessary to avoid TCLError when setting columns
             self.widget["columns"] = new_values
@@ -69,13 +65,15 @@ class TableView(Base):
 
 
     def column_info(self, cid):
+        """Return column configuration info for the given column identifier."""
         if self.widget is not None:
             return self.widget.column(cid)
         else:
-            raise TableView.WidgetNotYetCreated()
+            raise TableView.WidgetNotYetCreatedError()
 
     @property
     def displaycolumns(self):
+        """Return the list of currently displayed column names."""
         if self.widget is not None:
             return list(self.widget["displaycolumns"])
         else:
@@ -83,14 +81,14 @@ class TableView(Base):
 
     @displaycolumns.setter
     def displaycolumns(self, values):
-        if isinstance(values, Iterable):
-            if len(values) == 0:
-                print('Warning: empty displaycolumns will display nothing')
+        if isinstance(values, Iterable) and len(values) == 0:
+            print('Warning: empty displaycolumns will display nothing')
 
         self.widget.configure(displaycolumns=values)
 
     @property
     def headings(self):
+        """Return the list of column heading labels."""
         headings = []
         if self.widget is not None:
             for column_name in self.columns:
@@ -104,18 +102,19 @@ class TableView(Base):
     @headings.setter
     def headings(self, new_values):
         assert len(new_values) == len(self.columns)
-        new_columns_labels = dict(zip(self.columns, new_values))
+        new_columns_labels = dict(zip(self.columns, new_values, strict=False))
 
         if self.widget is not None:
             for column_name, column_heading in new_columns_labels.items():
                 self.widget.heading(column_name,text=column_heading)
         else:
-            self._columns_labels = dict(zip(self.columns, new_values))
+            self._columns_labels = dict(zip(self.columns, new_values, strict=False))
 
     @property
     def columns_labels(self):
+        """Return a dict mapping column names to their heading labels."""
         if self.widget is not None:
-            return dict(zip(self.columns, self.headings))
+            return dict(zip(self.columns, self.headings, strict=False))
         else:
             return self._columns_labels
 
@@ -128,18 +127,21 @@ class TableView(Base):
             return self._columns_labels
 
     def heading_info(self, cid):
+        """Return heading configuration info for the given column identifier."""
         if self.widget is not None:
             return self.widget.heading(cid)
         else:
-            raise TableView.WidgetNotYetCreated()
+            raise TableView.WidgetNotYetCreatedError()
 
     def item_info(self, iid):
+        """Return item configuration info for the given item identifier."""
         if self.widget is not None:
             return self.widget.item(iid)
         else:
-            raise TableView.WidgetNotYetCreated()
+            raise TableView.WidgetNotYetCreatedError()
 
     def create_widget(self, master):
+        """Create the underlying Treeview widget within the given master container."""
         self.parent = master
 
         if self.is_treetable:
@@ -166,6 +168,7 @@ class TableView(Base):
         self.widget.bind("<<TreeviewSelect>>", self.selection_changed)
 
     def source_data_changed(self, records):
+        """Update the widget to reflect changes in the data source records."""
         self.source_data_added_or_updated(records)
         self.source_data_deleted(records)
 
@@ -174,6 +177,7 @@ class TableView(Base):
                 self.delegate.source_data_changed(self)
 
     def source_data_added_or_updated(self, records):
+        """Insert new records or update existing ones in the widget."""
         for record in records:
             formatted_values = self.record_to_formatted_widget_values(record)
             item_id = record["__uuid"]
@@ -187,6 +191,7 @@ class TableView(Base):
                 self.widget.insert(parentid, END, iid=item_id, values=formatted_values)
 
     def source_data_deleted(self, records):
+        """Remove widget items that are no longer present in the data source."""
         uuids = [str(record["__uuid"]) for record in records]
         items_ids = self.items_ids()
 
@@ -195,22 +200,22 @@ class TableView(Base):
                 self.widget.delete(item_id)
 
     def record_to_formatted_widget_values(self, record):
+        """Convert a data record to a list of formatted strings for display."""
         ordered_values = [record[column] for column in self.columns]
         formatted_values = []
         for i, value in enumerate(ordered_values):
             padding = ""
             column_name = self.columns[i]
-            if len(self.displaycolumns) > 0:
-                if column_name == self.displaycolumns[0]:
-                    level = record.get("depth_level", 0)
-                    padding = "   " * level
-            
+            if len(self.displaycolumns) > 0 and column_name == self.displaycolumns[0]:
+                level = record.get("depth_level", 0)
+                padding = "   " * level
+
             column_format = self.column_formats.get(column_name, None)
 
             try:
                 if value is None:
                     value = ""
-                    
+
                 if column_format is not None:
                     format_string = column_format['format_string']
                     multiplier = column_format['multiplier']
@@ -221,25 +226,28 @@ class TableView(Base):
                     else:
                         formatted_values.append(
                             padding + format_string.format(value)
-                        )                   
+                        )
                 else:
                     formatted_values.append(
                                 padding + str(value)
                             )
 
-            except Exception as err:
+            except Exception:
                 formatted_values.append(
                             padding + str(value)
                         )
         return formatted_values
 
     def extract_record_from_formatted_widget_values(self):
+        """Extract a record from the formatted widget values (not implemented)."""
         return None
 
     def widget_data_changed(self):
+        """Handle notification that the widget data has changed."""
         pass
 
     def items_ids(self):
+        """Return all item identifiers in the widget, including nested children."""
         all_item_ids = []
         parent_items_ids = [None]
         while len(parent_items_ids) > 0:
@@ -255,25 +263,30 @@ class TableView(Base):
         return all_item_ids
 
     def item_modified(self, item_id, modified_record):
+        """Update a widget item and its backing data source record."""
         ordered_values = self.record_to_formatted_widget_values(modified_record)
 
         self.widget.item(item_id, values=ordered_values)
         self.data_source.update_record(item_id, values=modified_record)
 
     def clear_widget_content(self):
+        """Delete all items from the widget and return their identifiers."""
         items_ids = self.widget.get_children()
         self.widget.delete(*items_ids)
         return items_ids
 
     def empty(self):
+        """Remove all items from the table."""
         self.clear_widget_content()
 
     def selection_changed(self, event):
+        """Notify the delegate when the table selection changes."""
         if self.delegate is not None:
             with suppress(AttributeError):
                 self.delegate.selection_changed(event, self)
 
     def identify_column_name(self, event_x):
+        """Return the column name at the given x pixel coordinate."""
         column_string_id = self.widget.identify_column(event_x)
         if column_string_id == '#0':
             return column_string_id
@@ -284,6 +297,7 @@ class TableView(Base):
         return column_name
 
     def get_column_name(self, column_id=None, display_column_number=None):
+        """Return the column name for a given column id or display column number."""
         if column_id is not None:
             # column_id is 1-based, our list is 0-based
             if column_id == 0:
@@ -296,6 +310,7 @@ class TableView(Base):
             return self.displaycolumns[display_column_number-1]
 
     def get_column_id(self, column_name):
+        """Return the 1-based column id for the given column name."""
         # column_id is 1-based, our list is 0-based
         # The items "values" are accessible by column_id-1
         if column_name == "#0":
@@ -303,18 +318,20 @@ class TableView(Base):
         return self.columns.index(column_name)+1
 
     def get_logical_column_id(self, column_name):
+        """Return the 0-based logical column index used to access item values."""
         # logical_column_id is 0-based and used to access item['values']
         if column_name == "#0":
             return None # We do not store the icon
         return self.columns.index(column_name)
 
     def click(self, event) -> bool:  # pragma: no cover
+        """Handle a single click event on the table."""
         keep_running = True
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.click(event, self)
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -330,6 +347,7 @@ class TableView(Base):
         return True
 
     def click_cell(self, item_id, column_name):  # pragma: no cover
+        """Handle a single click on a specific cell, opening URLs if applicable."""
         assert isinstance(column_name, str)
         item_dict = self.widget.item(item_id)
 
@@ -340,20 +358,20 @@ class TableView(Base):
                     item_id, column_name, self
                 )
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err
 
         if keep_running:
             logical_column_id = self.get_logical_column_id(column_name)
             value = item_dict["values"][logical_column_id]
-            if isinstance(value, str):
-                if value.startswith("http"):
-                    import webbrowser
+            if isinstance(value, str) and value.startswith("http"):
+                import webbrowser
 
-                    webbrowser.open(value)
+                webbrowser.open(value)
 
         return True
 
     def is_column_sorted(self, column_name):
+        """Return '<' if sorted ascending, '>' if descending, or None if unsorted."""
         assert isinstance(column_name, str)
 
         original_items_ids = list(self.widget.get_children())
@@ -368,6 +386,7 @@ class TableView(Base):
             return None
 
     def sorted_column(self, column_name=None, reverse=False):
+        """Return item identifiers sorted by the given column."""
         assert isinstance(column_name, str)
 
         if column_name == "#0":
@@ -381,11 +400,12 @@ class TableView(Base):
         return items_ids_sorted
 
     def sort_column(self, column_name=None, reverse=False):
+        """Sort the widget items in place by the given column."""
         assert isinstance(column_name, str)
 
         items_ids_sorted = self.sorted_column(column_name=column_name, reverse=reverse)
 
-        for i, item_id in enumerate(items_ids_sorted):
+        for _, item_id in enumerate(items_ids_sorted):
             record = self.data_source.record(item_id)
             parent_id = record['__puuid']
             if parent_id is None:
@@ -396,6 +416,7 @@ class TableView(Base):
         return items_ids_sorted
 
     def click_header(self, column_name=None):
+        """Handle a click on a column header, toggling sort order."""
         assert isinstance(column_name, str)
 
         keep_running = True
@@ -407,7 +428,7 @@ class TableView(Base):
             with suppress(AttributeError):
                 keep_running = self.delegate.click_header(column_name, self)
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err
 
         if keep_running:
             with suppress(IndexError):  # if empty, not an error
@@ -419,12 +440,13 @@ class TableView(Base):
         return True
 
     def doubleclick(self, event) -> bool:  # pragma: no cover
+        """Handle a double-click event on the table."""
         keep_running = True
         try:
             with suppress(AttributeError):
                 keep_running = self.delegate.doubleclick(event, self)
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -438,27 +460,30 @@ class TableView(Base):
         # return True
 
     def is_editable(self, item_id, column_name):
+        """Return whether the given cell is editable."""
         return self.all_elements_are_editable
 
     def doubleclick_cell(self, item_id, column_name):
+        """Handle a double-click on a cell, entering edit mode if editable."""
         assert isinstance(column_name, str)
 
-        item_dict = self.widget.item(item_id)
+        _item_dict = self.widget.item(item_id)
 
         if self.is_editable(item_id, column_name=column_name):
             self.focus_edit_cell(item_id=item_id, column_name=column_name)
         else:
-            keep_running = True
+            _keep_running = True
 
         try:
             with suppress(AttributeError):
-                keep_running = self.delegate.doubleclick_cell(
+                _keep_running = self.delegate.doubleclick_cell(
                     item_id, column_name, self
                 )
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err
 
     def focus_edit_cell(self, item_id, column_name):
+        """Place an entry widget over the cell for inline editing."""
         assert isinstance(column_name, str)
 
         bbox = self.widget.bbox(item_id, column=column_name)
@@ -473,11 +498,12 @@ class TableView(Base):
         entry_box.widget.focus()
 
     def doubleclick_header(self, column_name):  # pragma: no cover
+        """Handle a double-click on a column header."""
         assert isinstance(column_name, str)
 
-        keep_running = True
+        _keep_running = True
         try:
             with suppress(AttributeError):
-                keep_running = self.delegate.doubleclick_header(item_id, column_name, self)
+                _keep_running = self.delegate.doubleclick_header(column_name, self)
         except Exception as err:
-            raise TableView.DelegateError(err)
+            raise TableView.DelegateError(err) from err

@@ -1,6 +1,8 @@
-import envtest
 import unittest
 from functools import partial
+
+import envtest
+
 from mytk import *
 
 

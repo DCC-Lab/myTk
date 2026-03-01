@@ -1,5 +1,4 @@
-"""
-bindable.py — Property-Observer and Binding Mechanism for Python/Tkinter
+"""Property-Observer and Binding Mechanism for Python/Tkinter.
 
 This class implements a Property-Value-Observer pattern, which allows objects
 to observe changes in specific attributes of other objects. It supports both
@@ -31,9 +30,9 @@ Usage Example:
 
 """
 
-from tkinter import Variable
 from collections import namedtuple
 from contextlib import suppress
+from tkinter import Variable
 
 ObserverInfo = namedtuple(
     "ObserverInfo", ["observer", "observed_property_name", "context"]
@@ -41,12 +40,10 @@ ObserverInfo = namedtuple(
 
 
 class Bindable:
-    """
-    A class to 1) observe changes in variables, and possibly 2) bind variables
-    together.
+    """A class to observe changes in variables and optionally bind variables together.
 
     In general, this is called a "one-to-one" pattern because an observer
-    registeres specifically for a change in a specific object.  To notify
+    registers specifically for a change in a specific object.  To notify
     one-to-many, use the NotificationCenter.
 
     It is also called a Property-Value-Observer pattern, identical to the
@@ -58,22 +55,19 @@ class Bindable:
     another object.
     2. a binding mechanism so that two properties are always
     synchronized, regardless of which one changed
-
     """
 
     def __init__(self, *args, **kwargs):
-        """
-        We need to assign observing_me before super().__init__()
-        because the overriden __setattr__ will be active for subclasses
-        in case this is part of a multiple inheritance (it is)
+        """Assign observing_me before super().__init__().
+
+        The overridden __setattr__ will be active for subclasses
+        in case this is part of a multiple inheritance (it is).
         """
         self.observing_me = []
         super().__init__()  # cooperative!
 
     def add_observer(self, observer, my_property_name, context=None):
-        """
-        We observe the property "my_property_name" of self to notifiy if it
-        changes.
+        """Register an observer for changes to a named property of this object.
 
         When the property "my_property_name" of object "self" changes, the
         method "observed_property_changed" of object "observer" will be
@@ -96,7 +90,6 @@ class Bindable:
         we register à-la-TkVariable with trace_add and redirect the call with
         our observed_property_changed mechanism.
         """
-
         try:
             var = getattr(self, my_property_name)
 
@@ -119,8 +112,7 @@ class Bindable:
             ) from err
 
     def __setattr__(self, property_name, new_value):
-        """
-        Assigns a value to a property and notifies observers if it changed.
+        """Assigns a value to a property and notifies observers if it changed.
 
         This method overrides the default setattr to automatically trigger
         observer callbacks when a property is modified. If the property is
@@ -134,16 +126,14 @@ class Bindable:
         after). Also, we warn if the user is overwriting a Tk Variable with
         something other than a Variable or None, because it is highly likely a mistake.
         """
-
         with suppress(AttributeError):
             observed_property = getattr(self, property_name)
-            if isinstance(observed_property, Variable):
-                if new_value is not None and not isinstance(
-                    new_value, Variable
-                ):
-                    raise TypeError(
-                        f"You are overwriting the Tk Variable '{property_name}' with a non-tk Variable value '{new_value}'"
-                    )
+            if isinstance(observed_property, Variable) and new_value is not None and not isinstance(
+                new_value, Variable
+            ):
+                raise TypeError(
+                    f"You are overwriting the Tk Variable '{property_name}' with a non-tk Variable value '{new_value}'"
+                )
 
         super().__setattr__(property_name, new_value)
 
@@ -151,8 +141,7 @@ class Bindable:
 
     # pylint: disable=unused-argument
     def traced_tk_variable_changed(self, var, index, mode):
-        """
-        This function is called by tk when a Tk.Variable value is changed.
+        """This function is called by tk when a Tk.Variable value is changed.
 
         This is a hook function into our Property-Value-Observing mechanism.
         We do not observe for a change in the actual value_variable (i.e. the
@@ -162,24 +151,21 @@ class Bindable:
         with trace_add (see above) and call our property_value_did_change
         mechanism.
         """
-
         for _, property_name, _ in self.observing_me:
             observed_property = getattr(self, property_name)
 
-            if isinstance(observed_property, Variable):
-                # pylint: disable=protected-access
-                if observed_property._name == var:
-                    self.property_value_did_change(property_name)
+            # pylint: disable=protected-access
+            if isinstance(observed_property, Variable) and observed_property._name == var:
+                self.property_value_did_change(property_name)
 
     def property_value_did_change(self, property_name):
-        """
-        This is an intermediate method to recover all the parameters of the
-        observer (who is observing and what is the context that was provided
-        when registering) before calling the observer callback. Again,
-        Tk.Variables need special treatment because we are looking at their
-        values, not the Tk.Variable object itself.
-        """
+        """Notify all observers that a property value has changed.
 
+        Recovers all the parameters of the observer (who is observing and
+        what is the context that was provided when registering) before calling
+        the observer callback. Tk.Variables need special treatment because we
+        are looking at their values, not the Tk.Variable object itself.
+        """
         new_value = getattr(self, property_name)  # Assume python property
         if isinstance(new_value, Variable):  # If tk Variable, get its value
             new_value = new_value.get()
@@ -195,9 +181,7 @@ class Bindable:
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
-        """
-        This method is called in the observer (not the observed object) when the
-        property changed. You implement it in your observer.
+        """Handle a property change notification in the observer.
 
         But the binding mechanism uses the same Property-Value-Observing
         mechanism, and we can treat it without having the user do anything.
@@ -216,7 +200,6 @@ class Bindable:
         it wants to do based on the context, and then call
         super().observed_property_changed to benefit of property binding management.
         """
-
         if isinstance(context, dict):
             bound_variable = context.get("binding")
             if bound_variable is not None:
@@ -235,14 +218,12 @@ class Bindable:
     def bind_properties(
         self, this_property_name, other_object, other_property_name
     ):
-        """
-        Binding properties is a two-way synchronization of the properties in
-        two separate objects.  It makes use of the Property-Value-Observing
-        mechanism and uses the context to indicate that it is actually "a
-        binding".  Changing one property will notify the other, which will be
-        changed, and vice-versa.
-        """
+        """Bind two properties for two-way synchronization between objects.
 
+        Makes use of the Property-Value-Observing mechanism and uses the
+        context to indicate that it is actually "a binding".  Changing one
+        property will notify the other, which will be changed, and vice-versa.
+        """
         other_object.add_observer(
             self, other_property_name, context={"binding": this_property_name}
         )
@@ -254,16 +235,14 @@ class Bindable:
         self.property_value_did_change(this_property_name)
 
     def bind_property_to_widget_value(
-        self, property_name: str, control_widget: "Base"
+        self, property_name: str, control_widget: "Base"  # noqa: F821
     ):
-        """
-        Binds an object property to the `value_variable` of a widget-like object.
+        """Binds an object property to the `value_variable` of a widget-like object.
 
         The `control_widget` must define a `value_variable` attribute (typically a
         Tkinter Variable) which will remain synchronized with the given property
         of this object. This allows direct model-view bindings in Tkinter.
         """
-
         self.bind_properties(
             property_name, control_widget, other_property_name="value_variable"
         )

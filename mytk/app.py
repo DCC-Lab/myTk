@@ -1,5 +1,4 @@
-"""
-app.py — Main base application class using myTk framework.
+"""app.py — Main base application class using myTk framework.
 
 This module defines the `App` class, which serves as the main controller of a
 Tkinter application built with the myTk framework.
@@ -23,25 +22,25 @@ Typical usage:
     app.mainloop()
 """
 
-import platform
+import io
 import os
+import platform
 import subprocess
 from contextlib import redirect_stdout, suppress
-import io
-from queue import Queue as TQueue, Empty, Full
+from queue import Empty
+from queue import Queue as TQueue
 from tkinter import Menu, TclError
 
-from .modulesmanager import ModulesManager
 from .bindable import Bindable
-from .window import Window
 from .dialog import Dialog
 from .eventcapable import EventCapable
+from .modulesmanager import ModulesManager
 from .utils import is_main_thread
+from .window import Window
 
 
 class App(Bindable, EventCapable):
-    """
-    Main application class for a myTk-based GUI.
+    """Main application class for a myTk-based GUI.
 
     This class integrates the `Window`, `Bindable`, and `EventCapable` behaviors into
     a single application controller. It manages the main window, menu bar, help system,
@@ -60,8 +59,7 @@ class App(Bindable, EventCapable):
         self, *args, geometry=None, auto_position="center", name="myTk App", help_url=None,
         bring_to_front=False, no_window=False, **kwargs
     ):
-        """
-        Initializes the application, including window and menu setup.
+        """Initializes the application, including window and menu setup.
 
         Args:
             geometry (str, optional): Geometry string for window size and position.
@@ -69,6 +67,8 @@ class App(Bindable, EventCapable):
                 "bottom-left", or "bottom-right". Defaults to "center".
             name (str): The application name (used in menu and title).
             help_url (str, optional): URL to the documentation site.
+            bring_to_front (bool): If True, bring the window to the front on macOS.
+            no_window (bool): If True, create the window in a withdrawn (hidden) state.
             *args: Positional arguments passed to superclasses.
             **kwargs: Keyword arguments passed to superclasses.
         """
@@ -93,14 +93,10 @@ class App(Bindable, EventCapable):
 
         def _cancel_all_afters(event):
             if event.widget is self.root:
-                try:
+                with suppress(Exception):
                     for after_id in self.root.tk.call('after', 'info'):
-                        try:
+                        with suppress(Exception):
                             self.root.after_cancel(after_id)
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
 
         self.root.bind('<Destroy>', _cancel_all_afters)
 
@@ -109,8 +105,7 @@ class App(Bindable, EventCapable):
 
     @property
     def widget(self):
-        """
-        Returns the root Tk widget.
+        """Returns the root Tk widget.
 
         Returns:
             tk.Tk: The root Tk window.
@@ -119,8 +114,7 @@ class App(Bindable, EventCapable):
 
     @property
     def root(self):
-        """
-        Returns the root window widget.
+        """Returns the root window widget.
 
         Returns:
             tk.Tk: The application's root window.
@@ -129,8 +123,7 @@ class App(Bindable, EventCapable):
 
     @property
     def is_running(self):
-        """
-        Indicates whether the application is currently running.
+        """Indicates whether the application is currently running.
 
         Returns:
             bool: True if the window exists; False otherwise.
@@ -138,8 +131,8 @@ class App(Bindable, EventCapable):
         return self.root is not None
 
     def check_requirements(self):
-        """
-        Warns the user if Python version is too old for the current macOS.
+        """Warns the user if Python version is too old for the current macOS.
+
         Helps avoid click event issues on macOS Sonoma and older Python versions.
         """
         mac_version = platform.mac_ver()[0]
@@ -152,16 +145,22 @@ class App(Bindable, EventCapable):
             )
 
     def mainloop(self):
-        """
-        Enters the Tkinter main event loop.
-        """
+        """Enters the Tkinter main event loop."""
         self.run_main_queue()
         self.window.widget.mainloop()
 
     def schedule_on_main_thread(self, fct, args=None, kwargs=None):
+        """Schedules a function call to be executed on the main thread.
+
+        Args:
+            fct (callable): The function to call.
+            args (list, optional): Positional arguments for the function.
+            kwargs (dict, optional): Keyword arguments for the function.
+        """
         self.main_queue.put((fct, args, kwargs))
 
     def run_main_queue(self):
+        """Processes all pending tasks in the main thread queue."""
         assert is_main_thread()
 
         while not self.main_queue.empty():
@@ -180,9 +179,7 @@ class App(Bindable, EventCapable):
             self.after(self.run_loop_delay, self.run_main_queue)
 
     def create_menu(self):
-        """
-        Creates the application menu bar and binds standard items like File, Edit, Help.
-        """
+        """Creates the application menu bar with File, Edit, and Help items."""
         root = self.window.widget
         menubar = Menu(root)
 
@@ -227,14 +224,11 @@ class App(Bindable, EventCapable):
             # This is called when the user clicks "Quit" from the Apple menu or presses ⌘+Q
             self.quit()
 
-        try:
+        with suppress(TclError):
             self.root.createcommand("tk::mac::Quit", on_mac_quit)
-        except TclError:
-            pass  # Not on macOS or already defined
 
     def reveal_path(self, path):
-        """
-        Reveals the file or directory path in the system's file browser.
+        """Reveals the file or directory path in the system's file browser.
 
         Args:
             path (str): The path to reveal.
@@ -253,20 +247,15 @@ class App(Bindable, EventCapable):
             )
 
     def save(self):
-        """
-        Abstract method to be implemented in subclasses to handle file saving.
-        """
+        """Saves application data; must be overridden in subclasses."""
         raise NotImplementedError("Implement save: in derived class")
 
     def preferences(self):
-        """
-        Abstract method to be implemented in subclasses to show preferences UI.
-        """
+        """Shows preferences UI; must be overridden in subclasses."""
         raise NotImplementedError("Implement preferences: in derived class")
 
     def about(self, timeout=3000):
-        """
-        Displays an About dialog with app information.
+        """Displays an About dialog with app information.
 
         Args:
             timeout (int): Optional time before auto-close in milliseconds.
@@ -278,9 +267,9 @@ class App(Bindable, EventCapable):
         )
 
     def help(self):
-        """
-        Opens the documentation help URL in a browser if available.
-        Falls back to an info dialog if no help is available.
+        """Opens the documentation help URL in a browser if available.
+
+        Falls back to an info dialog if no help URL has been configured.
         """
         ModulesManager.install_and_import_modules_if_absent(
             {"webbrowser": "webbrowser"}
@@ -295,13 +284,12 @@ class App(Bindable, EventCapable):
             )
 
     def quit(self):
-        """
-        Quits the application gracefully and destroys the root window.
-        Cancels any scheduled tasks.
+        """Quits the application gracefully and destroys the root window.
+
+        Cancels any scheduled tasks before teardown.
         """
         if self.is_running:
             self.after_cancel_all()
-            with suppress(TclError):
-                with redirect_stdout(io.StringIO()):
-                    self.window.widget.destroy()
-                    self.window.widget = None
+            with suppress(TclError), redirect_stdout(io.StringIO()):
+                self.window.widget.destroy()
+                self.window.widget = None

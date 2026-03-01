@@ -1,4 +1,3 @@
-import envtest
 import unittest
 from enum import Enum
 
@@ -41,7 +40,7 @@ class TestNotificationCenter(unittest.TestCase):
     def testObserverInfo(self):
         nc = NotificationCenter()
         observer = ObserverInfo(observer=self, method=self.handle, notification_name=TestNotificationName.test, observed_object=nc)
-        
+
         self.assertTrue(observer.matches(ObserverInfo(observer=self)))
         self.assertTrue(observer.matches(ObserverInfo(observer=self, notification_name=TestNotificationName.test)))
         self.assertTrue(observer.matches(ObserverInfo(observer=self, notification_name=None)))

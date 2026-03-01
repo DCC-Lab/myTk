@@ -1,13 +1,13 @@
 import tkinter.ttk as ttk
-from tkinter import BooleanVar, IntVar
+
 from .base import Base
 from .canvasview import CanvasView
 from .modulesmanager import ModulesManager
 
-import time
-
 
 class Image(Base):
+    """Widget for displaying a PIL image in a tkinter label."""
+
     def __init__(self, filepath=None, url=None, pil_image=None):
         Base.__init__(self)
 
@@ -15,7 +15,7 @@ class Image(Base):
         if self.pil_image is None:
             try:
                 self.pil_image = self.read_pil_image(filepath=filepath, url=url)
-            except:
+            except Exception:
                 self.pil_image = self.PILImage.new("RGB", size=(100, 100))
         self._displayed_tkimage = None
 
@@ -26,29 +26,34 @@ class Image(Base):
 
     @property
     def width(self):
+        """The width of the source PIL image in pixels."""
         if self.pil_image is not None:
             return self.pil_image.width
         return None
 
     @property
     def height(self):
+        """The height of the source PIL image in pixels."""
         if self.pil_image is not None:
             return self.pil_image.height
         return None
 
     @property
     def displayed_width(self):
+        """The width of the currently displayed image in pixels."""
         if self._displayed_tkimage is not None:
             return self._displayed_tkimage.width
         return None
 
     @property
     def displayed_height(self):
+        """The height of the currently displayed image in pixels."""
         if self._displayed_tkimage is not None:
             return self._displayed_tkimage.height
         return None
 
     def is_environment_valid(self):
+        """Check that Pillow and its submodules are installed and importable."""
         ModulesManager.install_and_import_modules_if_absent(
             {
                 "Pillow": "PIL",
@@ -69,11 +74,13 @@ class Image(Base):
         )
 
     def read_pil_image(self, filepath=None, url=None):
+        """Load a PIL image from a local file path or a URL."""
         if filepath is not None:
             pil_image = self.PILImage.open(filepath)
         elif url is not None:
-            import requests
             from io import BytesIO
+
+            import requests
 
             response = requests.get(url)
             pil_image = self.PILImage.open(BytesIO(response.content))
@@ -84,6 +91,7 @@ class Image(Base):
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
+        """Handle changes to observed properties such as is_rescalable."""
         if observed_property_name == "is_rescalable":
             if self.is_rescalable:
                 self.resize_image_to_fit_widget()
@@ -95,6 +103,7 @@ class Image(Base):
         )
 
     def create_widget(self, master):
+        """Create a tkinter Label widget to display the image."""
         self.widget = ttk.Label(master, compound="image")
         if self.is_rescalable:
             self.resize_image_to_fit_widget()
@@ -103,10 +112,7 @@ class Image(Base):
         self.widget.bind("<Configure>", self.event_resized)
 
     def event_resized(self, event):
-        """
-        We resize the image if is_rescalable but this may affect the widget size.
-        This can go into an infinite loop, we avoid resizing too often
-        """
+        """Resize the image if is_rescalable, throttling to avoid infinite loops."""
         if self.is_rescalable:
             if self.resize_update_delay > 0:
                 if len(self.scheduled_tasks) == 0:
@@ -120,6 +126,7 @@ class Image(Base):
             self.update_display()
 
     def resize_image_to_fit_widget(self):
+        """Resize the PIL image to fit the parent grid cell while preserving aspect ratio."""
         if self.widget is None:
             return
 
@@ -156,6 +163,7 @@ class Image(Base):
             self.update_display(resized_image)
 
     def update_display(self, image_to_display=None):
+        """Update the widget to show the given image, or the source image if None."""
         if self.widget is None:
             return
 
@@ -173,6 +181,8 @@ class Image(Base):
 
 
 class ImageWithGrid(Image):
+    """Image widget with an optional grid overlay drawn on top."""
+
     def __init__(self, filepath=None, url=None, pil_image=None):
         super().__init__(filepath=filepath, url=url, pil_image=pil_image)
 
@@ -185,22 +195,19 @@ class ImageWithGrid(Image):
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
+        """Handle changes to grid visibility or grid count."""
         super().observed_property_changed(
             observed_object, observed_property_name, new_value, context
         )
 
-        if observed_property_name == "is_grid_showing":
-            if self.is_rescalable:
-                self.resize_image_to_fit_widget()
-            else:
-                self.update_display()
-        elif observed_property_name == "grid_count":
+        if observed_property_name == "is_grid_showing" or observed_property_name == "grid_count":
             if self.is_rescalable:
                 self.resize_image_to_fit_widget()
             else:
                 self.update_display()
 
     def update_display(self, image_to_display=None):
+        """Update the widget, adding a grid overlay if enabled."""
         if self.widget is None:
             return
 
@@ -220,6 +227,7 @@ class ImageWithGrid(Image):
         self.widget.configure(image=self._displayed_tkimage)
 
     def image_with_grid_overlay(self, pil_image):
+        """Return a copy of the image with grid lines drawn on it."""
         if pil_image is not None:
             # from
             # https://randomgeekery.org/post/2017/11/drawing-grids-with-python-and-pillow/
@@ -247,8 +255,11 @@ class ImageWithGrid(Image):
 
 
 class DynamicImage(CanvasView):
+    """Canvas-based image that can be redrawn dynamically."""
+
     def __init__(self, width=200, height=200):
         super().__init__(width=width, height=height)
 
     def draw_canvas(self):
+        """Draw the canvas contents. Override in subclasses."""
         pass

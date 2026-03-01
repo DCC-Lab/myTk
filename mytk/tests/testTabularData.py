@@ -1,11 +1,11 @@
-import envtest
-import unittest
-import os
-import tempfile
-import uuid
-from mytk import *
 # from mytk.tabulardata import Record
 import collections
+import os
+import unittest
+import uuid
+
+from mytk import *
+
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
@@ -265,13 +265,13 @@ class TestTabularDataSource(unittest.TestCase):
     def test_missing_fields(self):
         t = TabularData(required_fields=["a", "b"])
         t.error_on_missing_field = True
-        with self.assertRaises(TabularData.MissingField):
+        with self.assertRaises(TabularData.MissingFieldError):
             record = t.append_record({"a": 1})
 
     def test_too_many_fields(self):
         t = TabularData(required_fields=["a", "b"])
         t.error_on_extra_field = True
-        with self.assertRaises(TabularData.ExtraField):
+        with self.assertRaises(TabularData.ExtraFieldError):
             record = t.append_record({"a": 1, "b": 1, "c": 1})
 
     def test_include_uuid_field(self):
@@ -405,7 +405,7 @@ class TestTabularDataRecordOps(unittest.TestCase):
         t = TabularData(required_fields=["name", "size"])
         t.append_record({"name": "Bob", "size": 10})
         MyRecord = collections.namedtuple("MyRecord", ["name", "size", "uuid", "puuid"])
-        tuples = t.records_as_namedtuples(NamedtupleType=MyRecord)
+        tuples = t.records_as_namedtuples(namedtuple_type=MyRecord)
         self.assertEqual(tuples[0].name, "Bob")
 
     def test_record_access_by_uuid_string(self):
@@ -476,12 +476,12 @@ class TestTabularDataRecordOps(unittest.TestCase):
         self.assertEqual(len(sorted_uuids), 2)
 
     def test_load_tabular_data_wrapper(self):
-        with self.assertRaises(TabularData.UnrecognizedFileFormat):
+        with self.assertRaises(TabularData.UnrecognizedFileFormatError):
             t = TabularData()
             t.load_tabular_data("/tmp/test.unknownformat")
 
     def test_load_unrecognized_format_raises(self):
-        with self.assertRaises(TabularData.UnrecognizedFileFormat):
+        with self.assertRaises(TabularData.UnrecognizedFileFormatError):
             t = TabularData()
             t.load_dataframe_from_tabular_data("/tmp/test.unknownformat")
 

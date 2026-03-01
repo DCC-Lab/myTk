@@ -1,19 +1,24 @@
-import subprocess
 import importlib
+import subprocess
 import sys
 from tkinter import messagebox
 
+
 class ModulesManager:
+    """Utility for checking, installing, and importing Python modules at runtime."""
+
     imported = {}
 
     @classmethod
     def validate_environment(cls, pip_modules, ask_for_confirmation=True):
+        """Ensure all required pip modules are installed and imported."""
         cls.install_and_import_modules_if_absent(
             pip_modules, ask_for_confirmation=ask_for_confirmation
         )
 
     @classmethod
     def is_installed(cls, module_name):
+        """Check whether a module can be imported successfully."""
         try:
             importlib.import_module(module_name)
             return True
@@ -25,16 +30,19 @@ class ModulesManager:
 
     @classmethod
     def is_not_installed(cls, module_name):
+        """Check whether a module is not installed."""
         return not cls.is_installed(module_name)
 
     @classmethod
     def is_imported(cls, module_name):
+        """Check whether a module has already been imported into sys.modules."""
         return module_name in sys.modules
 
     @classmethod
     def install_and_import_modules_if_absent(
         cls, pip_modules, ask_for_confirmation=True
     ):
+        """Install missing modules via pip, optionally prompting the user, then import them."""
         for pip_name, import_name in pip_modules.items():
             if cls.is_not_installed(import_name):
                 if ask_for_confirmation:
@@ -53,11 +61,12 @@ class ModulesManager:
 
     @classmethod
     def install_module(cls, pip_name):
+        """Install a single module using pip."""
         try:
-            completed_process = subprocess.run(
+            _completed_process = subprocess.run(
                 [sys.executable, "-m", "pip", "install", pip_name],
                 capture_output=True,
                 check=True,
             )
         except Exception as err:
-            raise RuntimeError(f"Unable to install module with PyPi name: {pip_name}")
+            raise RuntimeError(f"Unable to install module with PyPi name: {pip_name}") from err

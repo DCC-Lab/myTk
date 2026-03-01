@@ -1,5 +1,7 @@
-from mytk import *
 import random
+
+from mytk import *
+
 
 class ControlPanelApp(App):
     def __init__(self):
@@ -34,7 +36,7 @@ class ControlPanelApp(App):
         self.status.grid_into(
             self.window, column=1, row=1, columnspan=1, pady=10, padx=10, sticky="new"
         )
-        
+
         self.running_indicator = BooleanIndicator()
         self.running_indicator.grid_into(self.status, row=0, column=0, padx=5, pady=5, sticky='e')
         self.bind_property_to_widget_value('acquisition_is_running', self.running_indicator)
@@ -80,5 +82,5 @@ class ControlPanelApp(App):
 
 
 if __name__ == "__main__":
-    app = ControlPanelApp()    
+    app = ControlPanelApp()
     app.mainloop()

@@ -1,5 +1,7 @@
-from mytk import *
 from tkinter import filedialog
+
+from mytk import *
+
 
 class FileCalculator(App):
     def __init__(self):
@@ -56,7 +58,7 @@ class FileCalculator(App):
         if item_id != '':
             record = table.data_source.record(item_id)
             self.calculate_something(record)
-        
+
     def calculate_something(self, record):
         self.message.text = f"This is where you would put the result of a calculation that you did \
 when the selection changed. You would do so by taking the record, and extract for instance record['fullpath'] \

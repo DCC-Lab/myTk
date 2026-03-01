@@ -1,17 +1,20 @@
-from tkinter import Toplevel
-from .base import *
-from .base import _BaseWidget
-from .button import Button
-from .views import View
-from .images import Image
-from .labels import Label
-
 import pathlib
 from enum import StrEnum
+from tkinter import Toplevel
+
+from .base import Base
+from .button import Button
+from .images import Image
+from .labels import Label
+from .views import View
 
 
 class Dialog(Base):
+    """A modal dialog window with configurable buttons and content."""
+
     class Replies(StrEnum):
+        """Standard reply values returned by dialog buttons."""
+
         Ok = "Ok"
         Cancel = "Cancel"
         Abort = "Abort"
@@ -19,6 +22,7 @@ class Dialog(Base):
 
     @classmethod
     def showinfo(cls, message, title="Info", auto_click=(None, None), auto_position="center"):
+        """Show an informational dialog with the given message."""
         diag = SimpleDialog(
             dialog_type="info",
             title=title,
@@ -30,6 +34,7 @@ class Dialog(Base):
 
     @classmethod
     def showwarning(cls, message, title="Warning", auto_click=(None, None), auto_position="center"):
+        """Show a warning dialog with the given message."""
         diag = SimpleDialog(
             dialog_type="warning",
             title=title,
@@ -41,6 +46,7 @@ class Dialog(Base):
 
     @classmethod
     def showerror(cls, message, title="Error", auto_click=(None, None), auto_position="center"):
+        """Show an error dialog with the given message."""
         diag = SimpleDialog(
             dialog_type="error",
             title=title,
@@ -52,6 +58,7 @@ class Dialog(Base):
 
     @classmethod
     def showprogress(cls, message, title="Info", auto_click=(None, None)):
+        """Show a progress dialog with the given message."""
         diag = Dialog(
             dialog_type="error", title=title, message=message, auto_click=auto_click
         )
@@ -104,6 +111,7 @@ class Dialog(Base):
             self._propagate_disabled(self.widget, value)
 
     def create_widget(self, master, **kwargs):
+        """Create the Toplevel dialog window and populate its contents."""
         self.parent = None
         self.widget = Toplevel()
         self.widget.title(self.title)
@@ -114,11 +122,12 @@ class Dialog(Base):
         self.populate_buttons()
         self.all_resize_weight(1)
         if self.auto_position is not None:
-            from .utils import parse_geometry, apply_window_position
+            from .utils import apply_window_position, parse_geometry
             size_str, _ = parse_geometry(self.geometry)
             apply_window_position(self.widget, self.auto_position, size_str)
 
     def populate_buttons(self):
+        """Create and layout the dialog action buttons."""
         cols, rows = self.widget.grid_size()
 
         control_buttons = View(width=200, height=30)
@@ -148,13 +157,15 @@ class Dialog(Base):
             )
 
     def populate_widget_body(self):
+        """Populate the main body of the dialog. Override in subclasses."""
         pass
 
     def run(self):
+        """Display the dialog modally and return the user reply."""
         self.create_widget(master=None)
 
         if self.auto_click is not None:
-            button = self.buttons[self.auto_click]
+            _button = self.buttons[self.auto_click]
             if (
                 self.auto_click == Dialog.Replies.Ok
             ):  # I am unable to get button.widget.invoke to work
@@ -173,6 +184,7 @@ class Dialog(Base):
         return self.reply
 
     def create_behavior_buttons(self):
+        """Create Ok and Cancel buttons based on the configured button labels."""
         if not self.buttons:
             if Dialog.Replies.Ok in self.buttons_labels:
                 button = Button(
@@ -188,21 +200,26 @@ class Dialog(Base):
         return self.buttons
 
     def user_clicked_ok(self, event, button=None):
+        """Handle the Ok button click by setting the reply and closing."""
         self.reply = Dialog.Replies.Ok
         self.widget.destroy()
 
     def user_clicked_cancel(self, event, button=None):
+        """Handle the Cancel button click by setting the reply and closing."""
         self.reply = Dialog.Replies.Cancel
         self.widget.destroy()
 
 
 class SimpleDialog(Dialog):
+    """A ready-made dialog that displays an icon and message for info, warning, or error."""
+
     def __init__(self, dialog_type, message, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dialog_type = dialog_type
         self.message = message
 
     def populate_widget_body(self):
+        """Display the dialog icon and message label in the body area."""
         self.widget.wait_visibility()  # can't grab until window appears, so we wait
 
         resource_directory = pathlib.Path(__file__).parent / "resources"
@@ -241,11 +258,13 @@ class SimpleDialog(Dialog):
         self.widget.resizable(False, False)
 
     def populate_buttons(self):
+        """Create buttons and assign default keyboard shortcuts."""
         super().populate_buttons()
         self.assign_default_key_shortcuts()
 
     def assign_default_key_shortcuts(self):
-        if Dialog.Replies.Ok in self.buttons.keys():
+        """Bind Return to Ok and Escape to Cancel."""
+        if Dialog.Replies.Ok in self.buttons:
             self.widget.bind("<Return>", self.user_clicked_ok)
             self.buttons[Dialog.Replies.Ok].set_as_default()
 

@@ -1,10 +1,8 @@
-import envtest
 import unittest
+
+import envtest
+
 from mytk import *
-import os
-import re
-import io
-import contextlib
 
 
 class TestModulesManager(envtest.MyTkTestCase):

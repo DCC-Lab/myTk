@@ -1,12 +1,14 @@
-import os
-import sys
 import argparse
+import os
 import subprocess
+import sys
+
 from mytk import Bindable
 
 
-def printClassHierarchy(aClass):
-    def printAllChilds(aClass):
+def printClassHierarchy(aClass):  # noqa: N802, N803
+    """Print the class hierarchy in Graphviz DOT format."""
+    def printAllChilds(aClass):  # noqa: N802, N803
         for child in aClass.__subclasses__():
             print('"{0}" -> "{1}"'.format(aClass.__name__, child.__name__))
             printAllChilds(child)
@@ -19,6 +21,7 @@ def printClassHierarchy(aClass):
 
 
 def main():
+    """Run the mytk command-line interface for examples, tests, and class inspection."""
     root = os.path.dirname(__file__)
     examples_dir = os.path.join(root, "example_apps")
     examples = [
@@ -61,17 +64,17 @@ def main():
     )
 
     args = vars(ap.parse_args())
-    runExamples = args["examples"]
-    runTests = args["tests"]
-    printClasses = args["classes"]
-    listExamples = args["list"]
+    runExamples = args["examples"]  # noqa: N806
+    runTests = args["tests"]  # noqa: N806
+    printClasses = args["classes"]  # noqa: N806
+    listExamples = args["list"]  # noqa: N806
 
     if runExamples == "all":
-        runExamples = range(1, len(examples) + 1)
+        runExamples = range(1, len(examples) + 1)  # noqa: N806
     elif runExamples == "":
-        runExamples = []
+        runExamples = []  # noqa: N806
     else:
-        runExamples = [int(y) for y in runExamples.split(",")]
+        runExamples = [int(y) for y in runExamples.split(",")]  # noqa: N806
 
     if printClasses:
         printClassHierarchy(Bindable)
@@ -94,11 +97,11 @@ def main():
             filepath = os.path.join(examples_dir, entry)
             title = f"# mytk example file: {filepath}"
 
-            print(f"\n\n\n")
+            print("\n\n\n")
             print("#" * len(title))
             print(title)
             print("#" * len(title))
-            print(f"\n")
+            print("\n")
 
             with open(filepath, "r") as file:
                 print(file.read())

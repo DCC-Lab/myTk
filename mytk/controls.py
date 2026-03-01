@@ -1,9 +1,12 @@
-from tkinter import HORIZONTAL, DoubleVar
 import tkinter.ttk as ttk
+from tkinter import HORIZONTAL, DoubleVar
+
 from .base import Base
 
 
 class Slider(Base):
+    """A horizontal or vertical slider control for selecting numeric values."""
+
     def __init__(
         self,
         value=0,
@@ -32,11 +35,13 @@ class Slider(Base):
         self.add_observer(self, "value")
 
     def create_widget(self, master, **kwargs):
+        """Create the underlying ttk.Scale widget."""
         self.widget = ttk.Scale(master, **self._widget_args)
         self.bind_variable(self.value_variable)
 
     @property
     def value(self):
+        """The current numeric value of the slider."""
         return self.value_variable.get()
 
     @value.setter
@@ -50,6 +55,7 @@ class Slider(Base):
 
     @property
     def minimum(self):
+        """The minimum allowed value of the slider."""
         if self.widget is None:
             return self._widget_args.get("from_")
         else:
@@ -64,6 +70,7 @@ class Slider(Base):
 
     @property
     def maximum(self):
+        """The maximum allowed value of the slider."""
         if self.widget is None:
             return self._widget_args.get("to")
         else:
@@ -79,9 +86,9 @@ class Slider(Base):
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context
     ):
-        if observed_property_name == "value":
-            if self.delegate is not None:
-                self.delegate.value_updated(object=self, value=new_value)
+        """Notify the delegate when the slider value changes."""
+        if observed_property_name == "value" and self.delegate is not None:
+            self.delegate.value_updated(object=self, value=new_value)
 
         super().observed_property_changed(
             observed_object, observed_property_name, new_value, context

@@ -1,5 +1,4 @@
-"""
-window.py — Main application window class using Tkinter.
+"""window.py — Main application window class using Tkinter.
 
 This module defines the `Window` class, which extends the custom `Base` class and
 creates a top-level Tkinter window using `tk.Tk`.
@@ -17,12 +16,12 @@ Classes:
     - Window: Represents the main Tkinter application window.
 """
 from tkinter import Tk
+
 from .base import Base
 
 
 class Window(Base):
-    """
-    A top-level application window.
+    """A top-level application window.
 
     Inherits from `Base` and wraps a `tk.Tk` instance to represent a main application window.
     Provides control over window geometry, title, and resizability.
@@ -34,8 +33,7 @@ class Window(Base):
     def __init__(
         self, *args, geometry=None, auto_position=None, title="Untitled", withdraw=False, **kwargs
     ):
-        """
-        Initializes a new top-level window with optional geometry and title.
+        """Initializes a new top-level window with optional geometry and title.
 
         Args:
             geometry (str, optional): A geometry string (e.g., "800x600+100+100"). If None, uses default.
@@ -46,7 +44,7 @@ class Window(Base):
             *args: Positional arguments passed to the Base constructor.
             **kwargs: Keyword arguments passed to the Base constructor.
         """
-        from .utils import parse_geometry, apply_window_position
+        from .utils import apply_window_position, parse_geometry
         super().__init__(*args, **kwargs)
 
         size_str, offset_str = parse_geometry(geometry)
@@ -67,9 +65,7 @@ class Window(Base):
         self.title = title
 
     def create_widget(self, master, **kwargs):
-        """
-        Actually create the widget as needed.
-        """
+        """Creates the Tk root widget or raises if already created."""
         if self.widget is None:
             self.widget = Tk()
             self.widget.geometry(kwargs["geometry"])
@@ -80,8 +76,7 @@ class Window(Base):
 
     @property
     def title(self):
-        """
-        Gets the current title of the window.
+        """Gets the current title of the window.
 
         Returns:
             str: The current title string.
@@ -90,8 +85,7 @@ class Window(Base):
 
     @title.setter
     def title(self, value):
-        """
-        Sets the title of the window.
+        """Sets the title of the window.
 
         Args:
             value (str): The title to display in the title bar.
@@ -100,8 +94,7 @@ class Window(Base):
 
     @property
     def resizable(self):
-        """
-        Checks whether the window is resizable in either width or height.
+        """Checks whether the window is resizable in either width or height.
 
         Returns:
             bool: True if resizable in width or height; False otherwise.
@@ -111,8 +104,7 @@ class Window(Base):
 
     @resizable.setter
     def resizable(self, value):
-        """
-        Sets whether the window is resizable in both width and height.
+        """Sets whether the window is resizable in both width and height.
 
         Args:
             value (bool): True to allow resizing; False to fix the window size.

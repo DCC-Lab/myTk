@@ -1,8 +1,11 @@
+from pathlib import Path
+from tkinter import filedialog
+
+import pandas
+
 from mytk import *
 from mytk import XYPlot
-from tkinter import filedialog
-from pathlib import Path
-import pandas
+
 
 class FileCalculator(App):
     def __init__(self):
@@ -59,7 +62,7 @@ class FileCalculator(App):
         if item_id != '':
             record = table.data_source.record(item_id)
             self.after(100, self.calculate_something(record))
-        
+
     def calculate_something(self, record):
         if record['name'].endswith("csv"):
             filepath = Path(record['fullpath'])

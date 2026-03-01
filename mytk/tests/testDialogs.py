@@ -1,6 +1,8 @@
-import envtest
 import unittest
-from mytk import Dialog, SimpleDialog, Label
+
+import envtest
+
+from mytk import Dialog, Label, SimpleDialog
 
 glogbal_timeout = 100
 

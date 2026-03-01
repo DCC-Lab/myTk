@@ -1,5 +1,5 @@
-"""
-Configurable — easy settings management with automatic dialog generation
+"""Configurable --- easy settings management with automatic dialog generation.
+
 ========================================================================
 
 Scientific instruments and applications almost always have parameters that
@@ -75,15 +75,27 @@ Available property types
     can supply any validation function you like via ``validate_fct``.
 """
 
-from typing import Optional, Any, Callable
 import numbers
 import re
-from mytk import Dialog, Label, Entry
+from typing import Any
+
+from mytk.dialog import Dialog
+from mytk.entries import Entry
+from mytk.labels import Label
+
 
 def is_numeric(value) -> bool:
+    """Check whether a value is a real number."""
     return isinstance(value, numbers.Real)
 
 class ConfigurableProperty:
+    """Descriptor that defines a single configurable parameter with validation.
+
+    Instances can be declared as class attributes on a ``Configurable`` subclass
+    (descriptor-based approach) or collected into a ``ConfigModel`` for dynamic
+    schema construction.
+    """
+
     # name is optional so that when a property is declared as a class attribute
     # (the descriptor-based approach), Python supplies the name automatically via
     # __set_name__.  Existing code that passes name= explicitly still works.
@@ -163,12 +175,14 @@ class ConfigurableProperty:
     # ------------------------------------------------------------------
 
     def is_in_valid_set(self, value: Any) -> bool:
+        """Return True if value belongs to the valid set, or if no set is defined."""
         if self.valid_set is None:
             return True
 
         return value in self.valid_set
 
     def is_valid_type(self, value: Any) -> bool:
+        """Return True if value matches the expected type."""
         expected_type = self.value_type
 
         if expected_type is None or expected_type is Any:
@@ -177,15 +191,15 @@ class ConfigurableProperty:
         return isinstance(value, expected_type)
 
     def is_valid(self, value: Any) -> bool:
+        """Return True if value passes all validation checks."""
         if not self.is_valid_type(value):
             return False
         if not self.is_in_valid_set(value):
             return False
-        if self.validate_fct and not self.validate_fct(value):
-            return False
-        return True
+        return not self.validate_fct or self.validate_fct(value)
 
     def sanitize(self, value) -> Any:
+        """Coerce value to the expected type, falling back to the default on failure."""
         if value is None:
             value = self.default_value
 
@@ -203,6 +217,7 @@ class ConfigurableProperty:
 
 
 class ConfigurableStringProperty(ConfigurableProperty):
+    """String-typed configurable property with optional regex validation."""
 
     def __init__(self, valid_regex=None, name=None, default_value=None,
                  displayed_name=None, validate_fct=None, valid_set=None):
@@ -215,15 +230,14 @@ class ConfigurableStringProperty(ConfigurableProperty):
                          valid_set=valid_set, value_type=str)
 
     def is_valid(self, value: str) -> bool:
+        """Return True if the string passes base validation and matches the regex."""
         if not super().is_valid(value):
             return False
 
-        if re.search(self.valid_regex or ".*", value) is None:
-            return False
-
-        return True
+        return re.search(self.valid_regex or ".*", value) is not None
 
 class ConfigurableNumericProperty(ConfigurableProperty):
+    """Numeric configurable property with range clamping and optional formatting."""
 
     def __init__(self, min_value=float("-inf"), max_value=float("+inf"),
                  multiplier=1, format_string=None,
@@ -240,6 +254,7 @@ class ConfigurableNumericProperty(ConfigurableProperty):
                          valid_set=valid_set, value_type=value_type)
 
     def is_valid_type(self, value: Any) -> bool:
+        """Return True if value is numeric or matches the explicit type."""
         # When no explicit type is given, require any numeric value rather
         # than accepting arbitrary Python objects.
         if self.value_type is Any:
@@ -249,32 +264,33 @@ class ConfigurableNumericProperty(ConfigurableProperty):
         return isinstance(value, self.value_type)
 
     def is_in_valid_range(self, value: Any) -> bool:
+        """Return True if value falls within the allowed min/max range."""
         try:
             return self.min_value <= value <= self.max_value
         except TypeError:
             return False
 
     def is_valid(self, value: Any) -> bool:
+        """Return True if value passes type, set, and range validation."""
         if not super().is_valid(value):
             return False
-        if not self.is_in_valid_range(value):
-            return False
-        return True
+        return self.is_in_valid_range(value)
 
     def sanitize(self, value) -> Any:
+        """Coerce and clamp value to the allowed numeric range."""
         value = super().sanitize(value)
 
-        if is_numeric(value):
-            if not self.is_in_valid_range(value):
-                if value < self.min_value:
-                    value = self.min_value
-                elif value > self.max_value:
-                    value = self.max_value
+        if is_numeric(value) and not self.is_in_valid_range(value):
+            if value < self.min_value:
+                value = self.min_value
+            elif value > self.max_value:
+                value = self.max_value
 
         return value
 
     @staticmethod
     def int_property_list(keys:list[str]):
+        """Build a list of integer properties from the given key names."""
         properties = []
         for key in keys:
             properties.append(ConfigurableNumericProperty(name=key, value_type=int))
@@ -306,11 +322,15 @@ class ConfigurableNumericProperty(ConfigurableProperty):
 # ----------------------------------------------------------------------
 
 class Configurable:
+    """Mixin that turns declared ConfigurableProperty attributes into a managed configuration."""
+
     @classmethod
     def _configurable_properties(cls) -> dict[str, ConfigurableProperty]:
-        """Return all ConfigurableProperty descriptors declared on this class
-        and its base classes, ordered so subclass definitions take precedence
-        over parent definitions for the same attribute name."""
+        """Return all ConfigurableProperty descriptors declared on this class hierarchy.
+
+        Subclass definitions take precedence over parent definitions for the
+        same attribute name.
+        """
         props = {}
         # reversed MRO goes from object → ... → cls, so later (more
         # specific) assignments overwrite earlier (more general) ones.
@@ -327,14 +347,15 @@ class Configurable:
                 for name in self._configurable_properties()}
 
     def update_values(self, new_values: dict):
-        """Apply a (possibly partial) dict of new values.  Each value is
-        sanitized by its property descriptor on assignment."""
+        """Apply a possibly partial dict of new values.
+
+        Each value is sanitized by its property descriptor on assignment.
+        """
         for key, value in new_values.items():
             setattr(self, key, value)
 
     def is_valid(self, values: dict) -> dict:
-        """Return a per-key dict of booleans indicating which values are
-        valid according to their property schemas."""
+        """Return a per-key dict of booleans indicating validity per property schema."""
         props = self._configurable_properties()
         return {k: props[k].is_valid(v) for k, v in values.items()}
 
@@ -343,12 +364,13 @@ class Configurable:
         return all(self.is_valid(values).values())
 
     def show_config_dialog(self, title="Configuration", **kwargs):
-        """Show a modal configuration dialog built automatically from the
-        declared properties.  If the user clicks Ok the values are applied
-        back to self via update_values().
+        """Show a modal configuration dialog built from declared properties.
 
-        Any keyword arguments are forwarded to ConfigurationDialog (e.g.
-        buttons_labels, auto_click, geometry)."""
+        If the user clicks Ok the values are applied back to self via
+        ``update_values()``.  Extra keyword arguments are forwarded to
+        ``ConfigurationDialog`` (e.g. *buttons_labels*, *auto_click*,
+        *geometry*).
+        """
         props = list(self._configurable_properties().values())
         dialog = ConfigurationDialog(
             properties=props,
@@ -394,6 +416,8 @@ class Configurable:
 # ----------------------------------------------------------------------
 
 class ConfigModel:
+    """Explicit-list configuration model for dynamically built property schemas."""
+
     def __init__(self, properties:list[ConfigurableProperty] = None, values:dict = None):
         self.properties = { pd.name:pd  for pd in properties or []}
         self._values = { pd.name:pd.default_value  for pd in properties or []}
@@ -402,6 +426,7 @@ class ConfigModel:
 
     @property
     def values(self):
+        """Return the current configuration values as a dict."""
         return self._values
 
     @values.setter
@@ -413,12 +438,15 @@ class ConfigModel:
             raise ValueError(f"Invalid values for keys: {invalid}")
 
     def update_values(self, new_values):
+        """Set new configuration values after validation."""
         self.values = new_values
 
     def all_valid(self, values) -> bool:
+        """Return True only if every value passes its property validation."""
         return all(self.is_valid(values).values())
 
     def is_valid(self, values):
+        """Return a per-key dict of booleans indicating which values are valid."""
         is_valid = {}
         for key, value in values.items():
             property = self.properties[key]
@@ -426,6 +454,7 @@ class ConfigModel:
         return is_valid
 
     def sanitize(self, values):
+        """Return a dict of values coerced to valid types by their properties."""
         sanitized_values = {}
         for key, value in values.items():
             property = self.properties[key]
@@ -435,6 +464,8 @@ class ConfigModel:
 
 
 class ConfigurationDialog(Dialog, ConfigModel):
+    """Modal dialog that presents configurable properties as editable fields."""
+
     def __init__(self, properties=None, values=None, populate_body_fct=None, *args, **kwargs):
         # values= lets callers seed the dialog with specific starting values
         # rather than always starting from property defaults.  This is what
@@ -446,6 +477,7 @@ class ConfigurationDialog(Dialog, ConfigModel):
         self.configuration_widgets = {}
 
     def populate_widget_body(self):
+        """Create label-entry pairs for each configurable property in the dialog body."""
         if self.populate_body_fct is None:
             for i, (key, value) in enumerate(self.values.items()):
                 if key in self.properties:
@@ -465,6 +497,7 @@ class ConfigurationDialog(Dialog, ConfigModel):
             self.populate_body_fct()
 
     def widget_values(self) -> dict:
+        """Read and sanitize current values from the dialog entry widgets."""
         values = {}
         for key, entry_widget in self.configuration_widgets.items():
             values[key] = entry_widget.value_variable.get()
@@ -472,6 +505,7 @@ class ConfigurationDialog(Dialog, ConfigModel):
         return self.sanitize(values)
 
     def run(self):
+        """Display the dialog and update values if the user clicks Ok."""
         reply = super().run()
 
         widget_vals = self.widget_values()
