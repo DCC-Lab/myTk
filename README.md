@@ -1,6 +1,7 @@
 # myTk
 
 [![Documentation Status](https://readthedocs.org/projects/mytk/badge/?version=latest)](https://mytk.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://img.shields.io/pypi/v/mytk)](https://pypi.org/project/mytk/)
 
 by Daniel C. Côté
 
