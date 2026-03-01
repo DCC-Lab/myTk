@@ -1,6 +1,5 @@
 import collections
 import json
-import re
 import uuid
 import weakref
 from contextlib import suppress
@@ -21,7 +20,6 @@ class PostponeChangeCalls:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.data_source.enable_change_calls()
 
-Record = collections.namedtuple('Record', ['a'])
 
 class TabularData(Bindable):
     """A data model for tabular records with field validation and persistence."""
@@ -117,15 +115,22 @@ class TabularData(Bindable):
         ordered_records = []
         inserted_uuids = [None]
 
+        previous_count = -1
         while len(ordered_records) != len(self.records):
+            if len(ordered_records) == previous_count:
+                # Orphan records remain — append them to avoid infinite loop
+                for record in self.records:
+                    if record['__uuid'] not in inserted_uuids:
+                        ordered_records.append(record)
+                        inserted_uuids.append(record['__uuid'])
+                break
+            previous_count = len(ordered_records)
             for record in self.records:
                 pid = record['__puuid']
                 uid = record['__uuid']
                 if (pid is None or pid in inserted_uuids) and uid not in inserted_uuids:
                     ordered_records.append(record)
                     inserted_uuids.append(uid)
-
-        assert len(self.records) == len(ordered_records)
 
         return ordered_records
 
@@ -163,9 +168,9 @@ class TabularData(Bindable):
 
     def remove_all_records(self):
         """Remove all records from the data source."""
-        uuids = self.sorted_records_uuids(field="__uuid")
-        for uid in uuids:
-            self.remove_record(uid)
+        with PostponeChangeCalls(self):
+            while self.records:
+                self.remove_record(0)
 
     def empty_record(self):
         """Return a new record with all required fields set to defaults."""
@@ -174,6 +179,8 @@ class TabularData(Bindable):
     def _normalize_record(self, record):
         if record.get("__uuid") is None:
             record["__uuid"] = str(uuid.uuid4())
+        else:
+            record["__uuid"] = str(record["__uuid"])
 
         if "__puuid" not in record:
             record["__puuid"] = None
@@ -242,16 +249,20 @@ class TabularData(Bindable):
         self.source_records_changed()
         return values
 
+    def _resolve_index(self, index_or_uuid):
+        """Convert a UUID string, UUID object, or integer index to an integer index."""
+        if isinstance(index_or_uuid, int):
+            return index_or_uuid
+        if isinstance(index_or_uuid, (str, uuid.UUID)):
+            return self.field("__uuid").index(str(index_or_uuid))
+        raise TypeError(f"Expected int, str, or UUID, got {type(index_or_uuid)}")
+
     def update_record(self, index_or_uuid, values):
         """Update an existing record identified by index or UUID with new values."""
         if not isinstance(values, dict):
             raise RuntimeError("Pass dictionaries, not arrays")
 
-        index = index_or_uuid
-        if isinstance(index_or_uuid, str):
-            index = self.field("__uuid").index(index_or_uuid)
-        elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(str(index_or_uuid))
+        index = self._resolve_index(index_or_uuid)
 
         if self.records[index] != values:
             self.records[index].update(values)
@@ -265,12 +276,7 @@ class TabularData(Bindable):
 
     def record(self, index_or_uuid):
         """Return the record at the given index or with the given UUID."""
-        index = index_or_uuid
-        if isinstance(index_or_uuid, str):
-            index = self.field("__uuid").index(index_or_uuid)
-        elif re.search(r"\D", str(index)) is not None:
-            index = self.field("__uuid").index(str(index_or_uuid))
-
+        index = self._resolve_index(index_or_uuid)
         return self.records[index]
 
     def record_childs(self, index_or_uuid):
@@ -347,7 +353,7 @@ class TabularData(Bindable):
 
                 self.delegate().source_data_changed(changed_records)
 
-    def load(self, filepath, disable_change_calls=False):
+    def load(self, filepath):
         """Load records from a JSON file and insert them into the data source."""
         records_from_file = self.load_records_from_json(filepath)
         with PostponeChangeCalls(self):
@@ -363,8 +369,9 @@ class TabularData(Bindable):
         """Save all records to a JSON file, excluding internal fields."""
         serialized_records = []
         for record in self.records:
-            serialized_record = record
-            del serialized_record["__uuid"]  # we don't save this internal field
+            serialized_record = {
+                k: v for k, v in record.items() if not k.startswith("__")
+            }
             serialized_records.append(serialized_record)
         self.save_records_to_json(serialized_records, filepath)
 
