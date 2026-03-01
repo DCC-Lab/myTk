@@ -378,7 +378,7 @@ if __name__ == "__main__":
 
 The following interface to the module ["Raytracing"](https://github.com/DCC-Lab/RayTracing) was created with **myTk**.  It shows a list of lenses with their properties in a Tableview, clicking on the headers will sort the rows, clicking on a link will open the URL
 in a browser.  The figures underneath will reflect the properties of the selected item.
-<img width="1451" alt="image" src="./README.assets/filter_database.png">
+![Raytracing lens viewer](./README.assets/lensviewer.png)
 
 The code that generates this application is the following:
 ```python
