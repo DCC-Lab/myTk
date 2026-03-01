@@ -1,18 +1,17 @@
 
 [build-system]
-requires = ["setuptools>=70", "wheel"]
+requires = ["setuptools>=70", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 
 [project]
 name = "mytk"
-version="1.0.2"
+dynamic = ["version", "dependencies"]
 description = "A wrapper for Tkinter for busy scientists"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dynamic = ["dependencies"]
 authors = [
   {name = "Daniel Côté", email = "dccote@cervo.ulaval.ca"}
 ]
@@ -45,6 +44,9 @@ video = ["opencv-python"]
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
 all = ["mytk[video,optics]"]
+
+[tool.setuptools_scm]
+write_to = "mytk/_version.py"
 
 [tool.setuptools.package-data]
 "mytk.resources" = ["*.png"]

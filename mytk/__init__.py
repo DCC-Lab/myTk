@@ -1,7 +1,8 @@
 # Re-export tkinter so users can do `from mytk import *` and get a complete toolkit.
 import tkinter.font as tkFont  # noqa: N813
 import tkinter.ttk as ttk
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _get_version
 from tkinter import *  # noqa: F403, F401
 
 from .app import App
@@ -143,7 +144,10 @@ __all__ = [  # noqa: F405
 ]
 
 try:
-    __version__ = version("mytk")
-except PackageNotFoundError:
-    __version__ = "unknown"
+    from ._version import __version__
+except ImportError:
+    try:
+        __version__ = _get_version("mytk")
+    except PackageNotFoundError:
+        __version__ = "unknown"
 
