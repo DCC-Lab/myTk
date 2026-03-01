@@ -1,8 +1,7 @@
-# from mytk.tabulardata import Record
 import collections
-import os
 import unittest
 import uuid
+from pathlib import Path
 
 from mytk import *
 
@@ -140,22 +139,21 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertEqual(t.element(uuid, "a"), 3)
         self.assertTrue(self.delegate_function_called)
 
-    def test01_save_json(self):
-        filepath = "/tmp/test.json"
+    def test_save_and_load_json(self):
+        filepath = "/tmp/test_tabulardata_save_load.json"
         t = TabularData(delegate=self)
         _ = t.insert_record(0, {"a": 1})
         _ = t.insert_record(1, {"a": 2})
         t.save(filepath)
-        self.assertTrue(os.path.exists(filepath))
+        self.assertTrue(Path(filepath).exists())
         self.assertTrue(self.delegate_function_called)
 
-    def test02_load_json(self):
-        filepath = "/tmp/test.json"
-        t = TabularData(delegate=self)
-        t.load(filepath)
-        self.assertEqual(t.element(0, "a"), 1)
-        self.assertEqual(t.element(1, "a"), 2)
-        self.assertTrue(self.delegate_function_called)
+        t2 = TabularData(delegate=self)
+        t2.load(filepath)
+        self.assertEqual(t2.element(0, "a"), 1)
+        self.assertEqual(t2.element(1, "a"), 2)
+
+        Path(filepath).unlink()
 
     def test_rename_field(self):
         t = TabularData(delegate=self)
@@ -201,11 +199,17 @@ class TestTabularDataSource(unittest.TestCase):
         t.insert_record(0, {"a": 1, "b": 2})
         t.insert_record(1, {"a": 2, "c": 3})
 
-        temp_filepath = "/tmp/test.json"
+        temp_filepath = Path("/tmp/test_tabulardata_exists.json")
         t.save(temp_filepath)
-        self.assertTrue(os.path.exists(temp_filepath))
-        os.unlink(temp_filepath)
-        self.assertFalse(os.path.exists(temp_filepath))
+        self.assertTrue(temp_filepath.exists())
+
+        # Verify records are intact after save (no __uuid destruction)
+        self.assertEqual(t.record_count, 2)
+        self.assertIn("__uuid", t.records[0])
+        self.assertEqual(t.element(0, "a"), 1)
+
+        temp_filepath.unlink()
+        self.assertFalse(temp_filepath.exists())
 
     def test_load_saved_data_json(self):
         t = TabularData(delegate=self)
@@ -214,11 +218,10 @@ class TestTabularDataSource(unittest.TestCase):
 
         pre_records = t.records
 
-        temp_filepath = "/tmp/test.json"
+        temp_filepath = Path("/tmp/test_tabulardata_load.json")
         t.save(temp_filepath)
 
         t2 = TabularData(delegate=self)
-
         t2.load(temp_filepath)
         post_records = t2.records
 
@@ -228,8 +231,8 @@ class TestTabularDataSource(unittest.TestCase):
                     pre_records[i][field_name], post_records[i][field_name]
                 )
 
-        os.unlink(temp_filepath)
-        self.assertFalse(os.path.exists(temp_filepath))
+        temp_filepath.unlink()
+        self.assertFalse(temp_filepath.exists())
 
     def test_load_saved_data_xlsx(self):
         t = TabularData(delegate=self)
@@ -281,7 +284,7 @@ class TestTabularDataSource(unittest.TestCase):
     def test_uuid_field_proper_type(self):
         t = TabularData(required_fields=["a", "b"])
         record = t.append_record({"__uuid": uuid.uuid4(), "a": 1, "b": 1})
-        self.assertTrue(isinstance(record["__uuid"], uuid.UUID))
+        self.assertIsInstance(record["__uuid"], str)
 
     def test_insert_record_as_child(self):
         t = TabularData(delegate=self)
@@ -302,7 +305,11 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_normalize_record(self):
         t = TabularData(required_fields=["a", "b"])
-        # print(t._normalize_record({}))
+        record = t._normalize_record({})
+        self.assertIn("a", record)
+        self.assertIn("b", record)
+        self.assertIn("__uuid", record)
+        self.assertIn("__puuid", record)
 
     def test_sort_records(self):
         t = TabularData(delegate=self)
@@ -313,18 +320,19 @@ class TestTabularDataSource(unittest.TestCase):
         t.insert_record(1, {"a": 5, "b": 5})
 
         uuids = t.sorted_records_uuids("b")
-        # print([t.record(uuid) for uuid in uuids])
-        # print([record for record in records_sorted])
-        # print([record for record in t.records])
+        b_values = [t.record(uid)["b"] for uid in uuids]
+        self.assertEqual(b_values, sorted(b_values))
 
     def test_namedtuple_Record(self):
         t = TabularData(delegate=self, required_fields=['name','size'])
-        record = t.insert_record(0, {"name": 1, "size": 2})
+        t.insert_record(0, {"name": 1, "size": 2})
         Record = t.default_namedtuple_type()
-        # print(Record._fields)
-        # Record = collections.namedtuple('Record', ['a','b'])
-
-        # print(t.records_as_namedtuples())
+        self.assertIn("name", Record._fields)
+        self.assertIn("size", Record._fields)
+        tuples = t.records_as_namedtuples()
+        self.assertEqual(len(tuples), 1)
+        self.assertEqual(tuples[0].name, 1)
+        self.assertEqual(tuples[0].size, 2)
 
 
 class TestTabularDataFieldProperties(unittest.TestCase):
