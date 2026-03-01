@@ -43,7 +43,7 @@ Repository = "https://github.com/DCC-Lab/myTk"
 [project.optional-dependencies]
 video = ["opencv-python"]
 optics = ["raytracing"]
-docs = ["furo", "sphinx"]
+docs = ["furo", "sphinx", "myst-parser"]
 all = ["mytk[video,optics]"]
 
 [tool.setuptools.package-data]
