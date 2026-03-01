@@ -168,8 +168,9 @@ class TabularData(Bindable):
 
     def remove_all_records(self):
         """Remove all records from the data source."""
-        self.records.clear()
-        self.source_records_changed()
+        with PostponeChangeCalls(self):
+            while self.records:
+                self.remove_record(0)
 
     def empty_record(self):
         """Return a new record with all required fields set to defaults."""
