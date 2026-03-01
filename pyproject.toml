@@ -48,8 +48,24 @@ all = ["mytk[video,optics]"]
 [tool.setuptools_scm]
 write_to = "mytk/_version.py"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mytk*"]
+exclude = [
+    "mytk.example_apps.tpop_filters_data",
+    "mytk.example_apps.processed-tpop_filters_data",
+]
+
 [tool.setuptools.package-data]
 "mytk.resources" = ["*.png"]
+"mytk.example_apps" = ["logo.png"]
+
+[tool.setuptools.exclude-package-data]
+"mytk.example_apps" = [
+    "tpop_filters_data/**",
+    "processed-tpop_filters_data/**",
+    "*.zip",
+]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
