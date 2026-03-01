@@ -5,6 +5,12 @@ from pathlib import Path
 
 from mytk import *
 
+try:
+    import pandas  # noqa: F401
+    _has_pandas = True
+except ImportError:
+    _has_pandas = False
+
 
 class TestTabularDataSource(unittest.TestCase):
     def setUp(self):
@@ -234,6 +240,7 @@ class TestTabularDataSource(unittest.TestCase):
         temp_filepath.unlink()
         self.assertFalse(temp_filepath.exists())
 
+    @unittest.skipUnless(_has_pandas, "pandas not available")
     def test_load_saved_data_xlsx(self):
         t = TabularData(delegate=self)
         fixture = Path(__file__).parent / "example.xlsx"
@@ -243,6 +250,7 @@ class TestTabularDataSource(unittest.TestCase):
         # 4 5 6
         t.set_records_from_dataframe(df)
 
+    @unittest.skipUnless(_has_pandas, "pandas not available")
     def test_load_saved_data_csv(self):
         t = TabularData(delegate=self)
         expected_records = [{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}]
