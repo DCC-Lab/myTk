@@ -236,8 +236,8 @@ class TestTabularDataSource(unittest.TestCase):
 
     def test_load_saved_data_xlsx(self):
         t = TabularData(delegate=self)
-
-        df = t.load_dataframe_from_tabular_data("example.xlsx", header_row=0)
+        fixture = Path(__file__).parent / "example.xlsx"
+        df = t.load_dataframe_from_tabular_data(fixture, header_row=0)
         # a b c
         # 1 2 3
         # 4 5 6
@@ -246,7 +246,8 @@ class TestTabularDataSource(unittest.TestCase):
     def test_load_saved_data_csv(self):
         t = TabularData(delegate=self)
         expected_records = [{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}]
-        df = t.load_dataframe_from_tabular_data("example.csv", header_row=0)
+        fixture = Path(__file__).parent / "example.csv"
+        df = t.load_dataframe_from_tabular_data(fixture, header_row=0)
 
         t.set_records_from_dataframe(df)
 
