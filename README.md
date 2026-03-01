@@ -1,4 +1,7 @@
-# myTk 
+# myTk
+
+[![Documentation Status](https://readthedocs.org/projects/mytk/badge/?version=latest)](https://mytk.readthedocs.io/en/latest/?badge=latest)
+
 by Daniel C. Côté
 
 ## What is it?
