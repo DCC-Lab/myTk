@@ -524,6 +524,79 @@ class TestTabularDataRecordOps(unittest.TestCase):
         t = TabularData(tableview=tv)
         self.assertIsNotNone(t.delegate)
 
+    def test_remove_record_by_uuid_object(self):
+        t = TabularData()
+        r1 = t.append_record({"a": 1})
+        r2 = t.append_record({"a": 2})
+        uid_obj = uuid.UUID(r1["__uuid"])
+        t.remove_record(uid_obj)
+        self.assertEqual(t.record_count, 1)
+        self.assertEqual(t.records[0]["a"], 2)
+
+    def test_rename_field_old_name_missing(self):
+        t = TabularData()
+        t.append_record({"a": 1})
+        with self.assertRaises(RuntimeError):
+            t.rename_field("nonexistent", "b")
+
+    def test_normalize_record_skips_missing_typed_field(self):
+        t = TabularData()
+        t.update_field_properties("score", {"type": float})
+        t.append_record({"score": 1.0})  # seed so record_fields() includes "score"
+        # Insert a record without "score" — should not raise KeyError
+        record = t.append_record({"name": "Alice"})
+        self.assertNotIn("score", record)
+
+    def test_delegate_attribute_error_propagates(self):
+        class BuggyDelegate:
+            def source_data_changed(self, records):
+                raise AttributeError("bug inside delegate")
+
+        delegate = BuggyDelegate()  # prevent garbage collection
+        t = TabularData(delegate=delegate)
+        with self.assertRaises(AttributeError):
+            t.append_record({"a": 1})
+
+    def test_update_record_no_change_skips_notification(self):
+        call_count = 0
+
+        class CountingDelegate:
+            def source_data_changed(self, records):
+                nonlocal call_count
+                call_count += 1
+
+        t = TabularData(delegate=CountingDelegate())
+        t.append_record({"a": 1})
+        count_after_insert = call_count
+        # Update with same value — should not fire notification
+        t.update_record(0, {"a": 1})
+        self.assertEqual(call_count, count_after_insert)
+
+    def test_update_field_length_mismatch(self):
+        t = TabularData()
+        t.append_record({"a": 1})
+        t.append_record({"a": 2})
+        with self.assertRaises(ValueError):
+            t.update_field("a", [10])  # too short
+        with self.assertRaises(ValueError):
+            t.update_field("a", [10, 20, 30])  # too long
+
+    def test_update_record_partial_no_change(self):
+        t = TabularData()
+        t.append_record({"a": 1, "b": 2})
+        # Partial update with same value for "a"
+        call_count = 0
+        class CountingDelegate:
+            def source_data_changed(self, records):
+                nonlocal call_count
+                call_count += 1
+        t.delegate = __import__("weakref").ref(CountingDelegate())
+        # Need to keep delegate alive
+        delegate = CountingDelegate()
+        t.delegate = __import__("weakref").ref(delegate)
+        t.update_record(0, {"a": 1})
+        self.assertEqual(call_count, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
