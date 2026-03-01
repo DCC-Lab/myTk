@@ -5,12 +5,14 @@ and provides a convenience method `linked_group()` to create a group of radio bu
 that share a common value variable (`IntVar`), ensuring mutual exclusivity.
 
 Key Features:
-- Radio buttons created via `linked_group()` share a `value_variable`,
+
+- Radio buttons created via ``linked_group()`` share a ``value_variable``,
   enabling coordinated selection.
 - Supports optional user callbacks triggered when selection changes.
 - Observes variable changes even when updated programmatically, not just on click.
 
-Example:
+Example::
+
     def on_radio_change(button):
         print("Selected:", button.value)
 
