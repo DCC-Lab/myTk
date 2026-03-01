@@ -1,6 +1,7 @@
 import os
 import time
 import unittest
+from pathlib import Path
 
 import envtest
 
@@ -66,11 +67,11 @@ class TestTreeTableview(envtest.MyTkTestCase):
                     break
 
             for filename in files:
-                filepath = os.path.join(parent_path, filename)
-                size = os.path.getsize(filepath)
-                mdate = os.path.getmtime(filepath)
+                filepath = Path(parent_path) / filename
+                size = filepath.stat().st_size
+                mdate = filepath.stat().st_mtime
                 mdate = time.strftime(
-                    "%m/%d/%Y", time.gmtime(os.path.getmtime(filepath))
+                    "%m/%d/%Y", time.gmtime(filepath.stat().st_mtime)
                 )
                 _ = t.insert_record(
                     pid=pid,
@@ -84,11 +85,11 @@ class TestTreeTableview(envtest.MyTkTestCase):
                 )
 
             for directory in dirs:
-                directorypath = os.path.join(parent_path, directory)
-                size = os.path.getsize(directorypath)
-                mdate = os.path.getmtime(directorypath)
+                directorypath = Path(parent_path) / directory
+                size = directorypath.stat().st_size
+                mdate = directorypath.stat().st_mtime
                 mdate = time.strftime(
-                    "%m/%d/%Y", time.gmtime(os.path.getmtime(directorypath))
+                    "%m/%d/%Y", time.gmtime(directorypath.stat().st_mtime)
                 )
                 _ = t.insert_record(
                     pid=pid,

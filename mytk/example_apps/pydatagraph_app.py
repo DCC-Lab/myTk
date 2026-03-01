@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from tkinter import filedialog
 
@@ -97,7 +96,7 @@ class PyDatagraphApp(App):
 
         parent = Path(__file__).parent.resolve()
         test_file = Path(parent, 'test-excel.xlsx')
-        if os.path.exists(test_file):
+        if test_file.exists():
             self.load_data(test_file)
 
         self.after(delay=100, function=self.refresh_plot)

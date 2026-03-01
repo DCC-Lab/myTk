@@ -16,7 +16,7 @@ class FilterDBApp(App):
 
         self.filepath_root = Path(Path(__file__).parent, 'tpop_filters_data')
         self.web_root = 'http://www.dccmlab.ca'
-        self.temp_root = os.path.join(tempfile.TemporaryDirectory().name)
+        self.temp_root = Path(tempfile.TemporaryDirectory().name)
         self.download_files = False
         self.webbrowser_download_path = None
 
@@ -63,10 +63,10 @@ class FilterDBApp(App):
         if self.download_files:
             self.filepath_root, filepath = self.get_files_from_web()
         else:
-            filepath = os.path.join(self.filepath_root, "filters.json")
+            filepath = self.filepath_root / "filters.json"
 
-            if not os.path.exists(self.filepath_root):
-                os.mkdir(self.filepath_root)
+            if not self.filepath_root.exists():
+                self.filepath_root.mkdir(parents=True)
                 self.filters.data_source.save(filepath)
 
 
@@ -84,10 +84,10 @@ class FilterDBApp(App):
         with zipfile.ZipFile('filters_data.zip', 'r') as zip_ref:
             zip_ref.extractall(self.temp_root)
 
-        return os.path.join(self.temp_root, 'filters_data'), os.path.join(self.temp_root, 'filters_data', 'filters.json')
+        return self.temp_root / 'filters_data', self.temp_root / 'filters_data' / 'filters.json'
 
     def save(self):
-        filepath = os.path.join(self.filepath_root, "filters.json")
+        filepath = self.filepath_root / "filters.json"
         self.filters.save(filepath)
 
     def load_filter_data(self, filepath):
@@ -157,7 +157,7 @@ class FilterDBApp(App):
 
                 new_filepaths = list(set(post_list) - set(pre_list))
                 if len(new_filepaths) == 1:
-                    filepath = os.path.join(self.webbrowser_download_path, new_filepaths[0])
+                    filepath = Path(self.webbrowser_download_path) / new_filepaths[0]
                 else:
                     filepath = ''
 
@@ -165,8 +165,8 @@ class FilterDBApp(App):
                 shutil.copy2(filepath, self.filepath_root)
                 filename_idx = list(self.filters.column_names()).index('filename')
 
-                record[filename_idx] = os.path.basename(filepath)
-                self.webbrowser_download_path = os.path.dirname(filepath)
+                record[filename_idx] = Path(filepath).name
+                self.webbrowser_download_path = Path(filepath).parent
                 self.filters.widget.item(selected_item, values=record)
                 self.save()
 
@@ -180,7 +180,7 @@ class FilterDBApp(App):
             with zipfile.ZipFile(zip_filepath, 'w') as zip_ref:
                 zip_ref.mkdir(self.filepath_root)
                 for filepath in Path(self.filepath_root).iterdir():
-                    zip_ref.write(filepath, arcname=os.path.join(self.filepath_root,filepath.name))
+                    zip_ref.write(filepath, arcname=self.filepath_root / filepath.name)
 
     def show_files(self, event, button):
         self.reveal_path(self.filepath_root)
@@ -197,8 +197,8 @@ class FilterDBApp(App):
                 filename_idx = list(self.filters.column_names()).index('filename')
                 filename = record[filename_idx]
 
-                filepath = os.path.join(self.filepath_root, filename)
-                if os.path.isfile(filepath):
+                filepath = self.filepath_root / filename
+                if filepath.is_file():
                     data = self.load_filter_data(filepath)
 
                     text = ""
@@ -223,8 +223,8 @@ class FilterDBApp(App):
 
             filename_idx = list(self.filters.columns).index('filename')
             filename = record[filename_idx]
-            filepath = os.path.join(self.filepath_root, filename)
-            if os.path.exists(filepath) and not os.path.isdir(filepath):
+            filepath = self.filepath_root / filename
+            if filepath.exists() and not filepath.is_dir():
 
                 data = self.load_filter_data(filepath)
                 self.filter_data.empty()

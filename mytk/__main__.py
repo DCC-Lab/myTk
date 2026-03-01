@@ -1,7 +1,7 @@
 import argparse
-import os
 import subprocess
 import sys
+from pathlib import Path
 
 from mytk import Bindable
 
@@ -22,12 +22,12 @@ def printClassHierarchy(aClass):  # noqa: N802, N803
 
 def main():
     """Run the mytk command-line interface for examples, tests, and class inspection."""
-    root = os.path.dirname(__file__)
-    examples_dir = os.path.join(root, "example_apps")
+    root = Path(__file__).parent
+    examples_dir = root / "example_apps"
     examples = [
-        f
-        for f in sorted(os.listdir(examples_dir))
-        if f.endswith(".py") and not f.startswith("__")
+        f.name
+        for f in sorted(examples_dir.iterdir())
+        if f.suffix == ".py" and not f.name.startswith("__")
     ]
 
     ap = argparse.ArgumentParser(prog="python -m mytk")
@@ -80,7 +80,7 @@ def main():
         printClassHierarchy(Bindable)
 
     elif runTests:
-        tests_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tests")
+        tests_dir = Path(__file__).resolve().parent / "tests"
         result = subprocess.run(
             [sys.executable, "-m", "unittest"],
             cwd=tests_dir,
@@ -94,7 +94,7 @@ def main():
     elif runExamples:
         for i in runExamples:
             entry = examples[i - 1]
-            filepath = os.path.join(examples_dir, entry)
+            filepath = examples_dir / entry
             title = f"# mytk example file: {filepath}"
 
             print("\n\n\n")
@@ -106,7 +106,7 @@ def main():
             with open(filepath, "r") as file:
                 print(file.read())
 
-            subprocess.run([sys.executable, os.path.join(examples_dir, entry)])
+            subprocess.run([sys.executable, str(examples_dir / entry)])
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import os
 import platform
 import re
 import time
+from pathlib import Path
 
 from .tableview import TableView
 from .tabulardata import TabularData
@@ -112,7 +113,7 @@ class FileTreeData(TabularData):
 
             for filename in filenames:
                 try:
-                    fullpath = os.path.join(root_dir, filename)
+                    fullpath = Path(root_dir) / filename
 
                     is_directory = self.is_directory(fullpath)
                     is_system_file = self.is_system_file(filename)

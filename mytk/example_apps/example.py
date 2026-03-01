@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from tkinter import DoubleVar, filedialog
 
 from mytk.canvasview import Arrow, CanvasLabel, Line, Oval, Rectangle
@@ -60,10 +60,10 @@ if __name__ == "__main__":
     url2 = URLLabel(url="http://www.python.org", text="The Python website")
     url2.grid_into(view2, column=1, row=1, pady=2, padx=3, sticky="nsew")
 
-    example_dir = os.path.dirname(__file__)
+    example_dir = Path(__file__).parent
     image_box = Box(label="Image")
     image_box.grid_into(app.window, column=2, row=1, pady=2, padx=3, sticky="")
-    image = Image(os.path.join(example_dir, "logo.png"))
+    image = Image(example_dir / "logo.png")
     image.pil_image = image.pil_image.resize((66, 80), image.PILImage.LANCZOS)
     image.grid_into(image_box, column=0, row=0, pady=2, padx=3)
 
