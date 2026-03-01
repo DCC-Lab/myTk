@@ -81,8 +81,12 @@ class TableView(Base):
 
     @displaycolumns.setter
     def displaycolumns(self, values):
+        if self.widget is None:
+            return
+
         if isinstance(values, Iterable) and len(values) == 0:
-            print('Warning: empty displaycolumns will display nothing')
+            import warnings
+            warnings.warn("empty displaycolumns will display nothing", stacklevel=2)
 
         self.widget.configure(displaycolumns=values)
 
@@ -101,7 +105,10 @@ class TableView(Base):
 
     @headings.setter
     def headings(self, new_values):
-        assert len(new_values) == len(self.columns)
+        if len(new_values) != len(self.columns):
+            raise ValueError(
+                f"Expected {len(self.columns)} headings, got {len(new_values)}"
+            )
         new_columns_labels = dict(zip(self.columns, new_values, strict=False))
 
         if self.widget is not None:
@@ -124,7 +131,7 @@ class TableView(Base):
             self.columns = list(new_values.keys())
             self.headings = list(new_values.values())
         else:
-            return self._columns_labels
+            self._columns_labels = new_values
 
     def heading_info(self, cid):
         """Return heading configuration info for the given column identifier."""
@@ -158,8 +165,8 @@ class TableView(Base):
                 takefocus=True,
             )
 
-        self.widget.configure(columns=sorted(list(self._columns_labels.keys())))
-        self.widget.configure(displaycolumns=sorted(list(self._columns_labels.keys())))
+        self.widget.configure(columns=list(self._columns_labels.keys()))
+        self.widget.configure(displaycolumns=list(self._columns_labels.keys()))
         for key, value in self._columns_labels.items():
             self.widget.heading(key, text=value)
 
@@ -172,9 +179,8 @@ class TableView(Base):
         self.source_data_added_or_updated(records)
         self.source_data_deleted(records)
 
-        if self.delegate is not None:
-            with suppress(AttributeError):
-                self.delegate.source_data_changed(self)
+        if self.delegate is not None and hasattr(self.delegate, "source_data_changed"):
+            self.delegate.source_data_changed(self)
 
     def source_data_added_or_updated(self, records):
         """Insert new records or update existing ones in the widget."""
@@ -207,7 +213,7 @@ class TableView(Base):
             padding = ""
             column_name = self.columns[i]
             if len(self.displaycolumns) > 0 and column_name == self.displaycolumns[0]:
-                level = record.get("depth_level", 0)
+                level = record.get("__depth_level", 0)
                 padding = "   " * level
 
             column_format = self.column_formats.get(column_name, None)
@@ -277,13 +283,13 @@ class TableView(Base):
 
     def empty(self):
         """Remove all items from the table."""
-        self.clear_widget_content()
+        if self.data_source is not None:
+            self.data_source.remove_all_records()
 
     def selection_changed(self, event):
         """Notify the delegate when the table selection changes."""
-        if self.delegate is not None:
-            with suppress(AttributeError):
-                self.delegate.selection_changed(event, self)
+        if self.delegate is not None and hasattr(self.delegate, "selection_changed"):
+            self.delegate.selection_changed(event, self)
 
     def identify_column_name(self, event_x):
         """Return the column name at the given x pixel coordinate."""
@@ -327,11 +333,11 @@ class TableView(Base):
     def click(self, event) -> bool:  # pragma: no cover
         """Handle a single click event on the table."""
         keep_running = True
-        try:
-            with suppress(AttributeError):
+        if self.delegate is not None and hasattr(self.delegate, "click"):
+            try:
                 keep_running = self.delegate.click(event, self)
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -352,13 +358,13 @@ class TableView(Base):
         item_dict = self.widget.item(item_id)
 
         keep_running = True
-        try:
-            with suppress(AttributeError):
+        if self.delegate is not None and hasattr(self.delegate, "click_cell"):
+            try:
                 keep_running = self.delegate.click_cell(
                     item_id, column_name, self
                 )
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
 
         if keep_running:
             logical_column_id = self.get_logical_column_id(column_name)
@@ -422,13 +428,13 @@ class TableView(Base):
         keep_running = True
 
         if column_name not in self.columns:
-            raise ValueError(f"click_header: '{column_name}'' is not the name of a column")
+            raise ValueError(f"click_header: '{column_name}' is not the name of a column")
 
-        try:
-            with suppress(AttributeError):
+        if self.delegate is not None and hasattr(self.delegate, "click_header"):
+            try:
                 keep_running = self.delegate.click_header(column_name, self)
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
 
         if keep_running:
             with suppress(IndexError):  # if empty, not an error
@@ -442,11 +448,11 @@ class TableView(Base):
     def doubleclick(self, event) -> bool:  # pragma: no cover
         """Handle a double-click event on the table."""
         keep_running = True
-        try:
-            with suppress(AttributeError):
+        if self.delegate is not None and hasattr(self.delegate, "doubleclick"):
+            try:
                 keep_running = self.delegate.doubleclick(event, self)
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
 
         if keep_running:
             region = self.widget.identify_region(event.x, event.y)
@@ -474,13 +480,11 @@ class TableView(Base):
         else:
             _keep_running = True
 
-        try:
-            with suppress(AttributeError):
-                _keep_running = self.delegate.doubleclick_cell(
-                    item_id, column_name, self
-                )
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+        if self.delegate is not None and hasattr(self.delegate, "doubleclick_cell"):
+            try:
+                self.delegate.doubleclick_cell(item_id, column_name, self)
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
 
     def focus_edit_cell(self, item_id, column_name):
         """Place an entry widget over the cell for inline editing."""
@@ -501,9 +505,8 @@ class TableView(Base):
         """Handle a double-click on a column header."""
         assert isinstance(column_name, str)
 
-        _keep_running = True
-        try:
-            with suppress(AttributeError):
-                _keep_running = self.delegate.doubleclick_header(column_name, self)
-        except Exception as err:
-            raise TableView.DelegateError(err) from err
+        if self.delegate is not None and hasattr(self.delegate, "doubleclick_header"):
+            try:
+                self.delegate.doubleclick_header(column_name, self)
+            except Exception as err:
+                raise TableView.DelegateError(err) from err
