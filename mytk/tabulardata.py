@@ -2,7 +2,6 @@ import collections
 import json
 import uuid
 import weakref
-from contextlib import suppress
 from pathlib import Path
 
 from .bindable import Bindable
@@ -158,9 +157,7 @@ class TabularData(Bindable):
 
     def remove_record(self, index_or_uuid):
         """Remove and return the record at the given index or with the given UUID."""
-        index = index_or_uuid
-        if isinstance(index_or_uuid, str):
-            index = self.field("__uuid").index(index_or_uuid)
+        index = self._resolve_index(index_or_uuid)
 
         record = self.records.pop(index)
         self.source_records_changed()
@@ -204,6 +201,9 @@ class TabularData(Bindable):
                             f"record has extra field: {field_name}"
                         )
         for field_name in self.record_fields():
+            if field_name not in record:
+                continue
+
             field_properties = self.get_field_properties(field_name)
             field_type = field_properties.get('type', None)
 
@@ -212,8 +212,6 @@ class TabularData(Bindable):
                     record[field_name] = field_type(record[field_name])
                 except (ValueError, TypeError):
                     record[field_name] = None
-            else:
-                pass # Leave as-is
 
         return record
 
@@ -264,12 +262,16 @@ class TabularData(Bindable):
 
         index = self._resolve_index(index_or_uuid)
 
-        if self.records[index] != values:
+        if any(self.records[index].get(k) != v for k, v in values.items()):
             self.records[index].update(values)
             self.source_records_changed()
 
     def update_field(self, name, values):
         """Update a field across all records with the given list of values."""
+        if len(values) != len(self.records):
+            raise ValueError(
+                f"Expected {len(self.records)} values, got {len(values)}"
+            )
         for i, value in enumerate(values):
             self.records[i][name] = value
         self.source_records_changed()
@@ -322,12 +324,13 @@ class TabularData(Bindable):
 
     def rename_field(self, old_name, new_name):
         """Rename a field across all records."""
+        if old_name not in self.record_fields():
+            raise RuntimeError("field does not exist")
         if new_name in self.record_fields():
             raise RuntimeError("Name already used")
 
         for record in self.records:
-            record[new_name] = record[old_name]
-            record.pop(old_name, None)
+            record[new_name] = record.pop(old_name, None)
         self.source_records_changed()
 
     def sorted_records_uuids(self, field, only_uuids=None, reverse=False):
@@ -347,11 +350,14 @@ class TabularData(Bindable):
     def source_records_changed(self, changed_records=None):
         """Notify the delegate that records have changed."""
         if not self._disable_change_calls and self.delegate is not None:
-            with suppress(AttributeError):
-                if changed_records is None:
-                    changed_records = self.ordered_records()
+            delegate = self.delegate()
+            if delegate is None or not hasattr(delegate, "source_data_changed"):
+                return
 
-                self.delegate().source_data_changed(changed_records)
+            if changed_records is None:
+                changed_records = self.ordered_records()
+
+            delegate.source_data_changed(changed_records)
 
     def load(self, filepath):
         """Load records from a JSON file and insert them into the data source."""

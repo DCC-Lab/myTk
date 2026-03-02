@@ -326,7 +326,7 @@ class TestTableview(envtest.MyTkTestCase):
 
         self.tableview.columns = ('c','d')
         self.assertEqual(self.tableview.columns_labels, {"c": "", "d": ""})
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             self.tableview.headings = ('Column C','Column D','Extra column')
         self.assertEqual(self.tableview.columns_labels, {"c": "", "d": ""})
 
