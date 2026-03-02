@@ -7,6 +7,7 @@ import envtest
 
 from mytk import *
 from mytk.fileviewer import FileRecord
+from mytk.tabulardata import PostponeChangeCalls
 
 
 class TestTreeTableview(envtest.MyTkTestCase):
@@ -58,49 +59,51 @@ class TestTreeTableview(envtest.MyTkTestCase):
         self.tableview.widget.after(100, self.app.quit)
         self.app.mainloop()
 
-    def fill_tabular_data_with_fileviewer_data(self, t, dir):
-        for parent_path, dirs, files in os.walk(dir):
-            pid = None
-            for record in t.records:
-                if record["fullpath"] == parent_path:
-                    pid = record["__uuid"]
+    def fill_tabular_data_with_fileviewer_data(self, t, dir, max_depth=1):
+        with PostponeChangeCalls(t):
+            for depth, (parent_path, dirs, files) in enumerate(os.walk(dir)):
+                if depth >= max_depth:
                     break
 
-            for filename in files:
-                filepath = Path(parent_path) / filename
-                size = filepath.stat().st_size
-                mdate = filepath.stat().st_mtime
-                mdate = time.strftime(
-                    "%m/%d/%Y", time.gmtime(filepath.stat().st_mtime)
-                )
-                _ = t.insert_record(
-                    pid=pid,
-                    index=None,
-                    values={
-                        "name": filename,
-                        "size": "{0:.1f} k".format(size / 1000),
-                        "date_modified": mdate,
-                        "fullpath": filepath,
-                    },
-                )
+                pid = None
+                for record in t.records:
+                    if record["fullpath"] == parent_path:
+                        pid = record["__uuid"]
+                        break
 
-            for directory in dirs:
-                directorypath = Path(parent_path) / directory
-                size = directorypath.stat().st_size
-                mdate = directorypath.stat().st_mtime
-                mdate = time.strftime(
-                    "%m/%d/%Y", time.gmtime(directorypath.stat().st_mtime)
-                )
-                _ = t.insert_record(
-                    pid=pid,
-                    index=None,
-                    values={
-                        "name": directory,
-                        "size": "",
-                        "date_modified": mdate,
-                        "fullpath": directorypath,
-                    },
-                )
+                for filename in files:
+                    filepath = Path(parent_path) / filename
+                    size = filepath.stat().st_size
+                    mdate = time.strftime(
+                        "%m/%d/%Y", time.gmtime(filepath.stat().st_mtime)
+                    )
+                    _ = t.insert_record(
+                        pid=pid,
+                        index=None,
+                        values={
+                            "name": filename,
+                            "size": "{0:.1f} k".format(size / 1000),
+                            "date_modified": mdate,
+                            "fullpath": filepath,
+                        },
+                    )
+
+                for directory in dirs:
+                    directorypath = Path(parent_path) / directory
+                    size = directorypath.stat().st_size
+                    mdate = time.strftime(
+                        "%m/%d/%Y", time.gmtime(directorypath.stat().st_mtime)
+                    )
+                    _ = t.insert_record(
+                        pid=pid,
+                        index=None,
+                        values={
+                            "name": directory,
+                            "size": "",
+                            "date_modified": mdate,
+                            "fullpath": directorypath,
+                        },
+                    )
 
     def test_show_filesview(self):
         self.app.window.widget.grid_rowconfigure(0, weight=1)
