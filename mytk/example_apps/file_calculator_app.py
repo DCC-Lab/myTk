@@ -36,7 +36,7 @@ class FileCalculator(App):
         )
 
 
-        self.plot = XYPlot()
+        self.plot = XYPlot(figsize=(5, 3))
         self.plot.grid_into(self.inspector, column=0, row=0, pady=15, padx=15, sticky="nsew")
 
         self.fileviewer = FileViewer(self.current_dir, custom_columns={'calc':'Calculation'})
