@@ -176,6 +176,9 @@ class TableView(Base):
 
     def source_data_changed(self, records):
         """Update the widget to reflect changes in the data source records."""
+        if self.widget is None:
+            return
+
         self.source_data_added_or_updated(records)
         self.source_data_deleted(records)
 
