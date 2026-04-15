@@ -10,6 +10,7 @@ from .base import Base
 from .bindable import Bindable
 from .button import Button
 from .canvasview import CanvasView
+from .jsoncanvas import JSONCanvas
 from .checkbox import Checkbox
 from .configurable import (
     ConfigModel,
