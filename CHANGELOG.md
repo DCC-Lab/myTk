@@ -2,7 +2,7 @@
 
 All notable changes to myTk are documented here.
 
-## [Unreleased]
+## [1.1.0] - 2026-05-23
 ### Added
 - `grid_into(fill=...)` resize shortcut: sets the child's `sticky` and the parent row/column `weight` together so a widget actually grows with the window. Accepts `True`/`"both"`, `"x"`/`"width"`, `"y"`/`"height"`. Existing explicit (nonzero) weights are preserved; cannot be combined with an explicit `sticky`.
 
