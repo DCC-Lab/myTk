@@ -371,7 +371,12 @@ class TestCellEntry(envtest.MyTkTestCase):
         def edit_and_press_return():
             ce.widget.focus_set()
             ce.value_variable.set("Bob")
-            ce.widget.event_generate("<Return>")
+            # update() realizes the widget and applies the focus change, then
+            # when="now" dispatches the key event synchronously to the widget's
+            # binding. Without both, the commit handler may not have run by the
+            # time the record is read below (order/timing-flaky).
+            ce.widget.update()
+            ce.widget.event_generate("<Return>", when="now")
 
         self.start_timed_mainloop(function=edit_and_press_return, timeout=400)
         self.app.mainloop()
@@ -394,7 +399,11 @@ class TestCellEntry(envtest.MyTkTestCase):
         def edit_and_press_return():
             ce.widget.focus_set()
             ce.value_variable.set("notanumber")
-            ce.widget.event_generate("<Return>")
+            # update() realizes the widget and applies the focus change, then
+            # when="now" dispatches synchronously so the commit handler runs
+            # before we read the record (default "tail" only queues the event).
+            ce.widget.update()
+            ce.widget.event_generate("<Return>", when="now")
             result.append(
                 self.tableview.data_source.record(self.item_id)["score"]
             )

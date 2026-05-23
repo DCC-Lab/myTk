@@ -1,18 +1,24 @@
 import unittest
+import uuid
 
 import envtest
 
 from mytk import *
 
+# A module name guaranteed not to exist locally or on PyPI, used to exercise the
+# "missing module" code paths. "alouette" used to serve this role but a real
+# PyPI package by that name now exists, so the negative assertions broke.
+ABSENT_MODULE = f"mytk_absent_{uuid.uuid4().hex}"
+
 
 class TestModulesManager(envtest.MyTkTestCase):
     def test_is_installed(self):
         self.assertTrue(ModulesManager.is_installed("io"))
-        self.assertFalse(ModulesManager.is_installed("alouette"))
+        self.assertFalse(ModulesManager.is_installed(ABSENT_MODULE))
 
     def test_is_not_installed(self):
         self.assertFalse(ModulesManager.is_not_installed("io"))
-        self.assertTrue(ModulesManager.is_not_installed("alouette"))
+        self.assertTrue(ModulesManager.is_not_installed(ABSENT_MODULE))
 
     def test_is_imported(self):
         self.assertTrue(ModulesManager.is_imported("io"))
@@ -22,7 +28,7 @@ class TestModulesManager(envtest.MyTkTestCase):
 
     def test_install_error_module(self):
         with self.assertRaises(RuntimeError):
-            ModulesManager.install_module("alouette")
+            ModulesManager.install_module(ABSENT_MODULE)
 
     def test_install_import(self):
         ModulesManager.install_and_import_modules_if_absent(
@@ -32,13 +38,13 @@ class TestModulesManager(envtest.MyTkTestCase):
     def test_install_import_error(self):
         with self.assertRaises(RuntimeError):
             ModulesManager.install_and_import_modules_if_absent(
-                {"alouette": "alouette"}, ask_for_confirmation=False
+                {ABSENT_MODULE: ABSENT_MODULE}, ask_for_confirmation=False
             )
 
     def test_validate_environment_error(self):
         with self.assertRaises(RuntimeError):
             ModulesManager.validate_environment(
-                {"alouette": "alouette"}, ask_for_confirmation=False
+                {ABSENT_MODULE: ABSENT_MODULE}, ask_for_confirmation=False
             )
 
     def test_validate_environment_no_error(self):
