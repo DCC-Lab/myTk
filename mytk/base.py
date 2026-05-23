@@ -86,12 +86,36 @@ class _BaseWidget:
         for i, element in enumerate(elements):
             element.grid_into(self, row=start_row + i, column=column, **kwargs)
 
-    def grid_into(self, parent=None, widget=None, describe=False, **kwargs):
+    # Maps the high-level `fill` shortcut to (sticky, grow_column, grow_row).
+    # Making a widget resize needs two things that must agree: `sticky` on the
+    # child (fill the cell) and `weight` on the parent's row/column (grow the
+    # cell). `fill` sets both at once. e/w are horizontal (width → column);
+    # n/s are vertical (height → row).
+    _FILL_MAP = {
+        True: ("nsew", True, True),
+        "both": ("nsew", True, True),
+        "x": ("ew", True, False),
+        "width": ("ew", True, False),
+        "y": ("ns", False, True),
+        "height": ("ns", False, True),
+    }
+
+    def grid_into(
+        self, parent=None, widget=None, fill=None, describe=False, **kwargs
+    ):
         """Places the widget into a grid layout.
 
         Args:
             parent (Base): Parent widget wrapper.
             widget (tk.Widget): Optional target widget.
+            fill: High-level resize shortcut. Sets both the child's `sticky`
+                and the parent row/column `weight` so the widget actually grows
+                with the window. One of: ``True``/``"both"`` (fill and grow in
+                both directions), ``"x"``/``"width"`` (horizontal only),
+                ``"y"``/``"height"`` (vertical only), or ``None`` (default, no
+                automatic resizing). Cannot be combined with an explicit
+                ``sticky``. The parent weight is only set when it is currently
+                0, so explicit proportional weights are preserved.
             describe (bool): If True, prints diagnostics about layout and geometry.
             **kwargs: Grid options (row, column, sticky, etc.)
         """
@@ -101,6 +125,23 @@ class _BaseWidget:
             "column": kwargs.get("column", 0),
         }
         self._grid_kwargs = kwargs
+
+        grow_column = grow_row = False
+        if fill is not None:
+            if "sticky" in kwargs:
+                raise ValueError(
+                    "Use either fill=... or sticky=..., not both: fill sets "
+                    "sticky and the parent row/column weight together."
+                )
+            key = fill.lower() if isinstance(fill, str) else fill
+            try:
+                fill_sticky, grow_column, grow_row = Base._FILL_MAP[key]
+            except (KeyError, TypeError):
+                raise ValueError(
+                    f"Invalid fill={fill!r}. Use True/'both', 'x'/'width', "
+                    f"or 'y'/'height'."
+                )
+            kwargs["sticky"] = fill_sticky
 
         if widget is not None:
             self.create_widget(master=widget)
@@ -125,20 +166,25 @@ class _BaseWidget:
         if self.widget is not None:
             self.widget.grid(kwargs)
 
+        # `widget` is the parent/master container here. Give its row/column the
+        # weight implied by `fill` so the cell (and thus the child) grows with
+        # available space. Only set it when unset, to keep explicit weights.
+        if grow_column and widget.grid_columnconfigure(column)["weight"] == 0:
+            widget.grid_columnconfigure(column, weight=1)
+        if grow_row and widget.grid_rowconfigure(row)["weight"] == 0:
+            widget.grid_rowconfigure(row, weight=1)
+
         if describe or Base.debug:
             try:
                 print(
                     f"\nPlacing widget {_class_nice_(self)} into {_class_nice_(parent)}.grid({row},{column})"
                 )
-                stretch_width_to_fit = False
-                if "n" in sticky and "s" in sticky:
-                    stretch_width_to_fit = True
-
-                stretch_height_to_fit = False
-                if "e" in sticky and "w" in sticky:
-                    stretch_height_to_fit = True
+                # sticky e+w (horizontal) stretches width; n+s (vertical)
+                # stretches height. The widget only fills its cell on these axes.
+                stretch_width_to_fit = "e" in sticky and "w" in sticky
+                stretch_height_to_fit = "n" in sticky and "s" in sticky
                 print(
-                    f"  Widget size expands to fit grid cell:  (w, h):{stretch_width_to_fit, stretch_height_to_fit}"
+                    f"  Widget stretches to fill its cell (width, height): {stretch_width_to_fit, stretch_height_to_fit}"
                 )
 
                 row_weight = parent.widget.grid_rowconfigure(row)["weight"]
@@ -146,8 +192,10 @@ class _BaseWidget:
                     "weight"
                 ]
 
+                # The cell only grows with the window when its weight is > 0:
+                # column weight governs width, row weight governs height.
                 print(
-                    f"  Grid cell expands to fill extra space: (h, w):{row_weight==0, column_weight==0}, {row_weight, column_weight}"
+                    f"  Grid cell grows with extra space (width, height): {column_weight != 0, row_weight != 0} (column weight={column_weight}, row weight={row_weight})"
                 )
                 print(
                     f"  Parent propagates resize to parents: {parent.widget.propagate() != 0}"

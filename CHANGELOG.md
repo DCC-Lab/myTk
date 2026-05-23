@@ -2,6 +2,16 @@
 
 All notable changes to myTk are documented here.
 
+## [Unreleased]
+### Added
+- `grid_into(fill=...)` resize shortcut: sets the child's `sticky` and the parent row/column `weight` together so a widget actually grows with the window. Accepts `True`/`"both"`, `"x"`/`"width"`, `"y"`/`"height"`. Existing explicit (nonzero) weights are preserved; cannot be combined with an explicit `sticky`.
+
+### Changed
+- `View` and `Box` now disable grid propagation (`grid_propagate(False)`) when **both** `width` and `height` are given, so the requested pixel size is honored instead of being silently overridden by the size of their children. A single dimension (e.g. `Box(width=100)`) or no dimension still sizes to content as before. `View`'s `width`/`height` are now optional — `View()` produces a content-sized frame.
+
+### Fixed
+- `grid_into(describe=True)` diagnostics: width/height were swapped (n/s reported as width, e/w as height) and the "expands to fill extra space" booleans were inverted (printed `True` when weight was 0). Output now reports `(width, height)` correctly.
+
 ## [0.10.11] - 2026-02-26
 ### Fixed
 - `TabularData._normalize_record()` no longer mutates `required_fields` on every insert
