@@ -10,6 +10,24 @@ from tkinter import ttk
 from .base import Base, _BaseWidget
 
 
+def _honor_requested_size(widget, widget_args):
+    """Stop a container from resizing to fit its children when an explicit
+    width *and* height were requested, so the requested pixel size is honored.
+
+    Tk frames propagate their children's size requests upward by default
+    (grid_propagate True), which silently overrides the width/height passed to
+    the constructor as soon as a child is added. Disabling propagation makes the
+    constructor arguments mean what they say. Only applied when both dimensions
+    are given: grid_propagate is all-or-nothing, so a single dimension cannot be
+    frozen on its own without collapsing the other.
+    """
+    if (
+        widget_args.get("width") is not None
+        and widget_args.get("height") is not None
+    ):
+        widget.grid_propagate(False)
+
+
 class View(Base):
     """A generic frame container used to group widgets together.
 
@@ -22,12 +40,17 @@ class View(Base):
         **kwargs: Additional keyword arguments passed to Base.
     """
 
-    def __init__(self, width, height, *args, **kwargs):
-        """Initializes the View with a fixed width and height.
+    def __init__(self, width=None, height=None, *args, **kwargs):
+        """Initializes the View, optionally with a requested width and height.
+
+        When both width and height are given, the frame keeps that pixel size
+        instead of shrinking to fit its children (grid propagation is disabled).
+        Omit them (or pass only one) to let the frame size itself to its
+        content, as Tk does by default.
 
         Args:
-            width (int): Width of the frame in pixels.
-            height (int): Height of the frame in pixels.
+            width (int, optional): Requested width of the frame in pixels.
+            height (int, optional): Requested height of the frame in pixels.
             *args: Additional positional arguments passed to Base.
             **kwargs: Additional keyword arguments passed to Base.
         """
@@ -45,6 +68,7 @@ class View(Base):
         self.widget = ttk.Frame(
             master, **self._widget_args, **self.debug_kwargs
         )
+        _honor_requested_size(self.widget, self._widget_args)
 
     @property
     def is_disabled(self):
@@ -95,6 +119,7 @@ class Box(Base):
             **self._widget_args,
             **self.debug_kwargs,
         )
+        _honor_requested_size(self.widget, self._widget_args)
 
     @property
     def is_disabled(self):

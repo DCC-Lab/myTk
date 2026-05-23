@@ -101,5 +101,40 @@ class TestViewDisablePropagation(envtest.MyTkTestCase):
         self.assertTrue(label.is_disabled)
 
 
+class TestRequestedSizeHonored(envtest.MyTkTestCase):
+    """A container freezes its size only when both width and height are given."""
+
+    def propagation(self, container):
+        # grid_propagate() returns the current setting: True = sizes to content,
+        # False = holds the requested width/height.
+        return bool(container.widget.grid_propagate())
+
+    def test_view_with_both_dimensions_disables_propagation(self):
+        view = View(width=300, height=200)
+        view.grid_into(self.app.window, row=0, column=0)
+        self.assertFalse(self.propagation(view))
+
+    def test_view_without_dimensions_keeps_propagation(self):
+        view = View()
+        view.grid_into(self.app.window, row=0, column=0)
+        self.assertTrue(self.propagation(view))
+
+    def test_box_label_only_keeps_propagation(self):
+        box = Box(label="Group")
+        box.grid_into(self.app.window, row=0, column=0)
+        self.assertTrue(self.propagation(box))
+
+    def test_box_width_only_keeps_propagation(self):
+        # Freezing on a single dimension would collapse the other, so don't.
+        box = Box(label="Group", width=120)
+        box.grid_into(self.app.window, row=0, column=0)
+        self.assertTrue(self.propagation(box))
+
+    def test_box_with_both_dimensions_disables_propagation(self):
+        box = Box(label="Group", width=200, height=100)
+        box.grid_into(self.app.window, row=0, column=0)
+        self.assertFalse(self.propagation(box))
+
+
 if __name__ == "__main__":
     unittest.main()
