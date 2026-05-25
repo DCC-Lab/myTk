@@ -1,4 +1,5 @@
 import collections
+import tempfile
 import unittest
 import uuid
 from pathlib import Path
@@ -146,7 +147,7 @@ class TestTabularDataSource(unittest.TestCase):
         self.assertTrue(self.delegate_function_called)
 
     def test_save_and_load_json(self):
-        filepath = "/tmp/test_tabulardata_save_load.json"
+        filepath = Path(tempfile.gettempdir()) / "test_tabulardata_save_load.json"
         t = TabularData(delegate=self)
         _ = t.insert_record(0, {"a": 1})
         _ = t.insert_record(1, {"a": 2})
@@ -205,7 +206,7 @@ class TestTabularDataSource(unittest.TestCase):
         t.insert_record(0, {"a": 1, "b": 2})
         t.insert_record(1, {"a": 2, "c": 3})
 
-        temp_filepath = Path("/tmp/test_tabulardata_exists.json")
+        temp_filepath = Path(tempfile.gettempdir()) / "test_tabulardata_exists.json"
         t.save(temp_filepath)
         self.assertTrue(temp_filepath.exists())
 
@@ -224,7 +225,7 @@ class TestTabularDataSource(unittest.TestCase):
 
         pre_records = t.records
 
-        temp_filepath = Path("/tmp/test_tabulardata_load.json")
+        temp_filepath = Path(tempfile.gettempdir()) / "test_tabulardata_load.json"
         t.save(temp_filepath)
 
         t2 = TabularData(delegate=self)

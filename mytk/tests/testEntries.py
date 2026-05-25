@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 import envtest
@@ -5,6 +6,14 @@ import envtest
 from mytk import *
 from mytk.entries import *
 from mytk.tableview import TableView
+
+# Synthetic <Return>/focus key events are only delivered to widget bindings
+# under X11 (Linux). Tk/Aqua (macOS) and Win32 (Windows) drop them in CI, so
+# these event-simulation tests are skipped off Linux.
+skip_synthetic_events = unittest.skipIf(
+    sys.platform in ("darwin", "win32"),
+    "synthetic key/focus events are not delivered under Tk/Aqua or Win32",
+)
 
 
 class TestController(Bindable):
@@ -241,6 +250,7 @@ class TestFormattedEntry(envtest.MyTkTestCase):
         entry.character_width = 20
         self.assertEqual(entry.character_width, 20)
 
+    @skip_synthetic_events
     def test_event_return_releases_focus(self):
         entry = FormattedEntry()
         entry.grid_into(self.app.window, row=0, column=0)
@@ -360,6 +370,7 @@ class TestCellEntry(envtest.MyTkTestCase):
         self.assertIsNotNone(ce.widget)
         self.assertEqual(ce.value_variable.get(), "42")
 
+    @skip_synthetic_events
     def test_return_key_updates_record(self):
         ce = CellEntry(
             tableview=self.tableview,
@@ -384,6 +395,7 @@ class TestCellEntry(envtest.MyTkTestCase):
         record = self.tableview.data_source.record(self.item_id)
         self.assertEqual(record["name"], "Bob")
 
+    @skip_synthetic_events
     def test_return_key_invalid_value_sets_none(self):
         self.tableview.data_source.update_field_properties(
             "score", {"type": float}
