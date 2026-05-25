@@ -18,11 +18,19 @@ jobs:
   test:
     name: ${{ matrix.os }} / py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    # Guard against a hung GUI test blocking the runner for hours; the suite
+    # normally finishes in ~2 minutes.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
+        exclude:
+          # macOS + Python 3.11 hangs in a Tk GUI test (mainloop never exits on
+          # that runner's Tcl/Tk build); macOS is still covered by 3.12 and 3.13.
+          - os: macos-latest
+            python-version: "3.11"
 
     steps:
       - uses: actions/checkout@v4
