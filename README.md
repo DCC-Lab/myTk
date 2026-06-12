@@ -32,15 +32,21 @@ options:
 % python -m mytk -l
 
  1. canvas_app.py
- 2. controlpanel_app.py
- 3. example.py
- 4. file_calculator_app.py
- 5. fileviewer_app.py
- 6. filters_app.py
- 7. lensviewer_app.py
- 8. microscope_app.py
- 9. powermeter_app.py
-10. pydatagraph_app.py
+ 2. contrast_app.py
+ 3. controlpanel_app.py
+ 4. dnd_app.py
+ 5. example.py
+ 6. file_calculator_app.py
+ 7. fileviewer_app.py
+ 8. filters_app.py
+ 9. formatted_entry_app.py
+10. jsoncanvas_app.py
+11. lensviewer_app.py
+12. microscope_app.py
+13. powermeter_app.py
+14. progressbar_app.py
+15. pydatagraph_app.py
+16. view3d_app.py
 
 % python -m mytk -e 3
 
@@ -55,7 +61,8 @@ Having been a macOS programmer for a long time, I have lived through the many in
 * You can `bind` the property of a GUI-object (`View`) to the value of a control (another `View`).  They will always be synchronized, via the interface or even if you change them programmatically
 * You can register for changes to Tkinter.Vars
 * You can register a callback for an event
-* You can set a delegate to manage the details 
+* You can set a delegate to manage the details
+* You can accept files dropped onto any widget from the system file manager with `accept_dropped_files` (see [Drag and drop](#drag-and-drop))
 
 ## Layout manager
 The most important aspect to understand with Tk is how to position things on screen, and I have found it quite confusing. There are three "layout managers" in Tk: `grid`, `pack` and `place`. Grid allows you to conceptually separate a view (or widget in Tk) into a grid, and place objects on that grid.  The grid may adjust its size to fit the objects (or not) depending on the options that are passed.  If the window is resized, then some columns and rows may resize, depending on options (`column/row` `weight`) and the widget itself may also resize (depending on its `sticky` options ). When adding objects, they may adjust their size or force the size of the grid element (`grid_propagate`). Finally, you can place an element in a range of rows and columns by using the `rowspan` and `columnspan` keywords.
@@ -89,9 +96,24 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 `Figure`: A matplotlib figure. You can let Figure create the actual matplotlib.figure or provide your own.
 
+`View3D`: An embedded 3D mesh viewer. It loads a GLB/GLTF/OBJ/PLY/STL file (via `trimesh`) and renders it lit and shaded off-screen — drag to orbit, scroll to zoom. It picks a rendering backend automatically (`pyrender` if available, otherwise a small built-in `moderngl` renderer; you can also instantiate `View3DPyrender` or `View3DModernGL` directly). Drop a mesh file onto it to load it. The heavy dependencies are optional and installed on demand.
+
 and many others that need to be documented.  [Look at the code](https://github.com/DCC-Lab/myTk/tree/main/mytk) to find them for now.
 
 ![image](https://github.com/user-attachments/assets/501952c8-e16c-406e-97cc-3a729472b2ea)
+
+## Drag and drop
+
+Any widget can accept files dropped onto it from the system file manager (Finder, Explorer, Files). Call `accept_dropped_files` after the widget has been placed:
+
+```python
+label.grid_into(self.window, row=0, column=0)
+label.accept_dropped_files(lambda paths: print("Dropped:", paths))
+```
+
+The callback receives the list of dropped file paths. It runs on the next event-loop tick, so it is safe to do slow work or open a dialog from it.
+
+Tk has no native OS drag-and-drop, so this builds on the optional `tkinterdnd2`/`tkdnd` extension, which is installed on demand the first time you use it. If it cannot be enabled in your environment, `accept_dropped_files` simply returns `False` and the app keeps working without drops (use `is_drag_and_drop_available()` to check ahead of time). The `dnd_app` and `view3d_app` examples both use it.
 
 ## Getting started
 
