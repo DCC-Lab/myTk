@@ -295,10 +295,17 @@ class _BaseWidget:
         tkdnd = ensure_tkdnd(root)
         if tkdnd is None:
             return False
+
+        def on_drop(event):
+            # Run the callback on the next event-loop tick, not inline: the OS
+            # drag is still in progress during <<Drop>>, so a callback that
+            # blocks (e.g. opens a modal dialog) would deadlock the handshake.
+            paths = dropped_paths(root, event.data)
+            self.widget.after(0, lambda: callback(paths))
+            return getattr(event, "action", None)
+
         self.widget.drop_target_register(tkdnd.DND_FILES)
-        self.widget.dnd_bind(
-            "<<Drop>>", lambda event: callback(dropped_paths(root, event.data))
-        )
+        self.widget.dnd_bind("<<Drop>>", on_drop)
         return True
 
     @property
