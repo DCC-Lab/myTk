@@ -1,8 +1,9 @@
 """
 view3d_app.py — Minimal 3D mesh viewer.
 
-Opens a window with a `View3D`. Pass a mesh file on the command line, or click
-"Load…" to open a GLB/GLTF/OBJ/PLY file. Drag to orbit, scroll to zoom.
+Opens a window with a `View3D`. Pass a mesh file on the command line, drag a
+mesh file onto the viewer, or click "Load…" to open a GLB/GLTF/OBJ/PLY file.
+Drag to orbit, scroll to zoom.
 
     python -m mytk.example_apps.view3d_app [path/to/scene.glb]
 """
@@ -36,6 +37,9 @@ if __name__ == "__main__":
     Button("Load…", user_event_callback=lambda e, b: load_file()).grid_into(
         app.window, row=1, column=0, padx=10, pady=(0, 10), sticky="w"
     )
+
+    # Drop a mesh file straight onto the viewer to load it.
+    mesh_view.accept_dropped_files(lambda paths: mesh_view.load_file(paths[0]))
 
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
