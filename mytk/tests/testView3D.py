@@ -32,10 +32,29 @@ class TestView3DExport(unittest.TestCase):
             self.assertTrue(issubclass(cls, View3D))
             self.assertTrue(issubclass(cls, Base))
 
-    def test_view3d_base_is_abstract(self):
-        # The base leaves the backend hooks abstract, so it cannot be built.
+    def test_view3d_base_cannot_be_built_directly(self):
+        # The backend hooks are abstract, so object.__new__ refuses a bare base.
+        import mytk.view3d as v3d
         with self.assertRaises(TypeError):
-            View3D(width=10, height=10)
+            object.__new__(v3d.View3D)
+
+    def test_view3d_dispatches_to_a_concrete_backend(self):
+        # Calling View3D(...) is a factory: it returns a concrete subclass,
+        # never a bare base instance.
+        viewer = View3D(width=10, height=10)
+        self.assertIsInstance(viewer, (View3DModernGL, View3DPyrender))
+        self.assertIsNot(type(viewer), View3D)
+
+    @unittest.skipUnless(_has_pyrender, "pyrender not available")
+    def test_prefers_pyrender_when_importable(self):
+        self.assertIsInstance(View3D(width=10, height=10), View3DPyrender)
+
+    @unittest.skipUnless(
+        _has_moderngl and not _has_pyrender,
+        "needs moderngl present and pyrender absent",
+    )
+    def test_falls_back_to_moderngl_without_pyrender(self):
+        self.assertIsInstance(View3D(width=10, height=10), View3DModernGL)
 
 
 @unittest.skipUnless(_has_moderngl, "moderngl/trimesh/numpy/Pillow not available")

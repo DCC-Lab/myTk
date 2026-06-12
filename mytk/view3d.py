@@ -37,12 +37,22 @@ from .modulesmanager import ModulesManager
 
 
 class View3D(Base, ABC):
-    """Abstract off-screen 3D mesh viewer blitted into a Tk label.
+    """Off-screen 3D mesh viewer blitted into a Tk label.
 
     Load a mesh with :meth:`load_file`, place it like any other myTk widget,
     then drag to orbit and scroll to zoom. Renders only on interaction, so it is
-    cheap when idle. Instantiate a concrete subclass — :class:`View3DModernGL`
-    or :class:`View3DPyrender` — not this class.
+    cheap when idle.
+
+    Calling ``View3D(...)`` does **not** build a base instance — it is a factory
+    that picks a rendering backend and returns one of its concrete subclasses,
+    preferring :class:`View3DPyrender` (which keeps almost no GL of its own) and
+    falling back to :class:`View3DModernGL` when pyrender is not importable. Ask
+    for a specific backend by instantiating that subclass directly.
+
+    The choice is made from which backend module imports, so a missing or broken
+    pyrender install falls back cleanly. It cannot, however, detect a pyrender
+    that imports but later fails to create a GL context (that surfaces at render
+    time); construct :class:`View3DModernGL` explicitly if you hit that.
 
     Args:
         width (int): Initial render width in pixels (the label adopts the size
@@ -53,9 +63,32 @@ class View3D(Base, ABC):
             translucently over the background. Settable later via ``.opacity``.
     """
 
+    # Backend module to import-probe; concrete subclasses set their own.
+    _BACKEND_IMPORT = None
+
     # ------------------------------------------------------------------ #
     # Construction and public API
     # ------------------------------------------------------------------ #
+
+    def __new__(cls, *args, **kwargs):
+        # A concrete subclass builds normally; only bare View3D(...) dispatches.
+        if cls is not View3D:
+            return super().__new__(cls)
+        for backend in (View3DPyrender, View3DModernGL):
+            if backend._backend_importable():
+                return super().__new__(backend)
+        # Neither is installed yet: default to moderngl, whose lighter deps the
+        # normal ModulesManager path will offer to install on first use.
+        return super().__new__(View3DModernGL)
+
+    @classmethod
+    def _backend_importable(cls):
+        """Whether this backend's module imports (catches absent/broken installs)."""
+        try:
+            importlib.import_module(cls._BACKEND_IMPORT)
+            return True
+        except Exception:
+            return False
 
     def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
         super().__init__()
@@ -333,6 +366,8 @@ class View3DModernGL(View3D):
     buffers, drawing into a standalone off-screen framebuffer.
     """
 
+    _BACKEND_IMPORT = "moderngl"
+
     def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
         super().__init__(width, height, background, opacity)
         # Interleaved [pos, normal, rgba] vertices and Mx3 int faces.
@@ -523,6 +558,8 @@ class View3DPyrender(View3D):
     orbit-camera pose. The object's own alpha times the viewer-wide ``opacity``
     maps onto each material's ``baseColorFactor`` with ``alphaMode='BLEND'``.
     """
+
+    _BACKEND_IMPORT = "pyrender"
 
     def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
         super().__init__(width, height, background, opacity)
