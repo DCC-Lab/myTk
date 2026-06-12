@@ -97,6 +97,28 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         )
         self.assertEqual(self.mesh_view.radius, 1.0)
 
+    def test_vertex_colors_reads_gltf_color0_alpha(self):
+        # A textured mesh has no .vertex_colors, but glTF COLOR_0 (per-vertex
+        # alpha) lands in visual.vertex_attributes['color'] and must be honoured
+        # rather than falling back to the opaque material colour.
+        import numpy as np
+
+        colors = np.zeros((5, 4), np.uint8)
+        colors[:, 0] = 200  # red
+        colors[:, 3] = 128  # half-transparent
+
+        class _Visual:
+            vertex_attributes = {"color": colors}
+
+        class _Mesh:
+            visual = _Visual()
+            vertices = np.zeros((5, 3))
+
+        rgba = self.mesh_view._vertex_colors(_Mesh())
+        self.assertEqual(rgba.shape, (5, 4))
+        self.assertAlmostEqual(float(rgba[0, 0]), 200 / 255, places=3)
+        self.assertAlmostEqual(float(rgba[0, 3]), 128 / 255, places=3)
+
     def test_load_file_raises_on_unrecognized_file(self):
         # load_file_or_warn relies on this to know when to warn the user.
         import os

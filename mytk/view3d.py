@@ -471,25 +471,48 @@ class View3DModernGL(View3D):
         """Per-vertex RGBA in 0..1 for a trimesh mesh, however it stores colour.
 
         The alpha channel is carried through (defaulting to opaque) so the
-        object's own transparency is honoured.
+        object's own transparency is honoured. Colour is taken, in order, from
+        ColorVisuals' vertex colours, the glTF ``COLOR_0`` vertex attribute
+        (which a textured mesh can still carry — e.g. per-vertex alpha encoding
+        translucency), then the material colour, then grey.
         """
         np = self.np
         visual = mesh.visual
+
+        # 1. ColorVisuals: per-vertex RGBA directly.
         try:
-            rgba = np.asarray(visual.vertex_colors)[:, :4] / 255.0
-            return rgba.astype(np.float32)
+            return (np.asarray(visual.vertex_colors)[:, :4] / 255.0).astype(
+                np.float32
+            )
         except Exception:
-            material = getattr(visual, "material", None)
-            rgba = getattr(visual, "main_color", None)
-            if rgba is None and material is not None:
-                rgba = getattr(material, "main_color", None)
-            if rgba is not None:
-                rgba = np.asarray(rgba, np.float32)[:4] / 255.0
-                if len(rgba) == 3:  # RGB without alpha → opaque
-                    rgba = np.append(rgba, 1.0)
-            else:
-                rgba = np.array((0.7, 0.7, 0.7, 1.0), np.float32)
-            return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
+            pass
+
+        # 2. glTF COLOR_0 carried as a vertex attribute on a textured mesh.
+        raw = (getattr(visual, "vertex_attributes", None) or {}).get("color")
+        if raw is not None:
+            raw = np.asarray(raw)
+            if raw.ndim == 2 and raw.shape[1] >= 3:
+                colors = raw[:, :4].astype(np.float32)
+                if np.issubdtype(raw.dtype, np.integer):
+                    colors /= np.iinfo(raw.dtype).max  # 0..255 / 0..65535 → 0..1
+                if colors.shape[1] == 3:  # RGB without alpha → opaque
+                    colors = np.hstack(
+                        [colors, np.ones((len(colors), 1), np.float32)]
+                    )
+                return colors
+
+        # 3. Single material / main colour, else grey.
+        material = getattr(visual, "material", None)
+        rgba = getattr(visual, "main_color", None)
+        if rgba is None and material is not None:
+            rgba = getattr(material, "main_color", None)
+        if rgba is not None:
+            rgba = np.asarray(rgba, np.float32)[:4] / 255.0
+            if len(rgba) == 3:  # RGB without alpha → opaque
+                rgba = np.append(rgba, 1.0)
+        else:
+            rgba = np.array((0.7, 0.7, 0.7, 1.0), np.float32)
+        return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
 
     def _ensure_context(self):
         """Create the standalone GL context and shader program once."""
