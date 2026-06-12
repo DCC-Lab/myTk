@@ -10,8 +10,12 @@ Optional dependencies (installed on demand, like the other heavy myTk widgets)::
 
     pip install moderngl trimesh numpy Pillow
 
-It shows static geometry only (no baked animations): opaque, per-vertex-coloured
+It shows static geometry only (no baked animations): per-vertex-coloured
 triangles with a two-sided Lambert shade — enough to inspect exported scenes.
+
+All of the OpenGL machinery is confined to the "OpenGL rendering" section at the
+bottom of the class. The rest of the widget treats it as a black box that turns
+the current geometry and camera into a Tk image, so a reader can stop there.
 """
 
 import importlib
@@ -20,6 +24,7 @@ import tkinter.ttk as ttk
 from .base import Base
 from .modulesmanager import ModulesManager
 
+# GLSL for the single draw call; only the OpenGL rendering section touches these.
 VERTEX_SHADER = """
 #version 330
 uniform mat4 mvp;
@@ -68,6 +73,10 @@ class View3D(Base):
             translucently over the background. Settable later via ``.opacity``.
     """
 
+    # ------------------------------------------------------------------ #
+    # Construction and public API
+    # ------------------------------------------------------------------ #
+
     def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
         super().__init__()
 
@@ -86,7 +95,7 @@ class View3D(Base):
         self.azimuth, self.elevation = 0.6, 0.4
         self.distance = 2.6
 
-        # GL objects, created lazily on first render.
+        # Opaque handles for the OpenGL rendering section; created lazily there.
         self.ctx = None
         self.prog = None
         self.vbo = None
@@ -98,9 +107,8 @@ class View3D(Base):
         self._last = None              # last mouse position while dragging
         self._displayed_tkimage = None  # keep a ref so Tk does not GC the image
 
-        # Deferred-render bookkeeping. The GL context must be created only once
-        # the window is on screen (see _schedule_render), so the first render
-        # and every geometry change are coalesced onto the Tk event loop.
+        # Render-scheduling flags; the rendering section explains why renders
+        # are deferred onto the Tk event loop rather than run immediately.
         self._mapped = False
         self._render_pending = False
         self._geometry_dirty = False
@@ -153,25 +161,8 @@ class View3D(Base):
         self.widget.bind("<Button-4>", lambda e: self._zoom(0.9))   # Linux up
         self.widget.bind("<Button-5>", lambda e: self._zoom(1.1))   # Linux down
 
-        # No GL work yet: the first render is driven by <Map>, once the window
-        # is actually on screen (see _schedule_render for why that matters).
+        # No rendering yet: the first frame is driven by <Map> (see _on_map).
         self._bind_destroy_cancel()
-
-    def _on_map(self, event):
-        """First time the widget appears on screen, kick off the initial render.
-
-        This is the earliest point at which building the moderngl context is
-        safe; the extra after(0) gives the macOS Cocoa run loop a beat to finish
-        realizing the window before we touch GL.
-        """
-        if self._mapped:
-            return
-        self._mapped = True
-        self.widget.after(0, self._render_now)
-
-    # ------------------------------------------------------------------ #
-    # Geometry
-    # ------------------------------------------------------------------ #
 
     def load_file(self, path):
         """Load a GLB/GLTF/OBJ/PLY file and display it.
@@ -201,32 +192,48 @@ class View3D(Base):
 
         self._schedule_render(upload=True)
 
-    def _schedule_render(self, upload=False):
-        """Coalesce a render onto the event loop, once the window is on screen.
+    # ------------------------------------------------------------------ #
+    # Camera and mouse interaction
+    # ------------------------------------------------------------------ #
 
-        The standalone moderngl context must be created only after the window
-        has been realized: building it earlier wedges Tk's macOS Cocoa run loop
-        and the window never appears. So before the first ``<Map>`` we merely
-        flag the work — the map handler performs the initial render. Afterwards
-        we are safely inside the loop and defer with ``after()``, coalescing
-        repeated requests into a single pending render.
-        """
-        if upload:
-            self._geometry_dirty = True
-        if not self._mapped or self.widget is None or self._render_pending:
+    def _on_press(self, event):
+        """Remember where a drag started."""
+        self._last = (event.x, event.y)
+
+    def _on_drag(self, event):
+        """Orbit the camera as the mouse drags."""
+        if self._last is None:
             return
-        self._render_pending = True
-        self.widget.after(0, self._render_now)
-
-    def _render_now(self):
-        """Build the FBO/context as needed, upload pending geometry, render."""
-        self._render_pending = False
-        w, h = self._size if self._size != (0, 0) else self._initial_size
-        self._ensure_fbo(w, h)
-        if self._geometry_dirty and self._data is not None:
-            self._upload_geometry()
-            self._geometry_dirty = False
+        np = self.np
+        dx, dy = event.x - self._last[0], event.y - self._last[1]
+        self.azimuth += dx * 0.01
+        self.elevation = float(np.clip(self.elevation + dy * 0.01, -1.5, 1.5))
+        self._last = (event.x, event.y)
         self.render()
+
+    def _on_wheel(self, event):
+        """Zoom on a macOS/Windows scroll wheel event."""
+        self._zoom(0.9 if event.delta > 0 else 1.1)
+
+    def _zoom(self, factor):
+        """Move the camera nearer/farther, clamped to the geometry's scale."""
+        self.distance = float(
+            self.np.clip(
+                self.distance * factor, 0.05 * self.radius, 50.0 * self.radius
+            )
+        )
+        self.render()
+
+    def _on_resize(self, event):
+        """Resize the framebuffer to the label and re-render."""
+        if not self._mapped:
+            return  # Rendering is off-limits until <Map>; _on_map renders first.
+        self._ensure_fbo(event.width, event.height)
+        self.render()
+
+    # ------------------------------------------------------------------ #
+    # Mesh loading (trimesh -> interleaved buffers)
+    # ------------------------------------------------------------------ #
 
     def _read_geometry(self, path):
         """Return (interleaved Nx10, faces Mx3, center, radius) for a mesh file."""
@@ -279,8 +286,49 @@ class View3D(Base):
             return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
 
     # ------------------------------------------------------------------ #
-    # GL setup and rendering
+    # OpenGL rendering (internal plumbing)
+    #
+    # Everything below turns the current geometry and camera into the Tk image
+    # shown by the label; nothing outside this section needs to know how.
+    #
+    # One subtlety shapes the scheduling: the standalone moderngl context may
+    # only be built once the window is actually on screen — creating it earlier
+    # wedges Tk's macOS Cocoa run loop and the window never appears. So no GL
+    # call happens until the widget's <Map> event, after which every render is
+    # coalesced onto the event loop.
     # ------------------------------------------------------------------ #
+
+    def _on_map(self, event):
+        """On first appearance, kick off the initial render (now GL is safe)."""
+        if self._mapped:
+            return
+        self._mapped = True
+        # The extra after(0) lets the macOS run loop finish realizing the window.
+        self.widget.after(0, self._render_now)
+
+    def _schedule_render(self, upload=False):
+        """Coalesce a render onto the event loop, once the window is on screen.
+
+        Before the first ``<Map>`` we only flag the work (``_on_map`` performs
+        the initial render); afterwards we defer with ``after()``, collapsing
+        repeated requests into a single pending render.
+        """
+        if upload:
+            self._geometry_dirty = True
+        if not self._mapped or self.widget is None or self._render_pending:
+            return
+        self._render_pending = True
+        self.widget.after(0, self._render_now)
+
+    def _render_now(self):
+        """Build the FBO/context as needed, upload pending geometry, render."""
+        self._render_pending = False
+        w, h = self._size if self._size != (0, 0) else self._initial_size
+        self._ensure_fbo(w, h)
+        if self._geometry_dirty and self._data is not None:
+            self._upload_geometry()
+            self._geometry_dirty = False
+        self.render()
 
     def _ensure_context(self):
         """Create the standalone GL context and shader program once."""
@@ -393,45 +441,6 @@ class View3D(Base):
         m[0, 3], m[1, 3], m[2, 3] = -np.dot(s, eye), -np.dot(u, eye), np.dot(f, eye)
         return m
 
-    # ------------------------------------------------------------------ #
-    # Mouse interaction
-    # ------------------------------------------------------------------ #
-
-    def _on_resize(self, event):
-        """Resize the framebuffer to the label and re-render."""
-        if not self._mapped:
-            return  # GL is off-limits until <Map>; the map handler renders.
-        self._ensure_fbo(event.width, event.height)
-        self.render()
-
-    def _on_press(self, event):
-        """Remember where a drag started."""
-        self._last = (event.x, event.y)
-
-    def _on_drag(self, event):
-        """Orbit the camera as the mouse drags."""
-        if self._last is None:
-            return
-        np = self.np
-        dx, dy = event.x - self._last[0], event.y - self._last[1]
-        self.azimuth += dx * 0.01
-        self.elevation = float(np.clip(self.elevation + dy * 0.01, -1.5, 1.5))
-        self._last = (event.x, event.y)
-        self.render()
-
-    def _on_wheel(self, event):
-        """Zoom on a macOS/Windows scroll wheel event."""
-        self._zoom(0.9 if event.delta > 0 else 1.1)
-
-    def _zoom(self, factor):
-        """Move the camera nearer/farther, clamped to the geometry's scale."""
-        self.distance = float(
-            self.np.clip(
-                self.distance * factor, 0.05 * self.radius, 50.0 * self.radius
-            )
-        )
-        self.render()
-
 
 if __name__ == "__main__":
     # A very simple example: show a coloured box. Drag to orbit, scroll to zoom.
@@ -457,5 +466,3 @@ if __name__ == "__main__":
 
     viewer.load_file("/Users/dccote/GitHub/Tissue/results/tracks-2026-06-10-00-18-53.glb")
     app.mainloop()
-
-    
