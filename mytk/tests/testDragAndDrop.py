@@ -4,12 +4,28 @@ import unittest
 import envtest
 
 from mytk import App, Label
+from mytk.base import Base
+from mytk.draganddropcapable import DragAndDropCapable
 from mytk.dnd import _tkinterdnd2_spec, dropped_paths, ensure_tkdnd
 
 # tkinterdnd2 (and a tkdnd build matching the running Tcl) is optional, and
 # constructing it would otherwise prompt to install. Gate every test that needs
 # the live extension behind its presence, mirroring the View3D tests.
 _has_tkinterdnd2 = importlib.util.find_spec("tkinterdnd2") is not None
+
+
+class TestDragAndDropMixin(unittest.TestCase):
+    """The mixin is part of every widget; checking that needs no extension."""
+
+    def test_base_widgets_are_drag_and_drop_capable(self):
+        self.assertTrue(issubclass(Base, DragAndDropCapable))
+
+    def test_mixin_sits_in_the_mro_like_eventcapable(self):
+        from mytk.eventcapable import EventCapable
+
+        mro = Base.__mro__
+        self.assertIn(EventCapable, mro)
+        self.assertIn(DragAndDropCapable, mro)
 
 
 class TestDropPathParsing(envtest.MyTkTestCase):
@@ -50,11 +66,17 @@ class TestAcceptDroppedFiles(envtest.MyTkTestCase):
         if ensure_tkdnd(self.app.root) is None:
             self.skipTest("tkdnd could not be loaded in this environment")
 
+    def test_is_drag_and_drop_available(self):
+        label = Label("x")
+        label.grid_into(self.app.window, row=1, column=0)
+        self.assertTrue(label.is_drag_and_drop_available())
+
     def test_registers_drop_target_and_binding(self):
         label = Label("drop here")
         label.grid_into(self.app.window, row=1, column=0)
         self.assertTrue(label.accept_dropped_files(lambda paths: None))
         self.assertTrue(label.widget.bind("<<Drop>>"))
+        self.assertEqual(len(label._drop_callbacks), 1)  # tracked by the mixin
 
     def test_requires_a_created_widget(self):
         label = Label("not placed yet")  # never placed → no widget

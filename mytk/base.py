@@ -11,6 +11,7 @@ import re
 from enum import Enum
 
 from .bindable import Bindable
+from .draganddropcapable import DragAndDropCapable
 from .eventcapable import EventCapable
 
 
@@ -271,43 +272,6 @@ class _BaseWidget:
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)
 
-    def accept_dropped_files(self, callback):
-        """Accept files dropped onto this widget from the OS file manager.
-
-        ``callback(paths)`` is invoked on each drop with a list of filesystem
-        paths. Every dropped file is delivered — it is up to the callback to try
-        to use them and report anything it cannot handle. Call this after the
-        widget exists (e.g. after grid_into / pack_into / place_into).
-
-        Returns True if drag-and-drop is available in this environment, or False
-        if it could not be enabled — in which case the widget keeps working,
-        just without drops. Enabling it pulls in the optional ``tkinterdnd2``
-        dependency on first use (see :mod:`mytk.dnd`).
-        """
-        from .dnd import dropped_paths, ensure_tkdnd
-
-        if self.widget is None:
-            raise RuntimeError(
-                "accept_dropped_files() needs the widget to exist; place it "
-                "(grid_into/pack_into/place_into) first."
-            )
-        root = self.widget.winfo_toplevel()
-        tkdnd = ensure_tkdnd(root)
-        if tkdnd is None:
-            return False
-
-        def on_drop(event):
-            # Run the callback on the next event-loop tick, not inline: the OS
-            # drag is still in progress during <<Drop>>, so a callback that
-            # blocks (e.g. opens a modal dialog) would deadlock the handshake.
-            paths = dropped_paths(root, event.data)
-            self.widget.after(0, lambda: callback(paths))
-            return getattr(event, "action", None)
-
-        self.widget.drop_target_register(tkdnd.DND_FILES)
-        self.widget.dnd_bind("<<Drop>>", on_drop)
-        return True
-
     @property
     def debug_kwargs(self):
         """Returns debug border styling if class-level `debug` is True.
@@ -444,8 +408,9 @@ class _BaseWidget:
         print(self.widget.configure().keys())
 
 
-class Base(_BaseWidget, Bindable, EventCapable):
-    """Composite base class combining widget management, binding, and event capabilities."""
+class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
+    """Composite base class combining widget management, binding, event, and
+    drag-and-drop capabilities."""
 
     def _propagate_disabled(self, widget, disabled):
         for child in widget.winfo_children():
