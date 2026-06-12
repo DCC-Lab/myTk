@@ -41,6 +41,7 @@ from .progressbar import ProgressBar, ProgressBarNotification, ProgressWindow
 from .radiobutton import RadioButton
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
+from .view3d import View3D, View3DModernGL, View3DPyrender
 from .videoview import VideoView
 from .views import Box, View
 from .window import Window
@@ -92,6 +93,9 @@ __all__ = [  # noqa: F405
     "URLLabel",
     "VideoView",
     "View",
+    "View3D",
+    "View3DModernGL",
+    "View3DPyrender",
     "Window",
     "XYPlot",
     "tkFont",
