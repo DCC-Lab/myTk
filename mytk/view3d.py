@@ -635,7 +635,8 @@ class View3DPyrender(View3D):
 
 
 if __name__ == "__main__":
-    # A very simple example: show a coloured box. Drag to orbit, scroll to zoom.
+    # A very simple example: show a coloured box. Drag to orbit, scroll to zoom,
+    # or drop a mesh file onto the viewer to load it.
     import os
     import tempfile
 
@@ -657,4 +658,5 @@ if __name__ == "__main__":
     app.window.column_resize_weight(0, 1)
 
     viewer.load_file(path)
+    viewer.accept_dropped_files(lambda paths: viewer.load_file(paths[0]))
     app.mainloop()
