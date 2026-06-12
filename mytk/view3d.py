@@ -25,9 +25,9 @@ VERTEX_SHADER = """
 uniform mat4 mvp;
 in vec3 in_pos;
 in vec3 in_norm;
-in vec3 in_color;
+in vec4 in_color;
 out vec3 v_norm;
-out vec3 v_color;
+out vec4 v_color;
 void main() {
     gl_Position = mvp * vec4(in_pos, 1.0);
     v_norm = in_norm;
@@ -37,14 +37,16 @@ void main() {
 
 FRAGMENT_SHADER = """
 #version 330
+uniform float opacity;
 in vec3 v_norm;
-in vec3 v_color;
+in vec4 v_color;
 out vec4 f_color;
 void main() {
     vec3 n = normalize(v_norm);
     vec3 light = normalize(vec3(0.4, 0.8, 0.6));
     float diff = abs(dot(n, light));            // two-sided, so open shells stay lit
-    f_color = vec4(v_color * (0.35 + 0.75 * diff), 1.0);
+    // The object's own alpha; the viewer-wide opacity scales it further.
+    f_color = vec4(v_color.rgb * (0.35 + 0.75 * diff), v_color.a * opacity);
 }
 """
 
@@ -62,15 +64,18 @@ class View3D(Base):
             of the first rendered frame, then follows the layout).
         height (int): Initial render height in pixels.
         background (str): Tk colour shown behind the mesh while empty.
+        opacity (float): Mesh opacity in 0..1; below 1 the geometry is blended
+            translucently over the background. Settable later via ``.opacity``.
     """
 
-    def __init__(self, width=820, height=620, background="#1a1a1f"):
+    def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
         super().__init__()
 
         self._initial_size = (int(width), int(height))
         self.background = background
+        self._opacity = max(0.0, min(1.0, float(opacity)))
 
-        # Geometry: interleaved [pos, normal, rgb] vertices and Mx3 int faces,
+        # Geometry: interleaved [pos, normal, rgba] vertices and Mx3 int faces,
         # plus the bounding-sphere centre/radius used to frame the camera.
         self._data = None
         self._faces = None
@@ -99,6 +104,16 @@ class View3D(Base):
         self._mapped = False
         self._render_pending = False
         self._geometry_dirty = False
+
+    @property
+    def opacity(self):
+        """Mesh opacity in 0..1 (1 is fully opaque). Re-renders when changed."""
+        return self._opacity
+
+    @opacity.setter
+    def opacity(self, value):
+        self._opacity = max(0.0, min(1.0, float(value)))
+        self._schedule_render()
 
     def is_environment_valid(self):
         """Check that moderngl, trimesh, numpy and Pillow are available."""
@@ -171,7 +186,8 @@ class View3D(Base):
         """Display geometry from raw buffers.
 
         Args:
-            interleaved: Nx9 float32 array of [position, normal, rgb] per vertex.
+            interleaved: Nx10 float32 array of [position, normal, rgba] per
+                vertex (the alpha channel carries the object's transparency).
             faces: Mx3 int32 array of triangle vertex indices.
             center: 3-vector at the centre of the geometry's bounding box.
             radius: Half the bounding-box diagonal; frames the orbit camera.
@@ -213,7 +229,7 @@ class View3D(Base):
         self.render()
 
     def _read_geometry(self, path):
-        """Return (interleaved Nx9, faces Mx3, center, radius) for a mesh file."""
+        """Return (interleaved Nx10, faces Mx3, center, radius) for a mesh file."""
         np = self.np
         loaded = self.trimesh.load(path, force="scene")
         meshes = list(loaded.geometry.values())
@@ -238,24 +254,29 @@ class View3D(Base):
         return interleaved, faces, center, radius
 
     def _vertex_colors(self, mesh):
-        """Per-vertex RGB in 0..1 for a trimesh mesh, however it stores colour."""
+        """Per-vertex RGBA in 0..1 for a trimesh mesh, however it stores colour.
+
+        The alpha channel is carried through (defaulting to opaque) so the
+        object's own transparency is honoured; the viewer-wide ``opacity``
+        scales it further at draw time.
+        """
         np = self.np
         visual = mesh.visual
         try:
-            return (np.asarray(visual.vertex_colors)[:, :3] / 255.0).astype(
-                np.float32
-            )
+            rgba = np.asarray(visual.vertex_colors)[:, :4] / 255.0
+            return rgba.astype(np.float32)
         except Exception:
             material = getattr(visual, "material", None)
-            rgb = getattr(visual, "main_color", None)
-            if rgb is None and material is not None:
-                rgb = getattr(material, "main_color", None)
-            rgb = (
-                (np.asarray(rgb, np.float32)[:3] / 255.0)
-                if rgb is not None
-                else (0.7, 0.7, 0.7)
-            )
-            return np.tile(rgb, (len(mesh.vertices), 1)).astype(np.float32)
+            rgba = getattr(visual, "main_color", None)
+            if rgba is None and material is not None:
+                rgba = getattr(material, "main_color", None)
+            if rgba is not None:
+                rgba = np.asarray(rgba, np.float32)[:4] / 255.0
+                if len(rgba) == 3:  # RGB without alpha → opaque
+                    rgba = np.append(rgba, 1.0)
+            else:
+                rgba = np.array((0.7, 0.7, 0.7, 1.0), np.float32)
+            return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
 
     # ------------------------------------------------------------------ #
     # GL setup and rendering
@@ -266,7 +287,11 @@ class View3D(Base):
         if self.ctx is not None or self.moderngl is None:
             return
         self.ctx = self.moderngl.create_standalone_context()
-        self.ctx.enable(self.moderngl.DEPTH_TEST)
+        self.ctx.enable(self.moderngl.DEPTH_TEST | self.moderngl.BLEND)
+        self.ctx.blend_func = (
+            self.moderngl.SRC_ALPHA,
+            self.moderngl.ONE_MINUS_SRC_ALPHA,
+        )
         self.prog = self.ctx.program(
             vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER
         )
@@ -285,7 +310,7 @@ class View3D(Base):
         self.ibo = self.ctx.buffer(self._faces.tobytes())
         self.vao = self.ctx.vertex_array(
             self.prog,
-            [(self.vbo, "3f 3f 3f", "in_pos", "in_norm", "in_color")],
+            [(self.vbo, "3f 3f 4f", "in_pos", "in_norm", "in_color")],
             self.ibo,
         )
 
@@ -328,7 +353,12 @@ class View3D(Base):
             view = self._look_at(eye, self.center, (0.0, 1.0, 0.0))
             # column-major for GL
             self.prog["mvp"].write((proj @ view).T.astype("f4").tobytes())
+            self.prog["opacity"].value = self._opacity
+            # When translucent, stop writing depth so back faces blend through
+            # instead of being z-rejected by the nearer shell.
+            self.ctx.depth_mask = self._opacity >= 1.0
             self.vao.render()
+            self.ctx.depth_mask = True
 
         img = self.PILImage.frombytes(
             "RGB", (w, h), self.fbo.read(components=3)
@@ -425,7 +455,7 @@ if __name__ == "__main__":
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
 
-    viewer.load_file(path)
+    viewer.load_file("/Users/dccote/GitHub/Tissue/results/tracks-2026-06-10-00-18-53.glb")
     app.mainloop()
 
     

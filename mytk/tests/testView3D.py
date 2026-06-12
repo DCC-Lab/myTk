@@ -37,7 +37,7 @@ class TestView3D(envtest.MyTkTestCase):
     def test_set_geometry_stores_buffers_without_gl(self):
         import numpy as np
 
-        verts = np.zeros((3, 9), dtype="f4")
+        verts = np.zeros((3, 10), dtype="f4")
         faces = np.array([[0, 1, 2]], dtype="i4")
         self.mesh_view.set_geometry(verts, faces, np.zeros(3, "f4"), 2.0)
 
@@ -49,7 +49,7 @@ class TestView3D(envtest.MyTkTestCase):
         import numpy as np
 
         self.mesh_view.set_geometry(
-            np.zeros((3, 9), "f4"), np.array([[0, 1, 2]], "i4"), np.zeros(3), 0.0
+            np.zeros((3, 10), "f4"), np.array([[0, 1, 2]], "i4"), np.zeros(3), 0.0
         )
         self.assertEqual(self.mesh_view.radius, 1.0)
 
@@ -66,6 +66,17 @@ class TestView3D(envtest.MyTkTestCase):
         # Rotation block rows should be unit length.
         for row in range(3):
             self.assertAlmostEqual(np.linalg.norm(m[row, :3]), 1.0, places=5)
+
+    def test_opacity_defaults_to_opaque(self):
+        self.assertEqual(self.mesh_view.opacity, 1.0)
+
+    def test_opacity_is_clamped_to_unit_range(self):
+        view = View3D(width=10, height=10, opacity=0.4)
+        self.assertAlmostEqual(view.opacity, 0.4)
+        view.opacity = 5.0
+        self.assertEqual(view.opacity, 1.0)
+        view.opacity = -2.0
+        self.assertEqual(view.opacity, 0.0)
 
 
 if __name__ == "__main__":
