@@ -38,8 +38,11 @@ if __name__ == "__main__":
         app.window, row=1, column=0, padx=10, pady=(0, 10), sticky="w"
     )
 
-    # Drop a mesh file straight onto the viewer to load it.
-    mesh_view.accept_dropped_files(lambda paths: mesh_view.load_file(paths[0]))
+    # Drop a mesh file straight onto the viewer to load it (other files declined).
+    mesh_view.accept_dropped_files(
+        lambda paths: mesh_view.load_file(paths[0]),
+        extensions=(".glb", ".gltf", ".obj", ".ply", ".stl"),
+    )
 
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)

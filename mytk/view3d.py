@@ -658,5 +658,8 @@ if __name__ == "__main__":
     app.window.column_resize_weight(0, 1)
 
     viewer.load_file(path)
-    viewer.accept_dropped_files(lambda paths: viewer.load_file(paths[0]))
+    viewer.accept_dropped_files(
+        lambda paths: viewer.load_file(paths[0]),
+        extensions=(".glb", ".gltf", ".obj", ".ply", ".stl"),
+    )
     app.mainloop()
