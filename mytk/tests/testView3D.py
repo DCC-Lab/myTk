@@ -4,30 +4,45 @@ import unittest
 import envtest
 
 from mytk import *
-from mytk.view3d import View3D
+from mytk.view3d import View3D, View3DModernGL, View3DPyrender
 
 # View3D pulls in heavy, GPU-touching dependencies. Construction triggers an
-# install prompt when they are missing, so any test that builds a View3D is
-# gated behind their presence — mirroring the pandas-optional tests.
-_deps = ("moderngl", "trimesh", "numpy", "PIL")
-_has_deps = all(importlib.util.find_spec(name) is not None for name in _deps)
+# install prompt when they are missing, so any test that builds a concrete
+# viewer is gated behind its backend's presence — mirroring the pandas-optional
+# tests.
+_shared = ("trimesh", "numpy", "PIL")
+_has_moderngl = all(
+    importlib.util.find_spec(n) is not None for n in ("moderngl", *_shared)
+)
+_has_pyrender = all(
+    importlib.util.find_spec(n) is not None for n in ("pyrender", *_shared)
+)
 
 
 class TestView3DExport(unittest.TestCase):
-    """Always runs: importing/exporting the widget must not need the GL stack."""
+    """Always runs: importing/exporting the widgets must not need the GL stack."""
 
-    def test_view3d_is_exported(self):
+    def test_classes_are_exported(self):
         self.assertIs(View3D, globals()["View3D"])
+        self.assertIs(View3DModernGL, globals()["View3DModernGL"])
+        self.assertIs(View3DPyrender, globals()["View3DPyrender"])
 
-    def test_view3d_is_a_widget(self):
-        self.assertTrue(issubclass(View3D, Base))
+    def test_concrete_viewers_are_view3d_widgets(self):
+        for cls in (View3DModernGL, View3DPyrender):
+            self.assertTrue(issubclass(cls, View3D))
+            self.assertTrue(issubclass(cls, Base))
+
+    def test_view3d_base_is_abstract(self):
+        # The base leaves the backend hooks abstract, so it cannot be built.
+        with self.assertRaises(TypeError):
+            View3D(width=10, height=10)
 
 
-@unittest.skipUnless(_has_deps, "moderngl/trimesh/numpy/Pillow not available")
-class TestView3D(envtest.MyTkTestCase):
+@unittest.skipUnless(_has_moderngl, "moderngl/trimesh/numpy/Pillow not available")
+class TestView3DModernGL(envtest.MyTkTestCase):
     def setUp(self):
         super().setUp()
-        self.mesh_view = View3D(width=320, height=240)
+        self.mesh_view = View3DModernGL(width=320, height=240)
 
     def test_construct_without_placing_has_no_gl_context(self):
         # GL objects are created lazily on first render, not at construction.
@@ -71,7 +86,31 @@ class TestView3D(envtest.MyTkTestCase):
         self.assertEqual(self.mesh_view.opacity, 1.0)
 
     def test_opacity_is_clamped_to_unit_range(self):
-        view = View3D(width=10, height=10, opacity=0.4)
+        view = View3DModernGL(width=10, height=10, opacity=0.4)
+        self.assertAlmostEqual(view.opacity, 0.4)
+        view.opacity = 5.0
+        self.assertEqual(view.opacity, 1.0)
+        view.opacity = -2.0
+        self.assertEqual(view.opacity, 0.0)
+
+
+@unittest.skipUnless(_has_pyrender, "pyrender/trimesh/numpy/Pillow not available")
+class TestView3DPyrender(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.mesh_view = View3DPyrender(width=320, height=240)
+
+    def test_construct_without_placing_has_no_renderer(self):
+        # The scene and off-screen renderer are built lazily on first render.
+        self.assertIsNone(self.mesh_view._renderer)
+        self.assertIsNone(self.mesh_view._scene)
+        self.assertIsNone(self.mesh_view.widget)
+
+    def test_opacity_defaults_to_opaque(self):
+        self.assertEqual(self.mesh_view.opacity, 1.0)
+
+    def test_opacity_is_clamped_to_unit_range(self):
+        view = View3DPyrender(width=10, height=10, opacity=0.4)
         self.assertAlmostEqual(view.opacity, 0.4)
         view.opacity = 5.0
         self.assertEqual(view.opacity, 1.0)

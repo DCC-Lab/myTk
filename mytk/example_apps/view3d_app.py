@@ -12,12 +12,12 @@ from tkinter import filedialog
 
 
 if __name__ == "__main__":
-    from mytk import App, Button, View3D
+    from mytk import App, Button, View3DModernGL
 
     app = App(bring_to_front=True)
     app.window.widget.title("3D mesh viewer")
 
-    mesh_view = View3D(width=820, height=620)
+    mesh_view = View3DModernGL(width=820, height=620)
     mesh_view.grid_into(
         app.window, row=0, column=0, padx=10, pady=10, sticky="nsew"
     )
