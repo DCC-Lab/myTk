@@ -38,6 +38,16 @@ class TestView3DExport(unittest.TestCase):
         with self.assertRaises(TypeError):
             object.__new__(v3d.View3D)
 
+    def test_backend_importable_matches_find_spec(self):
+        # The selection probe (no construction, so no install prompt) agrees
+        # with what is actually installed.
+        self.assertEqual(View3DModernGL._backend_importable(), _has_moderngl)
+        self.assertEqual(View3DPyrender._backend_importable(), _has_pyrender)
+
+    @unittest.skipUnless(
+        _has_moderngl or _has_pyrender,
+        "constructing a viewer needs a backend (else the install prompt blocks)",
+    )
     def test_view3d_dispatches_to_a_concrete_backend(self):
         # Calling View3D(...) is a factory: it returns a concrete subclass,
         # never a bare base instance.
