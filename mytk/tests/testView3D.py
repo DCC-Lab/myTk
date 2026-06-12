@@ -101,16 +101,22 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         for row in range(3):
             self.assertAlmostEqual(np.linalg.norm(m[row, :3]), 1.0, places=5)
 
-    def test_opacity_defaults_to_opaque(self):
-        self.assertEqual(self.mesh_view.opacity, 1.0)
+    def test_translucent_flag_tracks_vertex_alpha(self):
+        import numpy as np
 
-    def test_opacity_is_clamped_to_unit_range(self):
-        view = View3DModernGL(width=10, height=10, opacity=0.4)
-        self.assertAlmostEqual(view.opacity, 0.4)
-        view.opacity = 5.0
-        self.assertEqual(view.opacity, 1.0)
-        view.opacity = -2.0
-        self.assertEqual(view.opacity, 0.0)
+        opaque = np.zeros((3, 10), "f4")
+        opaque[:, 9] = 1.0
+        self.mesh_view.set_geometry(
+            opaque, np.array([[0, 1, 2]], "i4"), np.zeros(3), 1.0
+        )
+        self.assertFalse(self.mesh_view._translucent)
+
+        translucent = np.zeros((3, 10), "f4")
+        translucent[:, 9] = 0.5
+        self.mesh_view.set_geometry(
+            translucent, np.array([[0, 1, 2]], "i4"), np.zeros(3), 1.0
+        )
+        self.assertTrue(self.mesh_view._translucent)
 
 
 @unittest.skipUnless(_has_pyrender, "pyrender/trimesh/numpy/Pillow not available")
@@ -124,17 +130,6 @@ class TestView3DPyrender(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view._renderer)
         self.assertIsNone(self.mesh_view._scene)
         self.assertIsNone(self.mesh_view.widget)
-
-    def test_opacity_defaults_to_opaque(self):
-        self.assertEqual(self.mesh_view.opacity, 1.0)
-
-    def test_opacity_is_clamped_to_unit_range(self):
-        view = View3DPyrender(width=10, height=10, opacity=0.4)
-        self.assertAlmostEqual(view.opacity, 0.4)
-        view.opacity = 5.0
-        self.assertEqual(view.opacity, 1.0)
-        view.opacity = -2.0
-        self.assertEqual(view.opacity, 0.0)
 
 
 if __name__ == "__main__":

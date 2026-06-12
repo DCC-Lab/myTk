@@ -59,8 +59,9 @@ class View3D(Base, ABC):
             of the first rendered frame, then follows the layout).
         height (int): Initial render height in pixels.
         background (str): Tk colour shown behind the mesh while empty.
-        opacity (float): Mesh opacity in 0..1; below 1 the geometry is blended
-            translucently over the background. Settable later via ``.opacity``.
+
+    A mesh's own per-vertex/material alpha is honoured, so translucent geometry
+    is blended over the background.
     """
 
     # Backend module to import-probe; concrete subclasses set their own.
@@ -90,11 +91,10 @@ class View3D(Base, ABC):
         except Exception:
             return False
 
-    def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
+    def __init__(self, width=820, height=620, background="#1a1a1f"):
         super().__init__()
         self._initial_size = (int(width), int(height))
         self.background = background
-        self._opacity = max(0.0, min(1.0, float(opacity)))
 
         # Bounding-sphere centre/radius used to frame the orbit camera.
         self.center = None
@@ -113,16 +113,6 @@ class View3D(Base, ABC):
         self._mapped = False
         self._render_pending = False
         self._geometry_dirty = False
-
-    @property
-    def opacity(self):
-        """Mesh opacity in 0..1 (1 is fully opaque). Re-renders when changed."""
-        return self._opacity
-
-    @opacity.setter
-    def opacity(self, value):
-        self._opacity = max(0.0, min(1.0, float(value)))
-        self._schedule_render()
 
     def is_environment_valid(self):
         """Check that trimesh, numpy, Pillow and the backend module are present."""
@@ -345,7 +335,6 @@ void main() {
 
 FRAGMENT_SHADER = """
 #version 330
-uniform float opacity;
 in vec3 v_norm;
 in vec4 v_color;
 out vec4 f_color;
@@ -353,8 +342,7 @@ void main() {
     vec3 n = normalize(v_norm);
     vec3 light = normalize(vec3(0.4, 0.8, 0.6));
     float diff = abs(dot(n, light));            // two-sided, so open shells stay lit
-    // The object's own alpha; the viewer-wide opacity scales it further.
-    f_color = vec4(v_color.rgb * (0.35 + 0.75 * diff), v_color.a * opacity);
+    f_color = vec4(v_color.rgb * (0.35 + 0.75 * diff), v_color.a);  // object's own alpha
 }
 """
 
@@ -368,11 +356,13 @@ class View3DModernGL(View3D):
 
     _BACKEND_IMPORT = "moderngl"
 
-    def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
-        super().__init__(width, height, background, opacity)
+    def __init__(self, width=820, height=620, background="#1a1a1f"):
+        super().__init__(width, height, background)
         # Interleaved [pos, normal, rgba] vertices and Mx3 int faces.
         self._data = None
         self._faces = None
+        self._translucent = False  # any vertex alpha < 1 → blend through depth
+
         # GL objects, created lazily once the window is mapped.
         self.ctx = None
         self.prog = None
@@ -413,7 +403,6 @@ class View3DModernGL(View3D):
         self._ensure_fbo(w, h)
 
     def _draw(self, w, h):
-        np = self.np
         self.fbo.use()
         self.ctx.clear(0.10, 0.10, 0.12, 1.0)
         if self.vao is not None:
@@ -423,10 +412,9 @@ class View3DModernGL(View3D):
             view = self._look_at(self._eye(), self.center, (0.0, 1.0, 0.0))
             # column-major for GL
             self.prog["mvp"].write((proj @ view).T.astype("f4").tobytes())
-            self.prog["opacity"].value = self._opacity
-            # When translucent, stop writing depth so back faces blend through
-            # instead of being z-rejected by the nearer shell.
-            self.ctx.depth_mask = self._opacity >= 1.0
+            # For a translucent mesh, stop writing depth so back faces blend
+            # through instead of being z-rejected by the nearer shell.
+            self.ctx.depth_mask = not self._translucent
             self.vao.render()
             self.ctx.depth_mask = True
 
@@ -449,14 +437,14 @@ class View3DModernGL(View3D):
         """
         self._data = interleaved
         self._faces = faces
+        self._translucent = bool((interleaved[:, 9] < 1.0).any())
         self._frame(center, radius)
 
     def _vertex_colors(self, mesh):
         """Per-vertex RGBA in 0..1 for a trimesh mesh, however it stores colour.
 
         The alpha channel is carried through (defaulting to opaque) so the
-        object's own transparency is honoured; the viewer-wide ``opacity``
-        scales it further at draw time.
+        object's own transparency is honoured.
         """
         np = self.np
         visual = mesh.visual
@@ -555,14 +543,13 @@ class View3DPyrender(View3D):
 
     pyrender owns the GL context, shaders, lighting, materials and framebuffer,
     so this backend keeps only a scene graph, an off-screen renderer, and the
-    orbit-camera pose. The object's own alpha times the viewer-wide ``opacity``
-    maps onto each material's ``baseColorFactor`` with ``alphaMode='BLEND'``.
+    orbit-camera pose. A mesh's own alpha is honoured via ``alphaMode='BLEND'``.
     """
 
     _BACKEND_IMPORT = "pyrender"
 
-    def __init__(self, width=820, height=620, background="#1a1a1f", opacity=1.0):
-        super().__init__(width, height, background, opacity)
+    def __init__(self, width=820, height=620, background="#1a1a1f"):
+        super().__init__(width, height, background)
         self._meshes = []        # trimesh meshes awaiting upload
         self._mesh_nodes = []    # their pyrender scene nodes
         self._scene = None
@@ -607,12 +594,8 @@ class View3DPyrender(View3D):
             self._mesh_nodes.append(self._scene.add(pr_mesh))
 
     def _draw(self, w, h):
-        # Final alpha = the object's vertex/material alpha × the viewer opacity,
-        # since pyrender multiplies vertex colour by baseColorFactor.
-        for node in self._mesh_nodes:
-            for prim in node.mesh.primitives:
-                f = prim.material.baseColorFactor
-                prim.material.baseColorFactor = [f[0], f[1], f[2], self._opacity]
+        # The object's own vertex/material alpha drives transparency (the meshes
+        # are uploaded with alphaMode='BLEND'); nothing extra to apply here.
         pose = self._camera_pose()
         self._scene.set_pose(self._cam_node, pose)
         self._scene.set_pose(self._light_node, pose)   # headlight
