@@ -271,27 +271,20 @@ class _BaseWidget:
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)
 
-    def accept_dropped_files(self, callback, extensions=None):
+    def accept_dropped_files(self, callback):
         """Accept files dropped onto this widget from the OS file manager.
 
-        ``callback(paths)`` is invoked on each accepted drop with a list of
-        filesystem paths. Call this after the widget exists (e.g. after
-        grid_into / pack_into / place_into).
-
-        Args:
-            callback: Called with the list of dropped (and, if filtering,
-                matching) file paths.
-            extensions: Optional iterable of suffixes to accept, e.g.
-                ``(".glb", ".gltf")`` (case-insensitive). Non-matching files are
-                dropped from the list; if a drop has no matching file it is
-                declined (``REFUSE_DROP``) and ``callback`` is not called.
+        ``callback(paths)`` is invoked on each drop with a list of filesystem
+        paths. Every dropped file is delivered — it is up to the callback to try
+        to use them and report anything it cannot handle. Call this after the
+        widget exists (e.g. after grid_into / pack_into / place_into).
 
         Returns True if drag-and-drop is available in this environment, or False
         if it could not be enabled — in which case the widget keeps working,
         just without drops. Enabling it pulls in the optional ``tkinterdnd2``
         dependency on first use (see :mod:`mytk.dnd`).
         """
-        from .dnd import dropped_paths, ensure_tkdnd, matching_extensions
+        from .dnd import dropped_paths, ensure_tkdnd
 
         if self.widget is None:
             raise RuntimeError(
@@ -302,18 +295,10 @@ class _BaseWidget:
         tkdnd = ensure_tkdnd(root)
         if tkdnd is None:
             return False
-
-        def on_drop(event):
-            paths = dropped_paths(root, event.data)
-            if extensions is not None:
-                paths = matching_extensions(paths, extensions)
-                if not paths:
-                    return tkdnd.REFUSE_DROP  # nothing acceptable → decline
-            callback(paths)
-            return getattr(event, "action", None)
-
         self.widget.drop_target_register(tkdnd.DND_FILES)
-        self.widget.dnd_bind("<<Drop>>", on_drop)
+        self.widget.dnd_bind(
+            "<<Drop>>", lambda event: callback(dropped_paths(root, event.data))
+        )
         return True
 
     @property

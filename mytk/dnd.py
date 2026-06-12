@@ -57,12 +57,3 @@ def dropped_paths(root, event_data):
     ``splitlist`` turns it back into individual paths.
     """
     return list(root.tk.splitlist(event_data))
-
-
-def matching_extensions(paths, extensions):
-    """Keep only the paths whose suffix is in ``extensions`` (case-insensitive).
-
-    ``extensions`` is an iterable of suffixes such as ``(".glb", ".gltf")``.
-    """
-    allowed = tuple(ext.lower() for ext in extensions)
-    return [p for p in paths if p.lower().endswith(allowed)]

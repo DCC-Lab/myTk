@@ -4,12 +4,7 @@ import unittest
 import envtest
 
 from mytk import App, Label
-from mytk.dnd import (
-    _tkinterdnd2_spec,
-    dropped_paths,
-    ensure_tkdnd,
-    matching_extensions,
-)
+from mytk.dnd import _tkinterdnd2_spec, dropped_paths, ensure_tkdnd
 
 # tkinterdnd2 (and a tkdnd build matching the running Tcl) is optional, and
 # constructing it would otherwise prompt to install. Gate every test that needs
@@ -35,18 +30,6 @@ class TestDropPathParsing(envtest.MyTkTestCase):
         self.assertEqual(
             dropped_paths(self.app.root, "{/a/b c.txt} /d/e.glb"),
             ["/a/b c.txt", "/d/e.glb"],
-        )
-
-    def test_matching_extensions_is_case_insensitive(self):
-        paths = ["/a/scene.GLB", "/b/notes.txt", "/c/mesh.gltf", "/d/img.png"]
-        self.assertEqual(
-            matching_extensions(paths, (".glb", ".gltf")),
-            ["/a/scene.GLB", "/c/mesh.gltf"],
-        )
-
-    def test_matching_extensions_empty_when_none_match(self):
-        self.assertEqual(
-            matching_extensions(["/a/notes.txt"], (".glb",)), []
         )
 
     def test_spec_matches_tcl_major_version(self):

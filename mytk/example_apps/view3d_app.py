@@ -32,16 +32,15 @@ if __name__ == "__main__":
             ],
         )
         if path:
-            mesh_view.load_file(path)
+            mesh_view.load_file_or_warn(path)
 
     Button("Load…", user_event_callback=lambda e, b: load_file()).grid_into(
         app.window, row=1, column=0, padx=10, pady=(0, 10), sticky="w"
     )
 
-    # Drop a mesh file straight onto the viewer to load it (other files declined).
+    # Drop any file onto the viewer; unrecognised ones raise a warning dialog.
     mesh_view.accept_dropped_files(
-        lambda paths: mesh_view.load_file(paths[0]),
-        extensions=(".glb", ".gltf", ".obj", ".ply", ".stl"),
+        lambda paths: mesh_view.load_file_or_warn(paths[0])
     )
 
     app.window.row_resize_weight(0, 1)
