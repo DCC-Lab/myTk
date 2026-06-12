@@ -676,10 +676,10 @@ if __name__ == "__main__":
     path = os.path.join(tempfile.gettempdir(), "view3d_box.glb")
     box.export(path)
 
-    app = App()
+    app = App(geometry="400x400")
     app.window.widget.title("View3D")
 
-    viewer = View3DModernGL(width=600, height=450)
+    viewer = View3DModernGL(width=400, height=400)
     viewer.grid_into(app.window, row=0, column=0, sticky="nsew")
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
