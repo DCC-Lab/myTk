@@ -153,11 +153,38 @@ class View3D(Base, ABC):
 
         All meshes in the file are handed to the backend, each keeping its own
         colour (vertex colours, else the material colour, else grey).
+
+        Raises whatever trimesh raises for an unreadable/unknown file; use
+        :meth:`load_file_or_warn` for the interactive (drop) case.
         """
         loaded = self.trimesh.load(path, force="scene")
         meshes = list(loaded.geometry.values())
         center, radius = self._compute_bounds(meshes)
         self._ingest(meshes, center, radius)
+
+    def load_file_or_warn(self, path):
+        """Load a file, popping up a warning dialog if it is not a usable mesh.
+
+        Unlike :meth:`load_file`, this never raises — it is meant for dropped or
+        user-picked files, where an unrecognised format should be reported in
+        the UI rather than crash the app. Returns True if the file loaded.
+        """
+        import os
+
+        from .dialog import Dialog
+
+        try:
+            self.load_file(path)
+            return True
+        except Exception:
+            Dialog.showwarning(
+                title="Unrecognized file",
+                message=(
+                    f"“{os.path.basename(path)}” could not be opened as a 3D "
+                    f"mesh.\n\nSupported formats: GLB, GLTF, OBJ, PLY, STL."
+                ),
+            )
+            return False
 
     # ------------------------------------------------------------------ #
     # Camera and mouse interaction
@@ -635,7 +662,8 @@ class View3DPyrender(View3D):
 
 
 if __name__ == "__main__":
-    # A very simple example: show a coloured box. Drag to orbit, scroll to zoom.
+    # A very simple example: show a coloured box. Drag to orbit, scroll to zoom,
+    # or drop a mesh file onto the viewer to load it.
     import os
     import tempfile
 
@@ -648,13 +676,14 @@ if __name__ == "__main__":
     path = os.path.join(tempfile.gettempdir(), "view3d_box.glb")
     box.export(path)
 
-    app = App()
+    app = App(geometry="400x400")
     app.window.widget.title("View3D")
 
-    viewer = View3DModernGL(width=600, height=450)
+    viewer = View3DModernGL(width=400, height=400)
     viewer.grid_into(app.window, row=0, column=0, sticky="nsew")
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
 
     viewer.load_file(path)
+    viewer.accept_dropped_files(lambda paths: viewer.load_file_or_warn(paths[0]))
     app.mainloop()

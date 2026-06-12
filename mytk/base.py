@@ -11,6 +11,7 @@ import re
 from enum import Enum
 
 from .bindable import Bindable
+from .draganddropcapable import DragAndDropCapable
 from .eventcapable import EventCapable
 
 
@@ -407,8 +408,9 @@ class _BaseWidget:
         print(self.widget.configure().keys())
 
 
-class Base(_BaseWidget, Bindable, EventCapable):
-    """Composite base class combining widget management, binding, and event capabilities."""
+class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
+    """Composite base class combining widget management, binding, event, and
+    drag-and-drop capabilities."""
 
     def _propagate_disabled(self, widget, disabled):
         for child in widget.winfo_children():

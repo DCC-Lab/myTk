@@ -97,6 +97,29 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         )
         self.assertEqual(self.mesh_view.radius, 1.0)
 
+    def test_load_file_raises_on_unrecognized_file(self):
+        # load_file_or_warn relies on this to know when to warn the user.
+        import os
+        import tempfile
+
+        path = os.path.join(tempfile.gettempdir(), "mytk_not_a_mesh.txt")
+        with open(path, "w") as handle:
+            handle.write("definitely not a mesh")
+        with self.assertRaises(Exception):
+            self.mesh_view.load_file(path)
+
+    def test_load_file_or_warn_returns_true_on_valid_mesh(self):
+        import os
+        import tempfile
+
+        import trimesh
+
+        box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+        path = os.path.join(tempfile.gettempdir(), "mytk_box.glb")
+        box.export(path)
+        # A good file loads with no dialog, so this is safe to run headless.
+        self.assertTrue(self.mesh_view.load_file_or_warn(path))
+
     def test_perspective_matrix_shape(self):
         m = self.mesh_view._perspective(45.0, 1.5, 0.1, 100.0)
         self.assertEqual(m.shape, (4, 4))
