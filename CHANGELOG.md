@@ -2,6 +2,18 @@
 
 All notable changes to myTk are documented here.
 
+## [1.2.2] - 2026-06-13
+### Fixed
+- `View3D` crashed on every render when shown before any geometry was loaded
+  (e.g. `view3d_app` opened without a file): the now-default pyrender backend
+  always builds a camera pose from the bounding-box centre, which is unset until
+  a mesh loads. The camera now falls back to the origin, so an empty viewer
+  renders its background and accepts a dropped/loaded file normally.
+
+### Added
+- The capabilities demo's `View3D` now accepts dropped mesh files too (when
+  `tkinterdnd2` is already installed).
+
 ## [1.2.1] - 2026-06-13
 ### Fixed
 - `View3D` hung the app when placed content-sized (no `sticky`/weight, as in the

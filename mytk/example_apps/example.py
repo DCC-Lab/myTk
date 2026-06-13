@@ -110,6 +110,12 @@ if __name__ == "__main__":
             viewer3d = View3D(width=160, height=160)
             viewer3d.grid_into(view3d_box, column=0, row=0, pady=2, padx=3)
             viewer3d.load_file(cube_path)
+            # Drop a mesh onto the viewer to load it — only when tkinterdnd2 is
+            # already present, so the demo never triggers an install prompt.
+            if importlib.util.find_spec("tkinterdnd2"):
+                viewer3d.accept_dropped_files(
+                    lambda paths: viewer3d.load_file_or_warn(paths[0])
+                )
         except Exception:
             Label("Unable to load View3D").grid_into(
                 view3d_box, column=0, row=0, pady=2, padx=3

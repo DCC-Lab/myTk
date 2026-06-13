@@ -78,6 +78,12 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view.ctx)
         self.assertIsNone(self.mesh_view.widget)
 
+    def test_eye_with_no_geometry_does_not_crash(self):
+        # Regression: camera math used center, which is None before a mesh loads.
+        self.assertIsNone(self.mesh_view.center)
+        eye = self.mesh_view._eye()
+        self.assertEqual(len(eye), 3)
+
     def test_widget_is_a_canvas_not_a_label(self):
         # Regression: a ttk.Label sized itself to each rendered frame, which grew
         # the widget and re-triggered <Configure> in a runaway resize loop
@@ -205,6 +211,13 @@ class TestView3DPyrender(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view._renderer)
         self.assertIsNone(self.mesh_view._scene)
         self.assertIsNone(self.mesh_view.widget)
+
+    def test_camera_pose_with_no_geometry_does_not_crash(self):
+        # Regression: an empty pyrender viewer crashed because center was None
+        # (pyrender always builds a camera pose). It must fall back to origin.
+        self.assertIsNone(self.mesh_view.center)
+        pose = self.mesh_view._camera_pose()
+        self.assertEqual(pose.shape, (4, 4))
 
 
 if __name__ == "__main__":
