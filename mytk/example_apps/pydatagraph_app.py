@@ -80,7 +80,7 @@ class PyDatagraphApp(App):
         self.controls.widget.grid_columnconfigure(0, weight=1)
         self.controls.widget.grid_columnconfigure(1, weight=1)
         self.controls.widget.grid_columnconfigure(2, weight=1)
-        self.load_data_button = Button("Load data…", user_event_callback=self.user_click_load)
+        self.load_data_button = Button("Load data… (or drop a file)", user_event_callback=self.user_click_load)
         self.load_data_button.grid_into(self.controls, row=0, column=0, padx=10, pady=10, sticky='nw')
         # self.copy_data_button = Button("Copy data to clipboard", user_event_callback=self.copy_data)
         # self.copy_data_button.grid_into(self.controls, row=0, column=1, padx=10, pady=10, sticky='nw')
@@ -93,6 +93,16 @@ class PyDatagraphApp(App):
         self.name_menu.add_observer(self, "value_variable", 'inspected_variable_changed')
 
         self.disable_inspector_values_changed = False
+
+        # Drop an Excel or CSV file onto the table or the graph to load it. (The
+        # root window itself can't be a drop target — tkdnd attaches to child
+        # widgets — so we register the two main areas.) Any file is accepted;
+        # load_data reports unreadable ones with its error dialog.
+        def load_dropped(paths):
+            self.load_data(Path(paths[0]))
+
+        self.tableview.accept_dropped_files(load_dropped)
+        self.plot.accept_dropped_files(load_dropped)
 
         parent = Path(__file__).parent.resolve()
         test_file = Path(parent, 'test-excel.xlsx')
