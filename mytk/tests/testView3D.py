@@ -119,6 +119,16 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         self.assertAlmostEqual(float(rgba[0, 0]), 200 / 255, places=3)
         self.assertAlmostEqual(float(rgba[0, 3]), 128 / 255, places=3)
 
+    def test_loads_translucent_glb_with_per_vertex_alpha(self):
+        # Regression for the energy file: cubes whose translucency is per-vertex
+        # glTF COLOR_0 alpha must load translucent, not opaque.
+        import pathlib
+
+        fixture = pathlib.Path(__file__).parent / "energy_translucent.glb"
+        self.mesh_view.load_file(str(fixture))
+        self.assertTrue(self.mesh_view._translucent)
+        self.assertLess(float(self.mesh_view._data[:, 9].min()), 1.0)
+
     def test_load_file_raises_on_unrecognized_file(self):
         # load_file_or_warn relies on this to know when to warn the user.
         import os

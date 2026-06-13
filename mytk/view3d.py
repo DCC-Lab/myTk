@@ -201,6 +201,54 @@ class View3D(Base, ABC):
         radius = float(np.linalg.norm(hi - lo)) / 2.0 or 1.0
         return center, radius
 
+    def _vertex_colors(self, mesh):
+        """Per-vertex RGBA in 0..1 for a trimesh mesh, however it stores colour.
+
+        The alpha channel is carried through (defaulting to opaque) so the
+        object's own transparency is honoured. Colour is taken, in order, from
+        ColorVisuals' vertex colours, the glTF ``COLOR_0`` vertex attribute
+        (which a textured mesh can still carry — e.g. per-vertex alpha encoding
+        translucency), then the material colour, then grey. Both backends use
+        this so they agree on colour and transparency.
+        """
+        np = self.np
+        visual = mesh.visual
+
+        # 1. ColorVisuals: per-vertex RGBA directly.
+        try:
+            return (np.asarray(visual.vertex_colors)[:, :4] / 255.0).astype(
+                np.float32
+            )
+        except Exception:
+            pass
+
+        # 2. glTF COLOR_0 carried as a vertex attribute on a textured mesh.
+        raw = (getattr(visual, "vertex_attributes", None) or {}).get("color")
+        if raw is not None:
+            raw = np.asarray(raw)
+            if raw.ndim == 2 and raw.shape[1] >= 3:
+                colors = raw[:, :4].astype(np.float32)
+                if np.issubdtype(raw.dtype, np.integer):
+                    colors /= np.iinfo(raw.dtype).max  # 0..255 / 0..65535 → 0..1
+                if colors.shape[1] == 3:  # RGB without alpha → opaque
+                    colors = np.hstack(
+                        [colors, np.ones((len(colors), 1), np.float32)]
+                    )
+                return colors
+
+        # 3. Single material / main colour, else grey.
+        material = getattr(visual, "material", None)
+        rgba = getattr(visual, "main_color", None)
+        if rgba is None and material is not None:
+            rgba = getattr(material, "main_color", None)
+        if rgba is not None:
+            rgba = np.asarray(rgba, np.float32)[:4] / 255.0
+            if len(rgba) == 3:  # RGB without alpha → opaque
+                rgba = np.append(rgba, 1.0)
+        else:
+            rgba = np.array((0.7, 0.7, 0.7, 1.0), np.float32)
+        return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
+
     def _frame(self, center, radius):
         """Adopt new geometry bounds, reset the camera, request a render."""
         self.center = center
@@ -467,53 +515,6 @@ class View3DModernGL(View3D):
         self._translucent = bool((interleaved[:, 9] < 1.0).any())
         self._frame(center, radius)
 
-    def _vertex_colors(self, mesh):
-        """Per-vertex RGBA in 0..1 for a trimesh mesh, however it stores colour.
-
-        The alpha channel is carried through (defaulting to opaque) so the
-        object's own transparency is honoured. Colour is taken, in order, from
-        ColorVisuals' vertex colours, the glTF ``COLOR_0`` vertex attribute
-        (which a textured mesh can still carry — e.g. per-vertex alpha encoding
-        translucency), then the material colour, then grey.
-        """
-        np = self.np
-        visual = mesh.visual
-
-        # 1. ColorVisuals: per-vertex RGBA directly.
-        try:
-            return (np.asarray(visual.vertex_colors)[:, :4] / 255.0).astype(
-                np.float32
-            )
-        except Exception:
-            pass
-
-        # 2. glTF COLOR_0 carried as a vertex attribute on a textured mesh.
-        raw = (getattr(visual, "vertex_attributes", None) or {}).get("color")
-        if raw is not None:
-            raw = np.asarray(raw)
-            if raw.ndim == 2 and raw.shape[1] >= 3:
-                colors = raw[:, :4].astype(np.float32)
-                if np.issubdtype(raw.dtype, np.integer):
-                    colors /= np.iinfo(raw.dtype).max  # 0..255 / 0..65535 → 0..1
-                if colors.shape[1] == 3:  # RGB without alpha → opaque
-                    colors = np.hstack(
-                        [colors, np.ones((len(colors), 1), np.float32)]
-                    )
-                return colors
-
-        # 3. Single material / main colour, else grey.
-        material = getattr(visual, "material", None)
-        rgba = getattr(visual, "main_color", None)
-        if rgba is None and material is not None:
-            rgba = getattr(material, "main_color", None)
-        if rgba is not None:
-            rgba = np.asarray(rgba, np.float32)[:4] / 255.0
-            if len(rgba) == 3:  # RGB without alpha → opaque
-                rgba = np.append(rgba, 1.0)
-        else:
-            rgba = np.array((0.7, 0.7, 0.7, 1.0), np.float32)
-        return np.tile(rgba, (len(mesh.vertices), 1)).astype(np.float32)
-
     def _ensure_context(self):
         """Create the standalone GL context and shader program once."""
         if self.ctx is not None or self.moderngl is None:
@@ -638,9 +639,22 @@ class View3DPyrender(View3D):
             self._scene.remove_node(node)
         self._mesh_nodes = []
         for mesh in self._meshes:
+            # Drive colour/transparency from _vertex_colors (same as the
+            # moderngl backend), so per-vertex glTF COLOR_0 alpha is honoured —
+            # pyrender's own from_trimesh would otherwise read only the opaque
+            # material colour. Restamp it as per-vertex ColorVisuals.
+            rgba = (self._vertex_colors(mesh) * 255.0).astype("uint8")
+            mesh = mesh.copy()
+            mesh.visual = self.trimesh.visual.ColorVisuals(
+                mesh, vertex_colors=rgba
+            )
             pr_mesh = self.pyrender.Mesh.from_trimesh(mesh, smooth=False)
             for prim in pr_mesh.primitives:
+                # Matte (non-metallic) so colours read true under one light, and
+                # blended so the per-vertex alpha shows.
                 prim.material.alphaMode = "BLEND"
+                prim.material.metallicFactor = 0.0
+                prim.material.roughnessFactor = 1.0
             self._mesh_nodes.append(self._scene.add(pr_mesh))
 
     def _draw(self, w, h):
@@ -702,7 +716,8 @@ if __name__ == "__main__":
     app = App(geometry="400x400")
     app.window.widget.title("View3D")
 
-    viewer = View3DModernGL(width=400, height=400)
+    # The View3D factory picks a backend (pyrender if available, else moderngl).
+    viewer = View3D(width=400, height=400)
     viewer.grid_into(app.window, row=0, column=0, sticky="nsew")
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
