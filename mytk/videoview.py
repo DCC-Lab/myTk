@@ -9,11 +9,6 @@ from .button import Button
 from .modulesmanager import ModulesManager
 from .popupmenu import PopupMenu
 
-try:
-    import cv2
-except ImportError:
-    cv2 = None
-
 
 class VideoView(Base):
     """Live video capture and display widget backed by OpenCV."""
@@ -75,6 +70,8 @@ class VideoView(Base):
         """Return a list of indices for available video capture devices."""
         available_devices = []
         try:
+            import cv2  # optional dependency; absence simply yields no devices
+
             index = 0
             while True:
                 cap = cv2.VideoCapture(index)
@@ -128,8 +125,8 @@ class VideoView(Base):
 
     def start_streaming(self, filepath):
         """Begin writing captured frames to a video file at the given path."""
-        width = self.get_prop_id(cv2.CAP_PROP_FRAME_WIDTH)
-        height = self.get_prop_id(cv2.CAP_PROP_FRAME_HEIGHT)
+        width = self.get_prop_id(self.cv2.CAP_PROP_FRAME_WIDTH)
+        height = self.get_prop_id(self.cv2.CAP_PROP_FRAME_HEIGHT)
         fourcc = self.cv2.VideoWriter_fourcc("I", "4", "2", "0")
         self.videowriter = self.cv2.VideoWriter(
             filepath, fourcc, 20.0, (int(width), int(height)), True

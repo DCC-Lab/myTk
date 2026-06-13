@@ -2,6 +2,27 @@
 
 All notable changes to myTk are documented here.
 
+## [1.3.0] - 2026-06-13
+### Changed
+- **Heavy/platform-sensitive features are now optional extras; the default
+  install stays cross-platform.** `pip install mytk` still brings the common,
+  universally pip-installable modules (matplotlib, numpy, pandas, openpyxl,
+  pyperclip, requests, Pillow), but the features that need native libraries,
+  hardware or a GL context are opt-in:
+  - `pip install mytk[video]`  — OpenCV, for `VideoView`
+  - `pip install mytk[view3d]` — trimesh + moderngl, for `View3D`
+  - `pip install mytk[dnd]`    — tkdnd, for drag-and-drop
+  - `pip install mytk[all]`    — all of the above
+  All of these also install on demand at first use (via `ModulesManager`), so
+  nothing breaks if you skip the extra.
+- Dropped `scipy` and `packaging` as declared dependencies — neither is used by
+  the library (`packaging` still arrives transitively via matplotlib).
+
+### Fixed
+- `VideoView` no longer imported OpenCV at module load, so `import mytk` no longer
+  pulls in `opencv-python` (or numpy through it). All third-party modules are now
+  imported lazily — `import mytk` touches only the Python standard library.
+
 ## [1.2.2] - 2026-06-13
 ### Fixed
 - `View3D` crashed on every render when shown before any geometry was loaded

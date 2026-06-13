@@ -1,8 +1,14 @@
+# Default dependencies: the cross-platform, pip-installable modules that power
+# myTk's common widgets and work everywhere without system libraries or hardware.
+# They are imported lazily (on first use), so `import mytk` stays fast.
+#
+# Genuinely optional / platform-sensitive features are NOT here — install them as
+# extras (see pyproject.toml): opencv for VideoView (mytk[video]), the GL stack
+# for View3D (mytk[view3d]), and tkdnd for drag-and-drop (mytk[dnd]).
 matplotlib>=3.9
 numpy
-packaging
-pyperclip
-requests
-scipy
 pandas
 openpyxl
+pyperclip
+requests
+Pillow
