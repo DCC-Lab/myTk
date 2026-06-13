@@ -15,7 +15,7 @@ jobs:
     name: Build distributions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Full history + tags so setuptools-scm can derive the version.
           fetch-depth: 0
@@ -52,7 +52,10 @@ jobs:
 
   github-release:
     name: GitHub Release
-    needs: build
+    # Publish to PyPI first, then create the GitHub Release — so the Release page
+    # only appears once the package is actually live on PyPI (no dangling release
+    # pointing at a version that failed to upload).
+    needs: [build, pypi-publish]
     runs-on: ubuntu-latest
     permissions:
       # Needed to create the release and upload the built artifacts to it.
