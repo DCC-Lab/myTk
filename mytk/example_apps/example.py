@@ -86,16 +86,38 @@ if __name__ == "__main__":
     axis.plot([1, 2, 3], [4, 5, 6])
     axis.set_title("Figure", fontsize=9)
 
-    try:
-        from matplotlib.figure import Figure as MPLFigure
-        some_fig = MPLFigure(figsize=(3, 2))
-        axis = some_fig.add_subplot()
-        axis.plot([1, 2, 3], [-4, -5, -6])
-        axis.set_title("Figure (external MPLFigure)", fontsize=9)
-        figure2 = Figure(figure=some_fig)
-        figure2.grid_into(app.window, column=3, row=2, pady=2, padx=3)
-    except:
-        pass
+    # View3D: an embedded 3D mesh viewer. Only built when its (optional) 3D
+    # dependencies are already installed, so the example never triggers an
+    # install prompt; otherwise a placeholder label is shown.
+    import importlib.util
+    view3d_box = Box(label="View3D")
+    view3d_box.grid_into(app.window, column=3, row=2, pady=2, padx=3, sticky="nsew")
+    _has_3d = importlib.util.find_spec("trimesh") and (
+        importlib.util.find_spec("pyrender")
+        or importlib.util.find_spec("moderngl")
+    )
+    if _has_3d:
+        try:
+            import os
+            import tempfile
+
+            import trimesh
+
+            cube = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+            cube.visual.vertex_colors = (200, 90, 40, 255)
+            cube_path = os.path.join(tempfile.gettempdir(), "example_cube.glb")
+            cube.export(cube_path)
+            viewer3d = View3D(width=160, height=160)
+            viewer3d.grid_into(view3d_box, column=0, row=0, pady=2, padx=3)
+            viewer3d.load_file(cube_path)
+        except Exception:
+            Label("Unable to load View3D").grid_into(
+                view3d_box, column=0, row=0, pady=2, padx=3
+            )
+    else:
+        Label("Install pyrender or moderngl\nto see View3D").grid_into(
+            view3d_box, column=0, row=0, pady=2, padx=3
+        )
 
     video_box = Box(label="VideoView")
     video_box.grid_into(app.window, column=2, row=2, pady=2, padx=3, sticky="")
