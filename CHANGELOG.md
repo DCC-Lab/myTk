@@ -2,6 +2,21 @@
 
 All notable changes to myTk are documented here.
 
+## [1.3.0] - 2026-06-13
+### Changed
+- **myTk now installs with no required third-party dependencies.** Heavy/optional
+  modules (matplotlib, numpy, pandas, openpyxl, pyperclip, requests, opencv,
+  trimesh/moderngl, …) were already loaded on demand via `ModulesManager`; they
+  are no longer hard requirements. `import mytk` now pulls in only the Python
+  standard library. Install features ahead of time with extras:
+  `pip install mytk[figures]`, `[tables]`, `[images]`, `[video]`, `[view3d]`,
+  `[clipboard]`, `[web]`, `[dnd]`, or `[all]`. (Upgraders who relied on the old
+  transitive installs should add the relevant extra, or `mytk[all]`.)
+
+### Fixed
+- `VideoView` no longer imported OpenCV at module load, which forced `opencv-python`
+  onto every `import mytk`. OpenCV is now loaded only when a `VideoView` is used.
+
 ## [1.2.2] - 2026-06-13
 ### Fixed
 - `View3D` crashed on every render when shown before any geometry was loaded

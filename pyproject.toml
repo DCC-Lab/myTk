@@ -40,10 +40,23 @@ Repository = "https://github.com/DCC-Lab/myTk"
 
 
 [project.optional-dependencies]
-video = ["opencv-python"]
+# Per-feature extras — install only what you use. Each feature also pulls its
+# dependency in on demand at first use (via ModulesManager); these extras are a
+# convenience for provisioning ahead of time.
+figures = ["matplotlib>=3.9", "numpy"]   # Figure, XYPlot, Histogram
+images = ["Pillow"]                        # Image, ImageWithGrid
+tables = ["pandas", "openpyxl"]            # TableView.load_tabular_data (CSV/Excel)
+clipboard = ["pyperclip"]                  # copy-to-clipboard helpers
+web = ["requests"]                         # loading images/data from a URL
+video = ["opencv-python"]                  # VideoView
+view3d = ["trimesh", "numpy", "Pillow", "moderngl"]  # View3D (moderngl backend)
+dnd = ["tkinterdnd2"]                       # drag-and-drop (see mytk.dnd re: Tcl)
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
-all = ["mytk[video,optics]"]
+# Everything installable from PyPI on any machine:
+all = ["mytk[figures,images,tables,clipboard,web,video,view3d,dnd]"]
+# What the headless test suite needs to exercise the non-GPU widgets:
+test = ["matplotlib>=3.9", "numpy", "pandas", "openpyxl", "pyperclip", "requests"]
 
 [tool.setuptools_scm]
 write_to = "mytk/_version.py"

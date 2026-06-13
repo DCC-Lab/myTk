@@ -1,8 +1,11 @@
-matplotlib>=3.9
-numpy
-packaging
-pyperclip
-requests
-scipy
-pandas
-openpyxl
+# myTk has no required third-party dependencies — it runs on the Python
+# standard library (Tkinter) alone. Heavy/optional features (figures, tables,
+# images, video, 3D, drag-and-drop, …) pull their dependencies in on demand via
+# ModulesManager, and are also declared as extras in pyproject.toml, e.g.:
+#
+#     pip install mytk[figures]      # matplotlib + numpy
+#     pip install mytk[tables]       # pandas + openpyxl
+#     pip install mytk[all]          # everything runtime
+#
+# This file is intentionally empty of requirements (setuptools reads it for the
+# dynamic `dependencies` field in pyproject.toml).
