@@ -271,11 +271,20 @@ class View3D(Base, ABC):
         self.distance = 2.6 * self.radius
         self._schedule_render(upload=True)
 
+    def _center_or_origin(self):
+        """Geometry centre, or the origin before any geometry is loaded.
+
+        The bounds (and centre) are unset until a mesh loads; falling back to the
+        origin lets an empty viewer render its background instead of crashing
+        (the pyrender backend always builds a camera pose from the centre).
+        """
+        return self.center if self.center is not None else self.np.zeros(3)
+
     def _eye(self):
         """Camera position on the orbit sphere for the current angles."""
         np = self.np
         ce = np.cos(self.elevation)
-        return self.center + self.distance * np.array(
+        return self._center_or_origin() + self.distance * np.array(
             [
                 ce * np.cos(self.azimuth),
                 np.sin(self.elevation),
@@ -703,7 +712,7 @@ class View3DPyrender(View3D):
         """Camera-to-world pose looking from the orbit eye at the centre."""
         np = self.np
         eye = self._eye()
-        f = self.center - eye
+        f = self._center_or_origin() - eye
         f = f / np.linalg.norm(f)            # forward (camera looks down -z)
         s = np.cross(f, (0.0, 1.0, 0.0))
         s = s / np.linalg.norm(s)            # right
