@@ -2,6 +2,14 @@
 
 All notable changes to myTk are documented here.
 
+## [1.2.1] - 2026-06-13
+### Fixed
+- `View3D` hung the app when placed content-sized (no `sticky`/weight, as in the
+  capabilities demo): it blitted frames into a `ttk.Label`, which sized itself to
+  each rendered image and re-triggered `<Configure>`, growing the widget on every
+  frame in a runaway resize loop. It now renders into a `tk.Canvas`, whose size
+  is set by the layout and unaffected by what is drawn, so there is no feedback.
+
 ## [1.2.0] - 2026-06-13
 ### Added
 - **Drag-and-drop**: any widget can accept files dropped from the OS file
