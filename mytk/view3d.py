@@ -3,7 +3,7 @@
 `View3D` is an abstract widget that loads a GLB/GLTF/OBJ/PLY file with trimesh
 and shows it lit and coloured inside an ordinary myTk layout — drag to orbit,
 scroll to zoom. Rather than embed a fragile OpenGL widget, it renders off-screen
-and blits each frame into a `ttk.Label` via Pillow, the same strategy
+and blits each frame into a `tk.Canvas` via Pillow, the same strategy
 `VideoView` uses for camera frames. It re-renders only on interaction.
 
 Two concrete implementations share that machinery:
@@ -29,7 +29,7 @@ triangles with a two-sided Lambert-ish shade — enough to inspect exported scen
 """
 
 import importlib
-import tkinter.ttk as ttk
+import tkinter as tk
 from abc import ABC, abstractmethod
 
 from .base import Base
@@ -133,9 +133,23 @@ class View3D(Base, ABC):
         return shared and self._backend_ready()
 
     def create_widget(self, master):
-        """Create the label that displays rendered frames and wire up the mouse."""
+        """Create the canvas that displays rendered frames and wire up the mouse.
+
+        A ``tk.Canvas`` (not a label) is used on purpose: a label sizes itself
+        to its image, so each rendered frame would grow the widget by its chrome
+        and re-trigger ``<Configure>`` — a runaway resize loop when the widget is
+        content-sized. A canvas keeps the size the layout gives it regardless of
+        what is drawn into it, so no feedback occurs.
+        """
         self.parent = master
-        self.widget = ttk.Label(master, background=self.background)
+        w, h = self._initial_size
+        self.widget = tk.Canvas(
+            master,
+            background=self.background,
+            width=w,
+            height=h,
+            highlightthickness=0,  # no focus border (would add to the size)
+        )
 
         self.widget.bind("<Map>", self._on_map)
         self.widget.bind("<Configure>", self._on_resize)
@@ -354,7 +368,8 @@ class View3D(Base, ABC):
         if image is None:
             return
         self._displayed_tkimage = self.PILImageTk.PhotoImage(image)
-        self.widget.configure(image=self._displayed_tkimage)
+        self.widget.delete("all")
+        self.widget.create_image(0, 0, anchor="nw", image=self._displayed_tkimage)
 
     # ------------------------------------------------------------------ #
     # Backend contract — implemented by each concrete renderer below.

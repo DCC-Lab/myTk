@@ -78,6 +78,16 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view.ctx)
         self.assertIsNone(self.mesh_view.widget)
 
+    def test_widget_is_a_canvas_not_a_label(self):
+        # Regression: a ttk.Label sized itself to each rendered frame, which grew
+        # the widget and re-triggered <Configure> in a runaway resize loop
+        # (hanging the app) when placed content-sized. A tk.Canvas keeps the size
+        # the layout gives it regardless of what is drawn, breaking the loop.
+        import tkinter as tk
+
+        self.mesh_view.grid_into(self.app.window, row=1, column=0)
+        self.assertIsInstance(self.mesh_view.widget, tk.Canvas)
+
     def test_set_geometry_stores_buffers_without_gl(self):
         import numpy as np
 
