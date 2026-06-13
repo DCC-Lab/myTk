@@ -40,23 +40,16 @@ Repository = "https://github.com/DCC-Lab/myTk"
 
 
 [project.optional-dependencies]
-# Per-feature extras — install only what you use. Each feature also pulls its
-# dependency in on demand at first use (via ModulesManager); these extras are a
-# convenience for provisioning ahead of time.
-figures = ["matplotlib>=3.9", "numpy"]   # Figure, XYPlot, Histogram
-images = ["Pillow"]                        # Image, ImageWithGrid
-tables = ["pandas", "openpyxl"]            # TableView.load_tabular_data (CSV/Excel)
-clipboard = ["pyperclip"]                  # copy-to-clipboard helpers
-web = ["requests"]                         # loading images/data from a URL
-video = ["opencv-python"]                  # VideoView
-view3d = ["trimesh", "numpy", "Pillow", "moderngl"]  # View3D (moderngl backend)
-dnd = ["tkinterdnd2"]                       # drag-and-drop (see mytk.dnd re: Tcl)
+# Optional, platform-sensitive features kept out of the default install. Each is
+# also installed on demand at first use (via ModulesManager); these extras let
+# you provision them ahead of time.
+video = ["opencv-python"]                            # VideoView (heavy)
+view3d = ["trimesh", "moderngl", "numpy", "Pillow"]  # View3D (needs an OpenGL context)
+dnd = ["tkinterdnd2"]                                # drag-and-drop (tkdnd; Tcl-version sensitive)
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
-# Everything installable from PyPI on any machine:
-all = ["mytk[figures,images,tables,clipboard,web,video,view3d,dnd]"]
-# What the headless test suite needs to exercise the non-GPU widgets:
-test = ["matplotlib>=3.9", "numpy", "pandas", "openpyxl", "pyperclip", "requests"]
+# Everything optional, in one go:
+all = ["mytk[video,view3d,dnd,optics]"]
 
 [tool.setuptools_scm]
 write_to = "mytk/_version.py"

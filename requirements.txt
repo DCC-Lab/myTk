@@ -1,11 +1,14 @@
-# myTk has no required third-party dependencies — it runs on the Python
-# standard library (Tkinter) alone. Heavy/optional features (figures, tables,
-# images, video, 3D, drag-and-drop, …) pull their dependencies in on demand via
-# ModulesManager, and are also declared as extras in pyproject.toml, e.g.:
+# Default dependencies: the cross-platform, pip-installable modules that power
+# myTk's common widgets and work everywhere without system libraries or hardware.
+# They are imported lazily (on first use), so `import mytk` stays fast.
 #
-#     pip install mytk[figures]      # matplotlib + numpy
-#     pip install mytk[tables]       # pandas + openpyxl
-#     pip install mytk[all]          # everything runtime
-#
-# This file is intentionally empty of requirements (setuptools reads it for the
-# dynamic `dependencies` field in pyproject.toml).
+# Genuinely optional / platform-sensitive features are NOT here — install them as
+# extras (see pyproject.toml): opencv for VideoView (mytk[video]), the GL stack
+# for View3D (mytk[view3d]), and tkdnd for drag-and-drop (mytk[dnd]).
+matplotlib>=3.9
+numpy
+pandas
+openpyxl
+pyperclip
+requests
+Pillow
