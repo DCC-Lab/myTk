@@ -8,6 +8,8 @@ by Daniel C. Côté
 ## What is it?
 Making a UI interface should not be complicated. **myTk** is a set of UI classes that simplifies the use of Tkinter to make simple (and not so simple!) GUIs in Python.
 
+> ✨ **New:** any widget can now accept **files dropped from the OS file manager** — just call `widget.accept_dropped_files(callback)` (see [Drag and drop](#drag-and-drop)). There is also a new embedded 3D mesh viewer, [`View3D`](#classes).
+
 ## Why Tk?
 Tk comes standard with Python.  It is highly portable to all main platforms.
 

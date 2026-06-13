@@ -2,6 +2,24 @@
 
 All notable changes to myTk are documented here.
 
+## [1.2.0] - 2026-06-13
+### Added
+- **Drag-and-drop**: any widget can accept files dropped from the OS file
+  manager via `Base.accept_dropped_files(callback)` (new `DragAndDropCapable`
+  mixin, modelled on `EventCapable`). Built on the optional `tkinterdnd2`/tkdnd
+  extension, installed on demand and matched to the running Tcl version; the
+  callback runs on the next event-loop tick (safe for dialogs/slow work), and
+  drag-and-drop degrades gracefully when the extension can't be loaded.
+- **`View3D`**: an embedded off-screen 3D mesh viewer. Loads GLB/GLTF/OBJ/PLY/STL
+  via trimesh and renders it inside a normal myTk layout — drag to orbit, scroll
+  to zoom, drop a mesh onto it to load. `View3D(...)` is a factory that picks a
+  backend (`View3DPyrender` preferred, `View3DModernGL` fallback); per-vertex
+  glTF `COLOR_0` alpha is honoured so translucent meshes render correctly. Heavy
+  dependencies are optional and installed on demand.
+- New examples: `view3d_app.py` and `dnd_app.py`; the capabilities demo
+  (`example.py`) now includes a `View3D`, and `pydatagraph_app.py` loads
+  Excel/CSV files by drag-and-drop.
+
 ## [1.1.0] - 2026-05-23
 ### Added
 - `grid_into(fill=...)` resize shortcut: sets the child's `sticky` and the parent row/column `weight` together so a widget actually grows with the window. Accepts `True`/`"both"`, `"x"`/`"width"`, `"y"`/`"height"`. Existing explicit (nonzero) weights are preserved; cannot be combined with an explicit `sticky`.
