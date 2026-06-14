@@ -22,7 +22,9 @@ class TestFont(envtest.MyTkTestCase):
     def test_get_font_size(self):
         font = tkFont.Font()
         properties = font.actual()
-        self.assertTrue(properties["size"] > 10)
+        # A real (positive) point size; the exact default varies by platform and
+        # Tk build (e.g. macOS on Python 3.14 reports a smaller default font).
+        self.assertGreater(properties["size"], 0)
 
     def test_measure_text(self):
         font = tkFont.Font()
