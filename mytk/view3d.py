@@ -9,7 +9,8 @@ and blits each frame into a `tk.Canvas` via Pillow, the same strategy
 Two concrete implementations share that machinery:
 
 * :class:`View3DModernGL` — a hand-written moderngl renderer (its own shaders,
-  matrices and buffers). Near-zero install footprint::
+  matrices and buffers). Near-zero install footprint, and it uses its own GL
+  bindings rather than PyOpenGL, so it works where pyrender's context fails::
 
       pip install moderngl trimesh numpy Pillow
 
@@ -19,13 +20,17 @@ Two concrete implementations share that machinery:
 
       pip install pyrender trimesh numpy Pillow
 
+Both backends map UV image textures onto the mesh (else per-vertex/material
+colour) and honour the object's own alpha.
+
 Everything that is *not* backend-specific — the Tk widget and mouse handling,
 the orbit camera, render scheduling, file loading and the blit — lives in the
 abstract base. A backend only has to know how to build its renderer, upload the
 geometry, and draw one frame into a Pillow image.
 
-The base shows static geometry only (no baked animations): per-vertex-coloured
-triangles with a two-sided Lambert-ish shade — enough to inspect exported scenes.
+The base shows static geometry only (no baked animations): textured or
+per-vertex-coloured triangles with a two-sided Lambert-ish shade — enough to
+inspect exported scenes.
 """
 
 import importlib
@@ -40,19 +45,21 @@ class View3D(Base, ABC):
     """Off-screen 3D mesh viewer blitted into a Tk label.
 
     Load a mesh with :meth:`load_file`, place it like any other myTk widget,
-    then drag to orbit and scroll to zoom. Renders only on interaction, so it is
-    cheap when idle.
+    then drag to orbit, scroll to zoom, and Shift+drag (or Shift+scroll) to pan.
+    Renders only on interaction, so it is cheap when idle.
 
     Calling ``View3D(...)`` does **not** build a base instance — it is a factory
     that picks a rendering backend and returns one of its concrete subclasses,
-    preferring :class:`View3DPyrender` (which keeps almost no GL of its own) and
-    falling back to :class:`View3DModernGL` when pyrender is not importable. Ask
-    for a specific backend by instantiating that subclass directly.
+    preferring :class:`View3DModernGL` (lighter deps, its own GL bindings, so it
+    works where pyrender's PyOpenGL context fails) and falling back to
+    :class:`View3DPyrender` only when moderngl is not importable. Both backends
+    map UV image textures onto the mesh. Ask for a specific backend — e.g.
+    pyrender for its nicer lighting — by instantiating that subclass directly.
 
-    The choice is made from which backend module imports, so a missing or broken
-    pyrender install falls back cleanly. It cannot, however, detect a pyrender
-    that imports but later fails to create a GL context (that surfaces at render
-    time); construct :class:`View3DModernGL` explicitly if you hit that.
+    The choice is made from which backend module imports. moderngl is preferred
+    because pyrender can import yet still fail to create a GL context at render
+    time (notably PyOpenGL on newer Pythons), which the import-probe cannot
+    detect; construct :class:`View3DPyrender` explicitly when you want it.
 
     Args:
         width (int): Initial render width in pixels (the label adopts the size
@@ -75,11 +82,11 @@ class View3D(Base, ABC):
         # A concrete subclass builds normally; only bare View3D(...) dispatches.
         if cls is not View3D:
             return super().__new__(cls)
-        for backend in (View3DPyrender, View3DModernGL):
+        for backend in (View3DModernGL, View3DPyrender):
             if backend._backend_importable():
                 return super().__new__(backend)
-        # Neither is installed yet: default to moderngl, whose lighter deps the
-        # normal ModulesManager path will offer to install on first use.
+        # Neither is installed yet: default to moderngl (lighter deps, portable
+        # GL), which the normal ModulesManager path offers to install on first use.
         return super().__new__(View3DModernGL)
 
     @classmethod
@@ -103,6 +110,8 @@ class View3D(Base, ABC):
         # Orbit camera state (angles in radians).
         self.azimuth, self.elevation = 0.6, 0.4
         self.distance = 2.6
+        # World-space pan offset of the look-at point (shift-drag / shift-scroll).
+        self.pan = None
 
         self._size = (0, 0)
         self._last = None              # last mouse position while dragging
@@ -154,10 +163,16 @@ class View3D(Base, ABC):
         self.widget.bind("<Map>", self._on_map)
         self.widget.bind("<Configure>", self._on_resize)
         self.widget.bind("<Button-1>", self._on_press)
-        self.widget.bind("<B1-Motion>", self._on_drag)
-        self.widget.bind("<MouseWheel>", self._on_wheel)       # macOS / Windows
-        self.widget.bind("<Button-4>", lambda e: self._zoom(0.9))   # Linux up
-        self.widget.bind("<Button-5>", lambda e: self._zoom(1.1))   # Linux down
+        self.widget.bind("<B1-Motion>", self._on_drag)             # drag = orbit
+        self.widget.bind("<MouseWheel>", self._on_wheel)           # macOS / Windows
+        self.widget.bind("<Button-4>", lambda e: self._zoom(0.9))  # Linux up
+        self.widget.bind("<Button-5>", lambda e: self._zoom(1.1))  # Linux down
+        # Shift = pan instead of orbit/zoom (Tk prefers the more specific binding).
+        self.widget.bind("<Shift-Button-1>", self._on_press)
+        self.widget.bind("<Shift-B1-Motion>", self._on_pan_drag)   # shift-drag = pan
+        self.widget.bind("<Shift-MouseWheel>", self._on_shift_wheel)
+        self.widget.bind("<Shift-Button-4>", lambda e: self._pan(0, 20))   # Linux
+        self.widget.bind("<Shift-Button-5>", lambda e: self._pan(0, -20))  # Linux
 
         # No rendering yet: the first frame is driven by <Map> (see _on_map).
         self._bind_destroy_cancel()
@@ -269,6 +284,7 @@ class View3D(Base, ABC):
         self.radius = radius or 1.0
         self.azimuth, self.elevation = 0.6, 0.4
         self.distance = 2.6 * self.radius
+        self.pan = self.np.zeros(3)
         self._schedule_render(upload=True)
 
     def _center_or_origin(self):
@@ -280,17 +296,32 @@ class View3D(Base, ABC):
         """
         return self.center if self.center is not None else self.np.zeros(3)
 
+    def _look_target(self):
+        """Point the camera orbits around and looks at: centre plus any pan."""
+        target = self._center_or_origin()
+        return target if self.pan is None else target + self.pan
+
     def _eye(self):
         """Camera position on the orbit sphere for the current angles."""
         np = self.np
         ce = np.cos(self.elevation)
-        return self._center_or_origin() + self.distance * np.array(
+        return self._look_target() + self.distance * np.array(
             [
                 ce * np.cos(self.azimuth),
                 np.sin(self.elevation),
                 ce * np.sin(self.azimuth),
             ]
         )
+
+    def _camera_basis(self):
+        """Orthonormal (right, up) of the current view, for screen-plane panning."""
+        np = self.np
+        forward = self._look_target() - self._eye()
+        forward = forward / np.linalg.norm(forward)
+        right = np.cross(forward, (0.0, 1.0, 0.0))
+        right = right / np.linalg.norm(right)
+        up = np.cross(right, forward)
+        return right, up
 
     def _on_press(self, event):
         """Remember where a drag started."""
@@ -305,6 +336,39 @@ class View3D(Base, ABC):
         self.azimuth += dx * 0.01
         self.elevation = float(np.clip(self.elevation + dy * 0.01, -1.5, 1.5))
         self._last = (event.x, event.y)
+        self.render()
+
+    def _on_pan_drag(self, event):
+        """Pan in the screen plane as Shift+drag moves the mouse."""
+        if self._last is None:
+            return
+        dx, dy = event.x - self._last[0], event.y - self._last[1]
+        self._last = (event.x, event.y)
+        self._pan(dx, dy)
+
+    def _on_shift_wheel(self, event):
+        """Shift + two-finger scroll pans instead of zooming.
+
+        macOS delivers horizontal trackpad scroll here too, so this is the
+        natural home for panning; the gesture shifts the model in its own plane.
+        """
+        self._pan(0, -event.delta)
+
+    def _pan(self, dx, dy):
+        """Shift the look-at point by a screen-pixel delta, so the model slides.
+
+        The delta is mapped through the camera's right/up axes and scaled by how
+        much world space one pixel covers at the look-at plane, so panning feels
+        the same at any zoom. Dragging moves the model with the cursor.
+        """
+        np = self.np
+        if self.pan is None:
+            self.pan = np.zeros(3)
+        right, up = self._camera_basis()
+        h = self._size[1] or self._initial_size[1]
+        # World units per pixel at the focal plane for a 45° vertical fov.
+        per_pixel = 2.0 * self.distance * np.tan(np.radians(45.0) / 2.0) / h
+        self.pan = self.pan + (-dx * right + dy * up) * per_pixel
         self.render()
 
     def _on_wheel(self, event):
@@ -423,25 +487,37 @@ uniform mat4 mvp;
 in vec3 in_pos;
 in vec3 in_norm;
 in vec4 in_color;
+in vec2 in_uv;
 out vec3 v_norm;
 out vec4 v_color;
+out vec2 v_uv;
 void main() {
     gl_Position = mvp * vec4(in_pos, 1.0);
     v_norm = in_norm;
     v_color = in_color;
+    v_uv = in_uv;
 }
 """
 
 FRAGMENT_SHADER = """
 #version 330
+uniform sampler2D tex;
+uniform int use_tex;     // 1: sample the bound texture, 0: use the vertex colour
 in vec3 v_norm;
 in vec4 v_color;
+in vec2 v_uv;
 out vec4 f_color;
 void main() {
+    // Per-vertex colour, or the UV-mapped texel when this mesh is textured.
+    // Flip V: the image is uploaded with its top row at v=0 (GL samples that as
+    // the bottom), but glTF UVs put v=0 at the top — so sample with 1 - v, or
+    // asymmetric textures map upside-down onto the atlas background.
+    vec4 base = (use_tex == 1) ? texture(tex, vec2(v_uv.x, 1.0 - v_uv.y)) : v_color;
+    if (base.a < 0.004) discard;                // cutout textures: drop holes
     vec3 n = normalize(v_norm);
     vec3 light = normalize(vec3(0.4, 0.8, 0.6));
     float diff = abs(dot(n, light));            // two-sided, so open shells stay lit
-    f_color = vec4(v_color.rgb * (0.35 + 0.75 * diff), v_color.a);  // object's own alpha
+    f_color = vec4(base.rgb * (0.35 + 0.75 * diff), base.a);  // object's own alpha
 }
 """
 
@@ -457,17 +533,18 @@ class View3DModernGL(View3D):
 
     def __init__(self, width=820, height=620, background="#1a1a1f"):
         super().__init__(width, height, background)
-        # Interleaved [pos, normal, rgba] vertices and Mx3 int faces.
-        self._data = None
-        self._faces = None
-        self._translucent = False  # any vertex alpha < 1 → blend through depth
+        # One draw item per mesh: each holds its own interleaved
+        # [pos, normal, rgba, uv] vertices, Mx3 int faces, an optional RGBA
+        # texture image, and whether it is translucent. Per-mesh (rather than
+        # one merged buffer) so each mesh can bind its own texture.
+        self._items = []
+        self._translucent = False  # any item translucent → blend through depth
 
-        # GL objects, created lazily once the window is mapped.
+        # GL objects, created lazily once the window is mapped. One entry in
+        # _gl per item in _items (vao/vbo/ibo and an optional texture).
         self.ctx = None
         self.prog = None
-        self.vbo = None
-        self.ibo = None
-        self.vao = None
+        self._gl = []
         self.fbo = None
 
     # -- backend contract -------------------------------------------------- #
@@ -483,19 +560,50 @@ class View3DModernGL(View3D):
 
     def _ingest(self, meshes, center, radius):
         np = self.np
-        verts, norms, colors, faces, base = [], [], [], [], 0
+        items = []
         for mesh in meshes:
             v = np.asarray(mesh.vertices, np.float32)
-            verts.append(v)
-            norms.append(np.asarray(mesh.vertex_normals, np.float32))
-            colors.append(self._vertex_colors(mesh))
-            faces.append(np.asarray(mesh.faces, np.int32) + base)
-            base += len(v)
-        interleaved = np.hstack(
-            [np.vstack(verts), np.vstack(norms), np.vstack(colors)]
-        ).astype("f4")
-        faces = np.vstack(faces).astype("i4")
-        self.set_geometry(interleaved, faces, center, radius)
+            norm = np.asarray(mesh.vertex_normals, np.float32)
+            color = self._vertex_colors(mesh)
+            image, uv = self._texture(mesh)
+            if image is not None:
+                # Textured: alpha comes from the image, not the vertex colour.
+                image = image.convert("RGBA")
+                translucent = bool(np.asarray(image)[:, :, 3].min() < 255)
+            else:
+                translucent = bool((color[:, 3] < 1.0).any())
+            data = np.hstack([v, norm, color, uv]).astype("f4")
+            items.append(
+                {
+                    "data": data,
+                    "faces": np.asarray(mesh.faces, np.int32),
+                    "image": image,
+                    "translucent": translucent,
+                }
+            )
+        self._set_items(items, center, radius)
+
+    def _texture(self, mesh):
+        """Return ``(PIL image or None, Nx2 UV float32)`` for a trimesh mesh.
+
+        A texture is used only when the mesh has ``TextureVisuals`` with both an
+        image (PBRMaterial ``baseColorTexture`` or SimpleMaterial ``image``) and
+        one UV per vertex. Otherwise there is nothing to map, so UVs are zeros
+        and the caller falls back to ``_vertex_colors``. The V coordinate is
+        flipped in the shader (glTF's origin is top-left, GL's is bottom-left).
+        """
+        np = self.np
+        n = len(mesh.vertices)
+        visual = mesh.visual
+        if isinstance(visual, self.trimesh.visual.TextureVisuals):
+            uv = getattr(visual, "uv", None)
+            material = getattr(visual, "material", None)
+            image = getattr(material, "baseColorTexture", None) or getattr(
+                material, "image", None
+            )
+            if image is not None and uv is not None and len(uv) == n:
+                return image, np.asarray(uv, np.float32)
+        return None, np.zeros((n, 2), np.float32)
 
     def _ensure_renderer(self, w, h):
         self._ensure_context()
@@ -504,17 +612,33 @@ class View3DModernGL(View3D):
     def _draw(self, w, h):
         self.fbo.use()
         self.ctx.clear(0.10, 0.10, 0.12, 1.0)
-        if self.vao is not None:
+        if self._gl:
             proj = self._perspective(
                 45.0, w / h, 0.01 * self.radius, 100.0 * self.radius
             )
-            view = self._look_at(self._eye(), self.center, (0.0, 1.0, 0.0))
+            view = self._look_at(self._eye(), self._look_target(), (0.0, 1.0, 0.0))
             # column-major for GL
             self.prog["mvp"].write((proj @ view).T.astype("f4").tobytes())
-            # For a translucent mesh, stop writing depth so back faces blend
-            # through instead of being z-rejected by the nearer shell.
-            self.ctx.depth_mask = not self._translucent
-            self.vao.render()
+            # Draw opaque meshes first (writing depth so they occlude correctly),
+            # then translucent ones with depth writes off so they blend over the
+            # solid geometry. Disabling depth per-mesh — not for the whole scene
+            # when any one mesh is translucent — keeps an opaque body from
+            # z-fighting just because, say, the hair has alpha.
+            order = sorted(
+                range(len(self._gl)),
+                key=lambda i: self._items[i]["translucent"],
+            )
+            for i in order:
+                gl = self._gl[i]
+                self.ctx.depth_mask = not self._items[i]["translucent"]
+                texture = gl["tex"]
+                if texture is not None:
+                    texture.use(location=0)
+                    self.prog["tex"].value = 0
+                    self.prog["use_tex"].value = 1
+                else:
+                    self.prog["use_tex"].value = 0
+                gl["vao"].render()
             self.ctx.depth_mask = True
 
         img = self.PILImage.frombytes(
@@ -525,7 +649,11 @@ class View3DModernGL(View3D):
     # -- moderngl internals ------------------------------------------------ #
 
     def set_geometry(self, interleaved, faces, center, radius):
-        """Display geometry from raw buffers.
+        """Display a single untextured mesh from raw buffers.
+
+        A convenience for vertex-coloured geometry; textured meshes arrive
+        through :meth:`_ingest` instead. The buffer is wrapped as one draw item
+        with zero UVs and no texture.
 
         Args:
             interleaved: Nx10 float32 array of [position, normal, rgba] per
@@ -534,9 +662,21 @@ class View3DModernGL(View3D):
             center: 3-vector at the centre of the geometry's bounding box.
             radius: Half the bounding-box diagonal; frames the orbit camera.
         """
-        self._data = interleaved
-        self._faces = faces
-        self._translucent = bool((interleaved[:, 9] < 1.0).any())
+        np = self.np
+        interleaved = np.asarray(interleaved, np.float32)
+        uv = np.zeros((len(interleaved), 2), np.float32)
+        item = {
+            "data": np.hstack([interleaved, uv]).astype("f4"),
+            "faces": np.asarray(faces, np.int32),
+            "image": None,
+            "translucent": bool((interleaved[:, 9] < 1.0).any()),
+        }
+        self._set_items([item], center, radius)
+
+    def _set_items(self, items, center, radius):
+        """Adopt per-mesh draw items, recompute translucency, frame the camera."""
+        self._items = items
+        self._translucent = any(it["translucent"] for it in items)
         self._frame(center, radius)
 
     def _ensure_context(self):
@@ -554,20 +694,43 @@ class View3DModernGL(View3D):
         )
 
     def _upload_geometry(self):
-        """(Re)upload the vertex/index buffers for the current geometry."""
+        """(Re)upload per-mesh vertex/index buffers and textures."""
         self._ensure_context()
-        if self.ctx is None or self._data is None:
+        if self.ctx is None or not self._items:
             return
-        for buf in (self.vbo, self.ibo, self.vao):
-            if buf is not None:
-                buf.release()
-        self.vbo = self.ctx.buffer(self._data.tobytes())
-        self.ibo = self.ctx.buffer(self._faces.tobytes())
-        self.vao = self.ctx.vertex_array(
-            self.prog,
-            [(self.vbo, "3f 3f 4f", "in_pos", "in_norm", "in_color")],
-            self.ibo,
-        )
+        self._release_gl()
+        for item in self._items:
+            vbo = self.ctx.buffer(item["data"].tobytes())
+            ibo = self.ctx.buffer(item["faces"].tobytes())
+            vao = self.ctx.vertex_array(
+                self.prog,
+                [(vbo, "3f 3f 4f 2f", "in_pos", "in_norm", "in_color", "in_uv")],
+                ibo,
+            )
+            texture = None
+            image = item["image"]
+            if image is not None:
+                # image is already RGBA (see _ingest). Its top row uploads as
+                # texel row 0; the shader flips V when sampling so glTF UVs land
+                # the right way up.
+                texture = self.ctx.texture(image.size, 4, image.tobytes())
+                # Sample the base image with a plain LINEAR filter. moderngl's
+                # DEFAULT filter is LINEAR_MIPMAP_LINEAR, which needs a complete
+                # mip chain; if a driver can't build one, the texture reads as
+                # black/white on minified (angled/distant) surfaces while face-on
+                # ones look fine. Not relying on mipmaps avoids that entirely.
+                texture.filter = (self.moderngl.LINEAR, self.moderngl.LINEAR)
+            self._gl.append(
+                {"vao": vao, "vbo": vbo, "ibo": ibo, "tex": texture}
+            )
+
+    def _release_gl(self):
+        """Release any existing per-mesh GL objects before a re-upload."""
+        for gl in self._gl:
+            for obj in (gl["vao"], gl["vbo"], gl["ibo"], gl["tex"]):
+                if obj is not None:
+                    obj.release()
+        self._gl = []
 
     def _ensure_fbo(self, w, h):
         """(Re)create the off-screen framebuffer when the size changes."""
@@ -575,6 +738,16 @@ class View3DModernGL(View3D):
         if self.ctx is None:
             return
         if (w, h) != self._size and w > 1 and h > 1:
+            # Release the previous framebuffer AND its attachments first: a
+            # framebuffer's release() does not free the textures bound to it, so
+            # resizing would otherwise leak GPU memory until allocations start
+            # failing (black/white frames under pressure).
+            if self.fbo is not None:
+                for attachment in self.fbo.color_attachments:
+                    attachment.release()
+                if self.fbo.depth_attachment is not None:
+                    self.fbo.depth_attachment.release()
+                self.fbo.release()
             self.fbo = self.ctx.framebuffer(
                 color_attachments=[self.ctx.texture((w, h), 3)],
                 depth_attachment=self.ctx.depth_texture((w, h)),
@@ -663,23 +836,51 @@ class View3DPyrender(View3D):
             self._scene.remove_node(node)
         self._mesh_nodes = []
         for mesh in self._meshes:
-            # Drive colour/transparency from _vertex_colors (same as the
-            # moderngl backend), so per-vertex glTF COLOR_0 alpha is honoured —
-            # pyrender's own from_trimesh would otherwise read only the opaque
-            # material colour. Restamp it as per-vertex ColorVisuals.
-            rgba = (self._vertex_colors(mesh) * 255.0).astype("uint8")
-            mesh = mesh.copy()
-            mesh.visual = self.trimesh.visual.ColorVisuals(
-                mesh, vertex_colors=rgba
-            )
-            pr_mesh = self.pyrender.Mesh.from_trimesh(mesh, smooth=False)
+            if self._has_texture(mesh):
+                # Textured mesh: hand it to pyrender untouched so it builds the
+                # UV-mapped sampler and material itself. The per-vertex COLOR_0
+                # alpha trick (used below for untextured meshes) is given up
+                # here — the texture's own alpha drives transparency instead.
+                pr_mesh = self.pyrender.Mesh.from_trimesh(mesh, smooth=False)
+            else:
+                # No texture: drive colour/transparency from _vertex_colors
+                # (same as the moderngl backend), so per-vertex glTF COLOR_0
+                # alpha is honoured — pyrender's own from_trimesh would
+                # otherwise read only the opaque material colour. Restamp it as
+                # per-vertex ColorVisuals.
+                rgba = (self._vertex_colors(mesh) * 255.0).astype("uint8")
+                mesh = mesh.copy()
+                mesh.visual = self.trimesh.visual.ColorVisuals(
+                    mesh, vertex_colors=rgba
+                )
+                pr_mesh = self.pyrender.Mesh.from_trimesh(mesh, smooth=False)
             for prim in pr_mesh.primitives:
                 # Matte (non-metallic) so colours read true under one light, and
-                # blended so the per-vertex alpha shows.
+                # blended so per-vertex / texture alpha shows.
                 prim.material.alphaMode = "BLEND"
                 prim.material.metallicFactor = 0.0
                 prim.material.roughnessFactor = 1.0
             self._mesh_nodes.append(self._scene.add(pr_mesh))
+
+    def _has_texture(self, mesh):
+        """Whether ``mesh`` carries a UV-mapped image texture pyrender can use.
+
+        True only when the mesh has ``TextureVisuals`` with both UV coordinates
+        and an image — i.e. enough to sample. A ``TextureVisuals`` that holds
+        only a flat material colour (no UVs or no image) is treated as
+        untextured so it still goes through the per-vertex colour path.
+        """
+        visual = mesh.visual
+        if not isinstance(visual, self.trimesh.visual.TextureVisuals):
+            return False
+        if getattr(visual, "uv", None) is None or len(visual.uv) == 0:
+            return False
+        material = getattr(visual, "material", None)
+        # PBRMaterial exposes baseColorTexture; SimpleMaterial exposes image.
+        image = getattr(material, "baseColorTexture", None) or getattr(
+            material, "image", None
+        )
+        return image is not None
 
     def _draw(self, w, h):
         # The object's own vertex/material alpha drives transparency (the meshes
@@ -709,10 +910,10 @@ class View3DPyrender(View3D):
         )
 
     def _camera_pose(self):
-        """Camera-to-world pose looking from the orbit eye at the centre."""
+        """Camera-to-world pose looking from the orbit eye at the (panned) centre."""
         np = self.np
         eye = self._eye()
-        f = self._center_or_origin() - eye
+        f = self._look_target() - eye
         f = f / np.linalg.norm(f)            # forward (camera looks down -z)
         s = np.cross(f, (0.0, 1.0, 0.0))
         s = s / np.linalg.norm(s)            # right
@@ -723,24 +924,55 @@ class View3DPyrender(View3D):
 
 
 if __name__ == "__main__":
-    # A very simple example: show a coloured box. Drag to orbit, scroll to zoom,
-    # or drop a mesh file onto the viewer to load it.
+    # A very simple example: show a checkerboard-textured box so the texture
+    # mapping is visible. Drag to orbit, scroll to zoom, Shift+drag (or
+    # Shift+scroll) to pan, or drop a mesh file onto the viewer to load it.
     import os
     import tempfile
 
+    import numpy as np
     import trimesh
+    from PIL import Image
 
     from mytk import App
 
+    # A checkerboard-textured box. Each face gets its own full [0,1]^2 UV square
+    # so the texture maps cleanly on every side (a naive shared-vertex UV would
+    # collapse the side faces to a thin strip and read as solid black/white).
     box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
-    box.visual.vertex_colors = (200, 90, 40, 255)
+    tris = box.vertices[box.faces]                     # (M, 3, 3): unmerged
+    verts = tris.reshape(-1, 3)
+    faces = np.arange(len(verts)).reshape(-1, 3)
+    # Per triangle, drop the axis along its normal and map the other two
+    # coordinates from [-0.5, 0.5] to [0, 1] — an axis-aligned per-face unwrap.
+    normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    drop = np.abs(normals).argmax(1)
+    keep = np.array([[a for a in range(3) if a != d] for d in drop])
+    uv = np.take_along_axis(
+        tris, keep[:, None, :], axis=2
+    ).reshape(-1, 2) + 0.5
+
+    # Asymmetric on purpose: a top-to-bottom brightness ramp makes an
+    # upside-down (V-flipped) texture obvious — a symmetric checker would hide it.
+    checker = (np.indices((16, 16)).sum(0) % 2 * 255).astype("uint8")
+    ramp = np.linspace(0.25, 1.0, 16)[:, None]  # darker at the top, brighter low
+    image = Image.fromarray(
+        np.dstack(
+            [checker * ramp, (checker // 2) * ramp, (255 - checker) * ramp]
+        ).astype("uint8"),
+        "RGB",
+    )
+    box = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+    box.visual = trimesh.visual.TextureVisuals(
+        uv=uv, material=trimesh.visual.material.PBRMaterial(baseColorTexture=image)
+    )
     path = os.path.join(tempfile.gettempdir(), "view3d_box.glb")
     box.export(path)
 
     app = App(geometry="400x400")
     app.window.widget.title("View3D")
 
-    # The View3D factory picks a backend (pyrender if available, else moderngl).
+    # The View3D factory picks a backend (moderngl if available, else pyrender).
     viewer = View3D(width=400, height=400)
     viewer.grid_into(app.window, row=0, column=0, sticky="nsew")
     app.window.row_resize_weight(0, 1)

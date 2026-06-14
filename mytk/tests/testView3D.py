@@ -55,16 +55,18 @@ class TestView3DExport(unittest.TestCase):
         self.assertIsInstance(viewer, (View3DModernGL, View3DPyrender))
         self.assertIsNot(type(viewer), View3D)
 
-    @unittest.skipUnless(_has_pyrender, "pyrender not available")
-    def test_prefers_pyrender_when_importable(self):
-        self.assertIsInstance(View3D(width=10, height=10), View3DPyrender)
+    @unittest.skipUnless(_has_moderngl, "moderngl not available")
+    def test_prefers_moderngl_when_importable(self):
+        # moderngl is preferred: lighter deps and its own GL bindings, so it
+        # works where pyrender's PyOpenGL context fails at render time.
+        self.assertIsInstance(View3D(width=10, height=10), View3DModernGL)
 
     @unittest.skipUnless(
-        _has_moderngl and not _has_pyrender,
-        "needs moderngl present and pyrender absent",
+        _has_pyrender and not _has_moderngl,
+        "needs pyrender present and moderngl absent",
     )
-    def test_falls_back_to_moderngl_without_pyrender(self):
-        self.assertIsInstance(View3D(width=10, height=10), View3DModernGL)
+    def test_falls_back_to_pyrender_without_moderngl(self):
+        self.assertIsInstance(View3D(width=10, height=10), View3DPyrender)
 
 
 @unittest.skipUnless(_has_moderngl, "moderngl/trimesh/numpy/Pillow not available")
@@ -101,7 +103,14 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         faces = np.array([[0, 1, 2]], dtype="i4")
         self.mesh_view.set_geometry(verts, faces, np.zeros(3, "f4"), 2.0)
 
-        self.assertIs(self.mesh_view._data, verts)
+        # One untextured draw item: the Nx10 buffer gains a zero UV pair (→ Nx12)
+        # and carries no texture image. No GL objects yet (built on first render).
+        self.assertEqual(len(self.mesh_view._items), 1)
+        item = self.mesh_view._items[0]
+        self.assertEqual(item["data"].shape, (3, 12))
+        self.assertIsNone(item["image"])
+        np.testing.assert_array_equal(item["faces"], faces)
+        self.assertEqual(self.mesh_view._gl, [])
         self.assertEqual(self.mesh_view.radius, 2.0)
         self.assertAlmostEqual(self.mesh_view.distance, 2.6 * 2.0)
 
@@ -143,7 +152,12 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         fixture = pathlib.Path(__file__).parent / "energy_translucent.glb"
         self.mesh_view.load_file(str(fixture))
         self.assertTrue(self.mesh_view._translucent)
-        self.assertLess(float(self.mesh_view._data[:, 9].min()), 1.0)
+        # Alpha (column 9 of each per-mesh [pos, norm, rgba, uv] buffer) dips
+        # below 1 for at least one mesh.
+        min_alpha = min(
+            float(item["data"][:, 9].min()) for item in self.mesh_view._items
+        )
+        self.assertLess(min_alpha, 1.0)
 
     def test_load_file_raises_on_unrecognized_file(self):
         # load_file_or_warn relies on this to know when to warn the user.
@@ -199,6 +213,109 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         )
         self.assertTrue(self.mesh_view._translucent)
 
+    def _textured_box(self, alpha=255):
+        import numpy as np
+        import trimesh
+        from PIL import Image
+
+        mesh = trimesh.creation.box()
+        uv = np.zeros((len(mesh.vertices), 2), "f4")
+        image = Image.new("RGBA", (4, 4), (10, 20, 30, alpha))
+        mesh.visual = trimesh.visual.TextureVisuals(uv=uv, image=image)
+        return mesh
+
+    def test_texture_returns_image_and_uv_for_textured_mesh(self):
+        mesh = self._textured_box()
+        image, uv = self.mesh_view._texture(mesh)
+        self.assertIsNotNone(image)
+        self.assertEqual(uv.shape, (len(mesh.vertices), 2))
+
+    def test_texture_returns_none_for_vertex_colored_mesh(self):
+        import trimesh
+
+        mesh = trimesh.creation.box()
+        mesh.visual.vertex_colors = (200, 90, 40, 255)
+        image, uv = self.mesh_view._texture(mesh)
+        self.assertIsNone(image)
+        self.assertEqual(uv.shape, (len(mesh.vertices), 2))
+
+    def test_ingest_textured_mesh_builds_textured_item(self):
+        import numpy as np
+
+        mesh = self._textured_box()
+        self.mesh_view._ingest([mesh], np.zeros(3), 1.0)
+
+        self.assertEqual(len(self.mesh_view._items), 1)
+        item = self.mesh_view._items[0]
+        self.assertIsNotNone(item["image"])              # texture carried
+        self.assertEqual(item["data"].shape[1], 12)      # [pos, norm, rgba, uv]
+        self.assertFalse(item["translucent"])            # opaque texture
+
+    def test_ingest_marks_texture_with_alpha_translucent(self):
+        import numpy as np
+
+        self.mesh_view._ingest([self._textured_box(alpha=128)], np.zeros(3), 1.0)
+        self.assertTrue(self.mesh_view._items[0]["translucent"])
+        self.assertTrue(self.mesh_view._translucent)
+
+    def test_pan_shifts_look_target_and_frame_resets_it(self):
+        # Shift+drag/scroll pans by moving the look-at point; loading new
+        # geometry (_frame) must recentre by clearing the pan.
+        import numpy as np
+
+        mv = self.mesh_view
+        mv._frame(np.array([1.0, 2.0, 3.0]), 2.0)
+        self.assertTrue(np.allclose(mv.pan, 0.0))
+        before = mv._look_target().copy()
+
+        mv._pan(15, -10)  # render() is a no-op without a widget
+        self.assertFalse(np.allclose(mv.pan, 0.0))
+        self.assertFalse(np.allclose(mv._look_target(), before))
+
+        mv._frame(np.array([1.0, 2.0, 3.0]), 2.0)  # reload recentres
+        self.assertTrue(np.allclose(mv.pan, 0.0))
+
+    def test_texture_v_orientation_is_upright(self):
+        # Regression for upside-down textures: trimesh stores glTF UVs in
+        # lower-left origin while images upload top-row-first, so the shader must
+        # sample 1 - v. A quad whose top vertices have uv.v=1, textured red-on-top
+        # / blue-on-bottom and viewed head-on, must show red at the TOP of the
+        # frame. Without the flip the texture maps upside-down (the bug that left
+        # real avatar models with black/white atlas-background patches). A
+        # symmetric texture can't catch this, so the texture here is asymmetric.
+        import numpy as np
+        import trimesh
+        from PIL import Image
+
+        mv = self.mesh_view
+        verts = np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], "f4")
+        faces = np.array([[0, 1, 2], [0, 2, 3]], "i4")
+        uv = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], "f4")  # top verts -> v=1
+        pixels = np.zeros((4, 4, 3), "uint8")
+        pixels[:2, :] = (255, 0, 0)   # image top half red
+        pixels[2:, :] = (0, 0, 255)   # image bottom half blue
+        mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+        mesh.visual = trimesh.visual.TextureVisuals(
+            uv=uv,
+            material=trimesh.visual.material.PBRMaterial(
+                baseColorTexture=Image.fromarray(pixels, "RGB")
+            ),
+        )
+        center, radius = mv._compute_bounds([mesh])
+        mv._ingest([mesh], center, radius)
+        mv.azimuth, mv.elevation = np.pi / 2, 0.0   # camera on +z, looking head-on
+        mv.distance = 3 * radius
+        try:
+            mv._ensure_context()
+            mv._ensure_fbo(64, 64)
+            mv._upload_geometry()
+        except Exception as exc:  # no GPU/standalone context (headless CI)
+            self.skipTest(f"no GL context: {exc}")
+        frame = np.asarray(mv._draw(64, 64))
+        top, bottom = frame[16, 32], frame[48, 32]
+        self.assertGreater(int(top[0]), int(top[2]))      # top of frame is red
+        self.assertGreater(int(bottom[2]), int(bottom[0]))  # bottom is blue
+
 
 @unittest.skipUnless(_has_pyrender, "pyrender/trimesh/numpy/Pillow not available")
 class TestView3DPyrender(envtest.MyTkTestCase):
@@ -218,6 +335,66 @@ class TestView3DPyrender(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view.center)
         pose = self.mesh_view._camera_pose()
         self.assertEqual(pose.shape, (4, 4))
+
+
+_has_trimesh_stack = all(
+    importlib.util.find_spec(n) is not None for n in _shared
+)
+
+
+@unittest.skipUnless(
+    _has_trimesh_stack, "trimesh/numpy/Pillow not available"
+)
+class TestView3DPyrenderTextureDetection(unittest.TestCase):
+    """`_has_texture` gates the texture path; it needs only trimesh, not pyrender.
+
+    Constructing ``View3DPyrender`` does not import pyrender (that happens in
+    ``is_environment_valid``), so these run wherever trimesh is present — even
+    without the GL backend installed. The method is what decides, per mesh,
+    whether pyrender renders the UV texture or we fall back to vertex colours.
+    """
+
+    def setUp(self):
+        import trimesh
+
+        # Build the instance without the factory so no backend import happens,
+        # then hand it the trimesh module the method needs.
+        self.view = View3DPyrender.__new__(View3DPyrender)
+        self.view.trimesh = trimesh
+
+    def _uv(self, mesh):
+        import numpy as np
+
+        return np.zeros((len(mesh.vertices), 2), dtype="f4")
+
+    def test_textured_mesh_is_detected(self):
+        import trimesh
+        from PIL import Image
+
+        mesh = trimesh.creation.box()
+        mesh.visual = trimesh.visual.TextureVisuals(
+            uv=self._uv(mesh), image=Image.new("RGB", (2, 2), (255, 0, 0))
+        )
+        self.assertTrue(self.view._has_texture(mesh))
+
+    def test_texturevisuals_without_uv_is_not_a_texture(self):
+        import trimesh
+        from PIL import Image
+
+        mesh = trimesh.creation.box()
+        visual = trimesh.visual.TextureVisuals(
+            uv=self._uv(mesh), image=Image.new("RGB", (2, 2))
+        )
+        visual.uv = None  # material/image present, but nothing to map onto
+        mesh.visual = visual
+        self.assertFalse(self.view._has_texture(mesh))
+
+    def test_color_visuals_mesh_is_not_a_texture(self):
+        import trimesh
+
+        mesh = trimesh.creation.box()
+        mesh.visual.vertex_colors = (200, 90, 40, 255)
+        self.assertFalse(self.view._has_texture(mesh))
 
 
 if __name__ == "__main__":
