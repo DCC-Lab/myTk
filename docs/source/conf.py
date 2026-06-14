@@ -26,8 +26,13 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.graphviz",
     "myst_parser",
 ]
+
+# -- Graphviz settings -------------------------------------------------------
+
+graphviz_output_format = "svg"
 
 templates_path = ["_templates"]
 exclude_patterns = []

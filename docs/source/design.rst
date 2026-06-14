@@ -72,24 +72,71 @@ myTk is a thin, layered wrapper around Tk. From the bottom up:
 * :class:`~mytk.app.App` and :class:`~mytk.window.Window` — the application
   controller and the top-level container.
 
-The core class hierarchy (regenerate any time with ``python -m mytk -c``, which
-emits Graphviz)::
+The complete class hierarchy (regenerate any time with ``python -m mytk -c``,
+which emits this Graphviz source). Solid arrows are subclassing; dashed arrows
+are the mixins folded into ``Base`` and ``App``:
 
-    Bindable
-    ├── Base
-    │   ├── View ──── LabelledEntry, ...
-    │   ├── Window
-    │   ├── Button, Checkbox, RadioButton, Slider
-    │   ├── Label ─── URLLabel
-    │   ├── Entry ─── FormattedEntry, IntEntry, CellEntry
-    │   ├── Box
-    │   ├── Image ─── ImageWithGrid
-    │   ├── CanvasView ── DynamicImage, JSONCanvas, BooleanIndicator, Level
-    │   ├── Figure ── XYPlot
-    │   ├── TableView
-    │   └── Dialog ── SimpleDialog, ConfigurationDialog, ProgressWindow
-    ├── App                 (also mixes in EventCapable)
-    └── TabularData          (the data model behind TableView)
+.. graphviz::
+   :caption: myTk class hierarchy (``python -m mytk -c``)
+   :alt: myTk class hierarchy
+
+   digraph myTk {
+       rankdir="LR";
+       node [shape=box, fontname="Helvetica", fontsize=10];
+       edge [arrowsize=0.7];
+
+       "Bindable" [style=filled, fillcolor="#cfe8ff"];
+       "Base"     [style=filled, fillcolor="#d8f5d0"];
+
+       "EventCapable"       [style="filled,dashed", fillcolor="#fff2cc"];
+       "DragAndDropCapable" [style="filled,dashed", fillcolor="#fff2cc"];
+       "EventCapable"       -> "Base" [style=dashed, label="mixin", fontsize=8];
+       "DragAndDropCapable" -> "Base" [style=dashed, label="mixin", fontsize=8];
+       "EventCapable"       -> "App"  [style=dashed, label="mixin", fontsize=8];
+
+       "Bindable" -> "App";
+       "Bindable" -> "TabularData";
+       "TabularData" -> "FileTreeData";
+
+       "Bindable" -> "Base";
+       "Base" -> "Button";
+       "Base" -> "CanvasView";
+       "CanvasView" -> "DynamicImage";
+       "CanvasView" -> "JSONCanvas";
+       "CanvasView" -> "BooleanIndicator";
+       "CanvasView" -> "Level";
+       "Base" -> "Image";
+       "Image" -> "ImageWithGrid";
+       "Base" -> "Label";
+       "Label" -> "URLLabel";
+       "Base" -> "View";
+       "View" -> "LabelledEntry";
+       "Base" -> "Box";
+       "Base" -> "Dialog";
+       "Dialog" -> "SimpleDialog";
+       "Dialog" -> "ConfigurationDialog";
+       "Dialog" -> "ProgressWindow";
+       "Base" -> "Window";
+       "Base" -> "Checkbox";
+       "Base" -> "Entry";
+       "Base" -> "FormattedEntry";
+       "Base" -> "CellEntry";
+       "Base" -> "IntEntry";
+       "Base" -> "Slider";
+       "Base" -> "Figure";
+       "Figure" -> "XYPlot";
+       "Figure" -> "Histogram";
+       "Base" -> "TableView";
+       "TableView" -> "FileViewer";
+       "Base" -> "NumericIndicator";
+       "Base" -> "PopupMenu";
+       "Base" -> "ProgressBar";
+       "Base" -> "RadioButton";
+       "Base" -> "View3D";
+       "View3D" -> "View3DModernGL";
+       "View3D" -> "View3DPyrender";
+       "Base" -> "VideoView";
+   }
 
 Note that :class:`~mytk.app.App` is *not* a ``Base``/``View``: it is a
 controller, not something drawn on screen, so it derives from ``Bindable`` and
