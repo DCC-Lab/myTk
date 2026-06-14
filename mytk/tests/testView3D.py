@@ -316,6 +316,131 @@ class TestView3DModernGL(envtest.MyTkTestCase):
         self.assertGreater(int(top[0]), int(top[2]))      # top of frame is red
         self.assertGreater(int(bottom[2]), int(bottom[0]))  # bottom is blue
 
+    def test_render_blits_into_canvas_and_resizes(self):
+        # Exercises the live render path the headless tests bypass: <Map> arms
+        # the first render, render() sizes the renderer / uploads / draws and
+        # blits a PhotoImage into the canvas, <Configure> resizes, and
+        # _schedule_render coalesces a deferred frame.
+        import os
+        import tempfile
+
+        import trimesh
+
+        mv = self.mesh_view
+        mv.grid_into(self.app.window, row=1, column=0, sticky="nsew")
+        box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+        box.visual.vertex_colors = (200, 90, 40, 255)
+        path = os.path.join(tempfile.gettempdir(), "mytk_render_box.glb")
+        box.export(path)
+        mv.load_file(path)  # geometry stored, deferred until mapped
+
+        # <Map>: first appearance flips _mapped; a second is a no-op.
+        self.assertFalse(mv._mapped)
+        mv._on_map(None)
+        self.assertTrue(mv._mapped)
+        mv._on_map(None)
+
+        try:
+            mv.render()  # size + context + upload + draw + blit
+        except Exception as exc:  # no GPU/standalone context (headless CI)
+            self.skipTest(f"no GL context: {exc}")
+        self.assertIsNotNone(mv._displayed_tkimage)
+        self.assertGreater(len(mv.widget.find_all()), 0)  # image placed on canvas
+
+        # <Configure>: re-sizes the renderer and redraws.
+        event = type("Event", (), {"width": 140, "height": 110})()
+        mv._on_resize(event)
+        self.assertEqual(mv._size, (140, 110))
+
+        # _schedule_render coalesces a deferred upload+render once mapped.
+        mv._render_pending = False
+        mv._schedule_render(upload=True)
+        self.assertTrue(mv._geometry_dirty)
+        self.assertTrue(mv._render_pending)
+
+    def test_input_handlers_orbit_zoom_and_pan(self):
+        # The mouse handlers update the camera (render() is a no-op while the
+        # viewer is unplaced). Covers orbit drag, wheel zoom, and the Shift pan
+        # handlers added for this widget.
+        import numpy as np
+
+        mv = self.mesh_view
+        mv._frame(np.zeros(3), 1.0)
+        evt = lambda **kw: type("Event", (), kw)()
+
+        mv._on_press(evt(x=10, y=10))
+        azimuth, elevation = mv.azimuth, mv.elevation
+        mv._on_drag(evt(x=40, y=25))                 # orbit
+        self.assertNotAlmostEqual(mv.azimuth, azimuth)
+        self.assertNotAlmostEqual(mv.elevation, elevation)
+
+        distance = mv.distance
+        mv._on_wheel(evt(delta=1))                   # zoom in
+        self.assertLess(mv.distance, distance)
+        mv._on_wheel(evt(delta=-1))                  # zoom out
+
+        mv._on_press(evt(x=10, y=10))
+        pan = mv.pan.copy()
+        mv._on_pan_drag(evt(x=30, y=35))             # Shift+drag pan
+        self.assertFalse(np.allclose(mv.pan, pan))
+        pan = mv.pan.copy()
+        mv._on_shift_wheel(evt(delta=4))             # Shift+scroll pan
+        self.assertFalse(np.allclose(mv.pan, pan))
+
+    def test_load_file_or_warn_warns_on_bad_file(self):
+        # The interactive (drop) path reports an unreadable file with a dialog
+        # and returns False instead of raising.
+        import os
+        import tempfile
+        from unittest import mock
+
+        path = os.path.join(tempfile.gettempdir(), "mytk_not_a_mesh.bin")
+        with open(path, "w") as handle:
+            handle.write("definitely not a mesh")
+        with mock.patch("mytk.dialog.Dialog.showwarning") as warn:
+            loaded = self.mesh_view.load_file_or_warn(path)
+        self.assertFalse(loaded)
+        warn.assert_called_once()
+
+    def test_vertex_colors_rgb_color0_is_made_opaque(self):
+        # glTF COLOR_0 carried as RGB (no alpha) is padded to opaque RGBA.
+        import numpy as np
+
+        colors = np.zeros((4, 3), np.uint8)
+        colors[:, 1] = 255  # green, no alpha channel
+
+        class _Visual:
+            vertex_attributes = {"color": colors}
+
+        class _Mesh:
+            visual = _Visual()
+            vertices = np.zeros((4, 3))
+
+        rgba = self.mesh_view._vertex_colors(_Mesh())
+        self.assertEqual(rgba.shape, (4, 4))
+        self.assertTrue(np.allclose(rgba[:, 3], 1.0))
+
+    def test_vertex_colors_falls_back_to_material_main_color(self):
+        # No vertex colours and no COLOR_0 → the material's main_color, opaque.
+        import numpy as np
+
+        class _Material:
+            main_color = np.array([10, 20, 30], np.uint8)
+
+        class _Visual:
+            vertex_attributes = {}
+            material = _Material()
+            main_color = None
+
+        class _Mesh:
+            visual = _Visual()
+            vertices = np.zeros((3, 3))
+
+        rgba = self.mesh_view._vertex_colors(_Mesh())
+        self.assertEqual(rgba.shape, (3, 4))
+        self.assertAlmostEqual(float(rgba[0, 0]), 10 / 255, places=3)
+        self.assertAlmostEqual(float(rgba[0, 3]), 1.0)
+
 
 @unittest.skipUnless(_has_pyrender, "pyrender/trimesh/numpy/Pillow not available")
 class TestView3DPyrender(envtest.MyTkTestCase):
@@ -335,6 +460,54 @@ class TestView3DPyrender(envtest.MyTkTestCase):
         self.assertIsNone(self.mesh_view.center)
         pose = self.mesh_view._camera_pose()
         self.assertEqual(pose.shape, (4, 4))
+
+    def test_renders_untextured_mesh(self):
+        # Drives the pyrender render path: scene/camera build, OffscreenRenderer
+        # creation, a resize that rebuilds the renderer, the untextured branch of
+        # _upload_geometry (restamp to ColorVisuals), and _draw producing a frame.
+        import numpy as np
+        import trimesh
+
+        mv = self.mesh_view
+        box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+        box.visual.vertex_colors = (200, 90, 40, 255)
+        center, radius = mv._compute_bounds([box])
+        mv._ingest([box], center, radius)
+        try:
+            mv._ensure_renderer(96, 96)
+            mv._ensure_renderer(112, 112)   # size change rebuilds the renderer
+            mv._upload_geometry()
+            image = mv._draw(112, 112)
+        except Exception as exc:  # offscreen GL unavailable on this box
+            self.skipTest(f"pyrender offscreen render unavailable: {exc}")
+        self.assertEqual(len(mv._mesh_nodes), 1)
+        arr = np.asarray(image)
+        self.assertEqual(arr.shape, (112, 112, 3))
+        drawn = int((np.abs(arr.astype(int) - [26, 26, 31]).sum(2) > 14).sum())
+        self.assertGreater(drawn, 0)                    # something rendered
+
+    def test_upload_routes_textured_mesh_through_pyrender(self):
+        # The textured branch of _upload_geometry hands the mesh to pyrender
+        # untouched (no ColorVisuals restamp). Building the scene graph touches no
+        # GL context — that happens at draw — so this covers the branch even where
+        # pyrender's PyOpenGL cannot upload textures (it can't here).
+        import numpy as np
+        import trimesh
+        from PIL import Image
+
+        mv = self.mesh_view
+        textured = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+        textured.visual = trimesh.visual.TextureVisuals(
+            uv=np.zeros((len(textured.vertices), 2), "f4"),
+            material=trimesh.visual.material.PBRMaterial(
+                baseColorTexture=Image.new("RGB", (4, 4), (0, 200, 0))
+            ),
+        )
+        self.assertTrue(mv._has_texture(textured))
+        center, radius = mv._compute_bounds([textured])
+        mv._ingest([textured], center, radius)
+        mv._upload_geometry()   # builds scene nodes; no GL until _draw
+        self.assertEqual(len(mv._mesh_nodes), 1)
 
 
 _has_trimesh_stack = all(
