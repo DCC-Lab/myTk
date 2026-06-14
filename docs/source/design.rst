@@ -18,42 +18,35 @@ myTk exists to make Tkinter pleasant for scientists and other non-professional
 programmers who need a working desktop GUI without adopting a heavy framework.
 Five goals drive every design decision:
 
-**G1 — Stay in the standard library.**
+**G1 — Stay simple and portable.**
    Tk ships with Python and is portable across macOS, Windows and Linux. There
    is nothing to install to get a window on screen, and apps move between
    machines and operating systems without surprises. This is the single
    biggest reason myTk is built on Tk rather than Qt or wxWidgets.
 
-**G2 — Bring mature macOS/Cocoa patterns to Tk.**
+**G2 — Bring modern macOS/Cocoa patterns to Tk.**
    Raw Tkinter scatters behaviour across loose callbacks. myTk borrows the
-   patterns Apple matured over decades — Key-Value Observing (binding),
+   patterns Apple matured over decades — Key-Value Observing (binding, bindable),
    ``NSNotificationCenter`` (notifications), and delegation — because they
    organize event-driven code far better than ad-hoc callbacks.
 
 **G3 — Encapsulate, but never hide.**
    Every Tk widget is wrapped in a :class:`~mytk.views.View` that exposes
    convenient behaviour, yet the underlying Tk widget is always reachable via
-   ``.widget`` for anything myTk does not cover. You are never boxed in.
+   ``.widget`` for anything myTk does not cover. You are never boxed in and limited.
 
-**G4 — Remove gratuitous friction.**
-   Where Tk forces ceremony for no reason, myTk supplies a sensible default and
+**G4 — Remove friction.**
+   Where Tk forces long verbose text for no reason, myTk supplies a sensible default and
    lets you override it. For example, Tk requires you to name a widget's parent
    at creation; myTk does not. Complex widgets like
    :class:`~mytk.tableview.TableView` work out of the box and let you refine
    behaviour through a *delegate* rather than wiring callbacks by hand.
 
-**G5 — Keep heavy features optional.**
+**G5 — Keep useful but less portable features optional.**
    3D rendering (:class:`~mytk.view3d.View3D`) and OS drag-and-drop pull in
    large or platform-specific dependencies. These are loaded on demand and
    degrade gracefully: if the dependency is absent, the feature reports itself
    unavailable and the rest of the app keeps running.
-
-.. note::
-
-   **For the author to confirm/extend:** are there goals not visible in the
-   code that should be stated here — e.g. myTk as a teaching vehicle, its role
-   as the shared UI layer for PyMicroscope / bliq tools, or an explicit promise
-   about API stability across versions?
 
 
 Architectural overview
@@ -312,18 +305,12 @@ Conventions & idioms
 * **"View" means anything visible on screen except the window.** The window is
   a :class:`~mytk.window.Window`; everything inside it is a ``View``.
 * **The ``.widget`` escape hatch.** Reach through any ``View`` to its raw Tk
-  widget when you need behaviour myTk does not wrap.
+  widget when you need behaviour myTk does not implement.
 * **Mixin composition.** Cross-cutting capabilities (events, drag-and-drop) are
   small mixins folded into ``Base`` rather than inheritance trees.
 * **Enum-named notifications.** Notification identifiers are ``Enum`` members,
   not strings.
 * **Delegate methods over callbacks** for non-trivial widgets.
-
-.. note::
-
-   **For the author to confirm/extend:** any conventions you want enforced for
-   contributors (naming, where new widgets live, docstring style beyond the
-   Google convention already in use).
 
 
 Extending myTk
@@ -360,11 +347,6 @@ A minimal application is just:
 Design decisions & trade-offs
 -----------------------------
 
-.. note::
-
-   The rationale below is reconstructed from the code and README. It is the
-   author's to confirm or rewrite; treat it as a draft of intent.
-
 **Why three coordination mechanisms (binding, notifications, delegation)?**
    They solve different shapes of problem and overlap little. *Binding* is for
    "these two values must stay equal." *Notifications* are for one-to-many,
@@ -386,7 +368,3 @@ Design decisions & trade-offs
    standard library by default). On-demand loading with graceful degradation
    keeps the baseline install tiny.
 
-.. note::
-
-   **For the author:** known limitations and "things I'd do differently"
-   belong here — please add them.
