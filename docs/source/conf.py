@@ -26,8 +26,13 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.graphviz",
     "myst_parser",
 ]
+
+# -- Graphviz settings -------------------------------------------------------
+
+graphviz_output_format = "svg"
 
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -36,6 +41,11 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
+
+# -- MyST settings -----------------------------------------------------------
+# Generate GitHub-style slug anchors for headings (levels 1-3) so in-page
+# links such as [Drag and drop](#drag-and-drop) resolve in the README.
+myst_heading_anchors = 3
 
 # -- Napoleon settings -------------------------------------------------------
 

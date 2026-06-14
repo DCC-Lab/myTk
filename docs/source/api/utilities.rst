@@ -38,6 +38,20 @@ EventCapable
    :members:
    :show-inheritance:
 
+DragAndDropCapable
+------------------
+
+.. automodule:: mytk.draganddropcapable
+   :members:
+   :show-inheritance:
+
+Drag and Drop helpers
+---------------------
+
+.. automodule:: mytk.dnd
+   :members:
+   :show-inheritance:
+
 ModulesManager
 --------------
 

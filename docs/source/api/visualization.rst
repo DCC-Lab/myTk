@@ -44,3 +44,17 @@ Indicators
 .. automodule:: mytk.indicators
    :members:
    :show-inheritance:
+
+View3D
+------
+
+.. automodule:: mytk.view3d
+   :members:
+   :show-inheritance:
+
+JSON Canvas
+-----------
+
+.. automodule:: mytk.jsoncanvas
+   :members:
+   :show-inheritance:
