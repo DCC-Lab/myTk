@@ -46,15 +46,22 @@ jobs:
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          # Default deps plus the View3D backend deps (trimesh/moderngl/numpy/
-          # Pillow) so the 3D tests run instead of skipping. GPU-context render
-          # tests still skip gracefully on headless runners; the non-GL View3D
-          # logic (factory, colours, UVs, camera/pan math) is exercised.
-          pip install -e ".[view3d]"
+          pip install -e .
 
-      - name: Install pyrender backend (non-fatal)
-        # The second View3D backend. Best-effort: where no usable pyrender wheel
-        # exists for the runner, its tests stay skipped rather than fail the job.
+      - name: Install moderngl backend (best-effort)
+        # Primary View3D backend, so the 3D tests run instead of skipping. The
+        # non-GL logic (factory, colours, UVs, camera/pan math) is exercised;
+        # GPU-context render tests skip gracefully on headless runners.
+        # Best-effort: where moderngl's glcontext has no wheel and can't build
+        # (e.g. Linux on a brand-new Python), the moderngl tests skip rather than
+        # fail the job.
+        continue-on-error: true
+        run: pip install -e ".[view3d]"
+
+      - name: Install pyrender backend (best-effort)
+        # Second View3D backend, independent of moderngl. It pulls in trimesh/
+        # numpy/Pillow, so the View3D suite still runs even if moderngl could not
+        # be installed above.
         continue-on-error: true
         run: pip install pyrender
 
