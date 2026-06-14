@@ -37,6 +37,11 @@ source_suffix = {
     ".md": "markdown",
 }
 
+# -- MyST settings -----------------------------------------------------------
+# Generate GitHub-style slug anchors for headings (levels 1-3) so in-page
+# links such as [Drag and drop](#drag-and-drop) resolve in the README.
+myst_heading_anchors = 3
+
 # -- Napoleon settings -------------------------------------------------------
 
 napoleon_google_docstring = True
