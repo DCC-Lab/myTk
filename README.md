@@ -102,7 +102,9 @@ Anything visible on screen is a referred to as a View, except the Window.
 
 and many others that need to be documented.  [Look at the code](https://github.com/DCC-Lab/myTk/tree/main/mytk) to find them for now.
 
-![image](https://github.com/user-attachments/assets/501952c8-e16c-406e-97cc-3a729472b2ea)
+![myTk class hierarchy](https://raw.githubusercontent.com/DCC-Lab/myTk/main/README.assets/class-hierarchy.png)
+
+*Regenerate with* `python -m mytk -c` *(emits Graphviz; the dashed nodes are the mixins folded into* `Base` *and* `App`*).*
 
 ## Drag and drop
 
