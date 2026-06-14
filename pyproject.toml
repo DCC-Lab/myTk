@@ -48,6 +48,7 @@ view3d = ["trimesh", "moderngl", "numpy", "Pillow"]  # View3D (needs an OpenGL c
 dnd = ["tkinterdnd2"]                                # drag-and-drop (tkdnd; Tcl-version sensitive)
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
+screenshot = ["pyobjc-framework-Quartz; sys_platform == 'darwin'"]  # `make screenshot`
 # Everything optional, in one go:
 all = ["mytk[video,view3d,dnd,optics]"]
 
