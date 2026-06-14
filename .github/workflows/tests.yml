@@ -46,9 +46,17 @@ jobs:
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          # Default deps cover the non-GPU widgets the suite exercises; the
-          # optional video/view3d/dnd features stay out and their tests skip.
-          pip install -e .
+          # Default deps plus the View3D backend deps (trimesh/moderngl/numpy/
+          # Pillow) so the 3D tests run instead of skipping. GPU-context render
+          # tests still skip gracefully on headless runners; the non-GL View3D
+          # logic (factory, colours, UVs, camera/pan math) is exercised.
+          pip install -e ".[view3d]"
+
+      - name: Install pyrender backend (non-fatal)
+        # The second View3D backend. Best-effort: where no usable pyrender wheel
+        # exists for the runner, its tests stay skipped rather than fail the job.
+        continue-on-error: true
+        run: pip install pyrender
 
       - name: Set up Tk and virtual display (Linux)
         if: runner.os == 'Linux'
