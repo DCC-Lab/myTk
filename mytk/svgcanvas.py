@@ -104,6 +104,15 @@ class Matrix:
         """Geometric-mean scale factor, used to scale stroke widths."""
         return math.sqrt(abs(self.a * self.d - self.b * self.c)) or 1.0
 
+    @property
+    def rotation(self):
+        """Rotation of the transform as a Tk ``create_text`` angle (degrees).
+
+        Tk's text ``angle`` is counterclockwise; the canvas y-axis points down,
+        so an SVG ``rotate(-90)`` (upright y-axis label) maps to 90 here.
+        """
+        return (-math.degrees(math.atan2(self.b, self.a))) % 360
+
     @staticmethod
     def translate(tx, ty=0.0):
         return Matrix(1, 0, 0, 1, tx, ty)
@@ -403,7 +412,7 @@ class SVGCanvas(CanvasView):
 
         self.widget.create_text(
             px, py, text=text, fill=fill, anchor=anchor,
-            font=(family, font_size),
+            angle=ctm.rotation, font=(family, font_size),
         )
 
     # -- low-level helpers ---------------------------------------------------

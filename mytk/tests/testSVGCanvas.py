@@ -81,6 +81,25 @@ class TestSVGCanvasBasics(envtest.MyTkTestCase):
         values = [self.canvas.widget.itemcget(i, "text") for i in texts]
         self.assertIn("Hello", values)
 
+    def test_rotated_text_gets_angle(self):
+        # A text inside a rotate(-90) group should render with a 90° Tk angle.
+        self.canvas.load(svg(
+            '<g transform="rotate(-90)">'
+            '<text x="0" y="0" fill="black">Vertical</text></g>'))
+        texts = [i for i in self.canvas.widget.find_all()
+                 if self.canvas.widget.type(i) == "text"]
+        angles = {round(float(self.canvas.widget.itemcget(i, "angle")))
+                  for i in texts}
+        self.assertIn(90, angles)
+
+    def test_unrotated_text_has_zero_angle(self):
+        self.canvas.load(svg('<text x="10" y="20" fill="black">Flat</text>'))
+        texts = [i for i in self.canvas.widget.find_all()
+                 if self.canvas.widget.type(i) == "text"]
+        angles = {round(float(self.canvas.widget.itemcget(i, "angle")))
+                  for i in texts}
+        self.assertEqual(angles, {0})
+
     def test_group_children_rendered(self):
         self.canvas.load(svg(
             '<g fill="red">'
@@ -239,6 +258,17 @@ class TestMatrixAndTransforms(unittest.TestCase):
 
     def test_mean_scale(self):
         self.assertAlmostEqual(Matrix.scale(2, 8).mean_scale, 4.0)
+
+    def test_rotation_identity(self):
+        self.assertAlmostEqual(Matrix().rotation, 0.0)
+
+    def test_rotation_svg_minus_90_is_tk_90(self):
+        # SVG rotate(-90) (upright y-axis label) -> Tk text angle 90.
+        self.assertAlmostEqual(parse_transform("rotate(-90)").rotation, 90.0)
+
+    def test_rotation_ignores_uniform_scale(self):
+        m = parse_transform("rotate(-90) scale(3)")
+        self.assertAlmostEqual(m.rotation, 90.0)
 
 
 class TestPathParsing(unittest.TestCase):
