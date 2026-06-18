@@ -1,5 +1,6 @@
 import importlib.util
 import unittest
+from unittest.mock import patch
 
 import envtest
 
@@ -127,17 +128,24 @@ class TestSVGCanvasBasics(envtest.MyTkTestCase):
                              'fill="red"/>', attrs=""))
         self.assertGreaterEqual(len(self.canvas.widget.find_all()), 1)
 
-    def test_missing_file_warns_not_raises(self):
+    # Dialog.showwarning is a real modal dialog that blocks until clicked, so
+    # the failure paths are patched to keep the suite non-interactive while
+    # still asserting the dialog was shown.
+    @patch("mytk.dialog.Dialog.showwarning")
+    def test_missing_file_warns_not_raises(self, mock_warn):
         # load_file_or_warn must never raise, even for a missing path.
         self.assertFalse(self.canvas.load_file_or_warn("/no/such/file.svg"))
+        mock_warn.assert_called_once()
 
-    def test_invalid_svg_warns_not_raises(self):
+    @patch("mytk.dialog.Dialog.showwarning")
+    def test_invalid_svg_warns_not_raises(self, mock_warn):
         import tempfile, os
         fd, path = tempfile.mkstemp(suffix=".svg")
         try:
             with os.fdopen(fd, "w") as f:
                 f.write("this is not <xml")
             self.assertFalse(self.canvas.load_file_or_warn(path))
+            mock_warn.assert_called_once()
         finally:
             os.unlink(path)
 
