@@ -11,6 +11,7 @@ from .bindable import Bindable
 from .button import Button
 from .canvasview import CanvasView
 from .jsoncanvas import JSONCanvas
+from .svgcanvas import SVGCanvas
 from .checkbox import Checkbox
 from .configurable import (
     ConfigModel,
@@ -74,6 +75,7 @@ __all__ = [  # noqa: F405
     "Image",
     "ImageWithGrid",
     "IntEntry",
+    "JSONCanvas",
     "Label",
     "LabelledEntry",
     "Level",
@@ -86,6 +88,7 @@ __all__ = [  # noqa: F405
     "ProgressBarNotification",
     "ProgressWindow",
     "RadioButton",
+    "SVGCanvas",
     "SimpleDialog",
     "Slider",
     "TabularData",
