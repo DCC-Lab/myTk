@@ -1,19 +1,24 @@
 """
-svgcanvas_app.py — Minimal viewer for a subset of SVG.
+svgviewer_app.py — Minimal SVG viewer.
 
-Loads a built-in sample on startup. Click "Load…" to open an `.svg` file, or
-drag an `.svg` file from the file manager onto the canvas. Rendering covers the
-common shapes (rect, circle, ellipse, line, polyline, polygon, path, text),
-groups and transforms; gradients, filters and embedded images are ignored. See
-`mytk.svgcanvas` for the full supported feature set.
+Opens a window with an `SVGCanvas`. Pass an SVG file on the command line, drag
+an `.svg` file onto the viewer, or click "Load…" to open one. A built-in sample
+is shown when no file is given.
+
+    python -m mytk.example_apps.svgviewer_app [path/to/drawing.svg]
+
+Rendering covers the common shapes (rect, circle, ellipse, line, polyline,
+polygon, path, text), groups and transforms; gradients, filters and embedded
+images are ignored. See `mytk.svgcanvas` for the full supported feature set.
 """
 
+import sys
 from tkinter import filedialog
 
 
 SAMPLE_SVG = """\
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect x="10" y="10" width="180" height="180" rx="0"
+  <rect x="10" y="10" width="180" height="180"
         fill="#f5f5f5" stroke="#606060" stroke-width="2"/>
   <circle cx="60" cy="60" r="35" fill="#3498db" stroke="#1f618d"
           stroke-width="3"/>
@@ -37,9 +42,10 @@ if __name__ == "__main__":
     app = App(bring_to_front=True)
     app.window.widget.title("SVG viewer")
 
-    canvas = SVGCanvas(width=600, height=600)
-    canvas.grid_into(app.window, row=0, column=0, columnspan=2,
-                     padx=10, pady=10, sticky="nsew")
+    svg_view = SVGCanvas(width=620, height=620)
+    svg_view.grid_into(
+        app.window, row=0, column=0, padx=10, pady=10, sticky="nsew"
+    )
 
     def load_file():
         path = filedialog.askopenfilename(
@@ -47,28 +53,25 @@ if __name__ == "__main__":
             filetypes=[("SVG", "*.svg"), ("All files", "*.*")],
         )
         if path:
-            canvas.load_from_file(path)
-
-    def load_sample():
-        canvas.load(SAMPLE_SVG)
-
-    # Accept .svg files dropped from the OS file manager (no-op if the optional
-    # tkinterdnd2 dependency is unavailable).
-    canvas.accept_dropped_svg_files(
-        on_load=lambda path: app.window.widget.title(f"SVG viewer — {path}")
-    )
+            svg_view.load_from_file(path)
+            app.window.widget.title(f"SVG viewer — {path}")
 
     Button("Load…", user_event_callback=lambda e, b: load_file()).grid_into(
         app.window, row=1, column=0, padx=10, pady=(0, 10), sticky="w"
     )
-    Button("Reload sample",
-           user_event_callback=lambda e, b: load_sample()).grid_into(
-        app.window, row=1, column=1, padx=10, pady=(0, 10), sticky="e"
+
+    # Drop an .svg file onto the viewer; other files are ignored.
+    svg_view.accept_dropped_svg_files(
+        on_load=lambda path: app.window.widget.title(f"SVG viewer — {path}")
     )
 
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
-    app.window.column_resize_weight(1, 1)
 
-    load_sample()
+    if len(sys.argv) > 1:
+        svg_view.load_from_file(sys.argv[1])
+        app.window.widget.title(f"SVG viewer — {sys.argv[1]}")
+    else:
+        svg_view.load(SAMPLE_SVG)
+
     app.mainloop()
