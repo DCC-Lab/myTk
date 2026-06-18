@@ -203,21 +203,25 @@ class SVGCanvas(CanvasView):
         file loaded.
         """
         import os
+        from xml.etree.ElementTree import ParseError
 
         from .dialog import Dialog
 
         try:
             self.load_from_file(path)
             return True
-        except Exception:
-            Dialog.showwarning(
-                title="Could not open SVG",
-                message=(
-                    f"“{os.path.basename(path)}” could not be opened "
-                    f"as an SVG file.\n\nIt may be missing or not valid SVG."
-                ),
-            )
-            return False
+        except FileNotFoundError:
+            reason = "The file could not be found."
+        except (ParseError, UnicodeDecodeError) as err:
+            reason = f"It is not valid SVG/XML:\n{err}"
+        except Exception as err:
+            reason = str(err) or "It could not be rendered."
+
+        Dialog.showwarning(
+            title="Could not open SVG",
+            message=f"“{os.path.basename(path)}” could not be opened.\n\n{reason}",
+        )
+        return False
 
     def accept_dropped_svg_files(self, on_load=None):
         """Accept ``.svg`` files dropped onto the canvas from the OS file manager.
