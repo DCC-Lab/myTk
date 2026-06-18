@@ -24,9 +24,17 @@ filters, masks, ``<use>``/``<defs>`` references, CSS stylesheets and embedded
 images are ignored. Unknown elements are skipped (their children are still
 visited for groups).
 
+Rendering backends:
+    By default the document is drawn as live Tk canvas items — crisp and
+    manipulable, but aliased, since the Tk canvas has no antialiasing. Passing
+    ``antialias=True`` renders through Pillow at ``supersample``x resolution and
+    downscales (LANCZOS) for smooth output, shown as a single image (Pillow is
+    required only for this mode; it falls back to the vector renderer if absent).
+
 Usage::
 
-    canvas = SVGCanvas(width=800, height=600)
+    canvas = SVGCanvas(width=800, height=600)            # crisp vector items
+    canvas = SVGCanvas(width=800, height=600, antialias=True)  # smooth image
     canvas.grid_into(parent, ...)
     canvas.load(svg_string)
     # or: canvas.load_from_file("drawing.svg")
@@ -177,9 +185,22 @@ class SVGCanvas(CanvasView):
     See the module docstring for the supported feature set.
     """
 
-    def __init__(self, width=800, height=600, **kwargs):
+    def __init__(self, width=800, height=600, antialias=False, supersample=3,
+                 **kwargs):
+        """Create an SVG canvas.
+
+        With ``antialias=False`` (default) the document is drawn as live Tk
+        canvas items (crisp, manipulable, but aliased — Tk has no antialiasing).
+        With ``antialias=True`` it is rendered through Pillow at ``supersample``x
+        resolution and downscaled (LANCZOS), giving smooth, antialiased output
+        as a single image — at the cost of the live vector items (a resize or
+        reload re-renders the whole picture).
+        """
         super().__init__(width=width, height=height, **kwargs)
         self._svg_root = None
+        self.antialias = antialias
+        self.supersample = max(1, int(supersample))
+        self._photo = None  # keep a reference so the PhotoImage is not GC'd
 
     def load(self, svg_text):
         """Render an SVG document supplied as a string (or bytes)."""
@@ -193,6 +214,11 @@ class SVGCanvas(CanvasView):
         """Load and render an ``.svg`` file from disk."""
         with open(filepath, encoding="utf-8") as f:
             self.load(f.read())
+
+    def refresh(self):
+        """Re-render the current document (e.g. after toggling ``antialias``)."""
+        if self.widget is not None and self._svg_root is not None:
+            self._render()
 
     def load_file_or_warn(self, path):
         """Load an ``.svg`` file, warning in a dialog if it cannot be opened.
@@ -264,11 +290,50 @@ class SVGCanvas(CanvasView):
 
     def _render(self):
         self.widget.delete("all")
+        self._photo = None
         if self._svg_root is None:
             return
 
         base = self._root_transform(self._svg_root)
+        if self.antialias:
+            self._render_antialiased(base)
+        else:
+            self._target = _TkTarget(self.widget)
+            self._draw_element(self._svg_root, base, self._initial_style())
+
+    def _render_antialiased(self, base):
+        """Render through Pillow at supersample resolution, then downscale.
+
+        Falls back to the vector renderer if Pillow is unavailable.
+        """
+        try:
+            from PIL import Image, ImageDraw, ImageTk
+        except ImportError:
+            self._target = _TkTarget(self.widget)
+            self._draw_element(self._svg_root, base, self._initial_style())
+            return
+
+        width = self.widget.winfo_reqwidth()
+        height = self.widget.winfo_reqheight()
+        ss = self.supersample
+        bg = self._background_rgb()
+
+        image = Image.new("RGBA", (width * ss, height * ss), bg + (255,))
+        draw = ImageDraw.Draw(image)
+        self._target = _PILTarget(image, draw, ss)
         self._draw_element(self._svg_root, base, self._initial_style())
+
+        image = image.resize((width, height), Image.LANCZOS)
+        self._photo = ImageTk.PhotoImage(image)
+        self.widget.create_image(0, 0, anchor="nw", image=self._photo)
+
+    def _background_rgb(self):
+        """The canvas background as an (r, g, b) 0-255 tuple."""
+        try:
+            r, g, b = self.widget.winfo_rgb(self.widget.cget("background"))
+            return (r // 257, g // 257, b // 257)
+        except Exception:
+            return (255, 255, 255)
 
     def _initial_style(self):
         return {
@@ -414,9 +479,9 @@ class SVGCanvas(CanvasView):
         anchor_map = {"start": "w", "middle": "center", "end": "e"}
         anchor = anchor_map.get(style.get("text-anchor", "start"), "w")
 
-        self.widget.create_text(
+        self._target.text(
             px, py, text=text, fill=fill, anchor=anchor,
-            angle=ctm.rotation, font=(family, font_size),
+            angle=ctm.rotation, font_size=font_size, family=family,
         )
 
     # -- low-level helpers ---------------------------------------------------
@@ -424,7 +489,7 @@ class SVGCanvas(CanvasView):
     def _draw_polygon_points(self, points, ctm, style, closed, smooth=False):
         """Draw a filled and/or stroked polygon/polyline from user-space points.
 
-        ``smooth`` renders the outline as a Tk spline (used for curved paths and
+        ``smooth`` renders the outline as a spline (used for curved paths and
         ellipses); straight shapes pass ``smooth=False`` to keep sharp corners.
         """
         pts = [ctm.apply(x, y) for x, y in points]
@@ -433,46 +498,34 @@ class SVGCanvas(CanvasView):
         width = self._stroke_width(style, ctm)
 
         if closed and fill != "":
-            flat = [c for p in pts for c in p]
-            self.widget.create_polygon(
-                flat, fill=fill,
-                outline=stroke if stroke != "" else "",
-                width=width if stroke != "" else 0,
-                smooth=smooth,
-                **self._dash(style),
-            )
+            self._target.polygon(pts, fill=fill, outline=stroke, width=width,
+                                  smooth=smooth, dash=self._dash_pattern(style))
         elif stroke != "":
             line_pts = list(pts)
             if closed:
                 line_pts.append(pts[0])
-            self._stroke_polyline_pixels(line_pts, stroke, width, style,
-                                         smooth=smooth)
+            self._target.line(line_pts, fill=stroke, width=width, smooth=smooth,
+                              dash=self._dash_pattern(style), cap=self._cap(style))
 
     def _stroke_polyline(self, points, ctm, style):
         stroke = self._color(style.get("stroke"), style, "stroke-opacity")
         if stroke == "":
             return
         pts = [ctm.apply(x, y) for x, y in points]
-        self._stroke_polyline_pixels(pts, stroke, self._stroke_width(style, ctm),
-                                     style)
-
-    def _stroke_polyline_pixels(self, pts, stroke, width, style, smooth=False):
-        flat = [c for p in pts for c in p]
-        cap = {"butt": "butt", "round": "round", "square": "projecting"}.get(
-            style.get("stroke-linecap", "butt"), "butt")
-        self.widget.create_line(
-            flat, fill=stroke, width=width, capstyle=cap, smooth=smooth,
-            **self._dash(style),
-        )
+        self._target.line(pts, fill=stroke, width=self._stroke_width(style, ctm),
+                          smooth=False, dash=self._dash_pattern(style),
+                          cap=self._cap(style))
 
     def _draw_ellipse_points(self, cx, cy, rx, ry, ctm, style):
         """Flatten an ellipse to a closed polygon so transforms apply correctly.
 
-        Drawn smoothed so the sampled polygon renders as a round curve.
+        Sampled finely and drawn smoothed so it renders as a round curve in both
+        the vector (Tk spline) and antialiased (Pillow) backends.
         """
+        steps = max(CURVE_STEPS, 48)
         points = []
-        for i in range(CURVE_STEPS):
-            theta = 2 * math.pi * i / CURVE_STEPS
+        for i in range(steps):
+            theta = 2 * math.pi * i / steps
             points.append((cx + rx * math.cos(theta), cy + ry * math.sin(theta)))
         self._draw_polygon_points(points, ctm, style, closed=True, smooth=True)
 
@@ -480,12 +533,18 @@ class SVGCanvas(CanvasView):
         return max(self._length(style.get("stroke-width"), 1.0) * ctm.mean_scale,
                    1.0)
 
-    def _dash(self, style):
+    @staticmethod
+    def _cap(style):
+        return {"butt": "butt", "round": "round", "square": "projecting"}.get(
+            style.get("stroke-linecap", "butt"), "butt")
+
+    def _dash_pattern(self, style):
+        """Parse ``stroke-dasharray`` into a tuple of dash lengths, or None."""
         spec = style.get("stroke-dasharray")
         if not spec or spec.strip() in ("none", ""):
-            return {}
+            return None
         values = [int(round(v)) for v in _floats(spec) if v > 0]
-        return {"dash": tuple(values)} if values else {}
+        return tuple(values) if values else None
 
     @staticmethod
     def _font_size(style):
@@ -841,3 +900,183 @@ class SVGCanvas(CanvasView):
             ey = ry * math.sin(theta)
             points.append((cos_p * ex - sin_p * ey + cx,
                            sin_p * ex + cos_p * ey + cy))
+
+
+def _dash_segments(points, pattern):
+    """Yield sub-polylines covering the "on" spans of a dash *pattern*.
+
+    Walks the polyline toggling on/off by the pattern lengths (cycling), so a
+    backend without native dashing (Pillow) can draw each on-span as a line.
+    """
+    pat = [p for p in pattern if p > 0]
+    if not pat:
+        yield points
+        return
+    if len(pat) % 2:
+        pat = pat * 2  # an odd pattern repeats to form on/off pairs
+
+    idx = 0
+    remaining = pat[0]
+    drawing = True
+    seg = [points[0]]
+    for (ax, ay), (bx, by) in zip(points, points[1:]):
+        seg_len = math.hypot(bx - ax, by - ay)
+        if seg_len == 0:
+            continue
+        pos = 0.0
+        while seg_len - pos > remaining:
+            pos += remaining
+            t = pos / seg_len
+            px, py = ax + (bx - ax) * t, ay + (by - ay) * t
+            if drawing:
+                seg.append((px, py))
+                yield seg
+            seg = [(px, py)]
+            idx = (idx + 1) % len(pat)
+            remaining = pat[idx]
+            drawing = not drawing
+        remaining -= (seg_len - pos)
+        if drawing:
+            seg.append((bx, by))
+        else:
+            seg = [(bx, by)]
+    if drawing and len(seg) >= 2:
+        yield seg
+
+
+class _TkTarget:
+    """Drawing backend that emits live Tk canvas items (the default)."""
+
+    def __init__(self, widget):
+        self.widget = widget
+
+    def polygon(self, pts, fill, outline, width, smooth, dash):
+        flat = [c for p in pts for c in p]
+        kwargs = {"dash": dash} if dash else {}
+        self.widget.create_polygon(
+            flat, fill=fill,
+            outline=outline if outline != "" else "",
+            width=width if outline != "" else 0,
+            smooth=smooth, **kwargs,
+        )
+
+    def line(self, pts, fill, width, smooth, dash, cap):
+        flat = [c for p in pts for c in p]
+        kwargs = {"dash": dash} if dash else {}
+        self.widget.create_line(
+            flat, fill=fill, width=width, capstyle=cap, smooth=smooth, **kwargs,
+        )
+
+    def text(self, x, y, text, fill, anchor, angle, font_size, family):
+        self.widget.create_text(
+            x, y, text=text, fill=fill, anchor=anchor, angle=angle,
+            font=(family, font_size),
+        )
+
+
+class _PILTarget:
+    """Drawing backend that paints into a Pillow image at supersample scale.
+
+    Coordinates and widths arrive in logical canvas pixels and are multiplied by
+    ``scale``; the caller downscales the finished image to antialias it.
+    """
+
+    def __init__(self, image, draw, scale):
+        self.image = image
+        self.draw = draw
+        self.scale = scale
+        self._font_cache = {}
+
+    def _sp(self, pts):
+        s = self.scale
+        return [(x * s, y * s) for x, y in pts]
+
+    def _w(self, width):
+        return max(1, int(round(width * self.scale)))
+
+    def polygon(self, pts, fill, outline, width, smooth, dash):
+        p = self._sp(pts)
+        if fill != "" and len(p) >= 3:
+            self.draw.polygon(p, fill=fill)
+        if outline != "" and width > 0:
+            self._stroke(p + [p[0]], outline, self._w(width), dash)
+
+    def line(self, pts, fill, width, smooth, dash, cap):
+        self._stroke(self._sp(pts), fill, self._w(width), dash)
+
+    def _stroke(self, p, fill, w, dash):
+        if len(p) < 2:
+            return
+        if dash:
+            for seg in _dash_segments(p, [d * self.scale for d in dash]):
+                if len(seg) >= 2:
+                    self.draw.line(seg, fill=fill, width=w, joint="curve")
+        else:
+            self.draw.line(p, fill=fill, width=w, joint="curve")
+
+    def text(self, x, y, text, fill, anchor, angle, font_size, family):
+        from PIL import Image, ImageDraw
+
+        size = max(1, int(round(font_size * self.scale)))
+        font = self._font(family, size)
+        X, Y = x * self.scale, y * self.scale
+        pil_anchor = {"w": "lm", "center": "mm", "e": "rm"}.get(anchor, "lm")
+        angle %= 360
+
+        if abs(angle) < 0.01:
+            self.draw.text((X, Y), text, fill=fill, font=font, anchor=pil_anchor)
+            return
+
+        # Rotated text: draw onto a tile, rotate, paste so the anchor hits (X,Y).
+        l, t, r, b = self.draw.textbbox((0, 0), text, font=font, anchor="lm")
+        tw, th = r - l, b - t
+        pad = 4
+        tile = Image.new("RGBA", (int(tw) + 2 * pad, int(th) + 2 * pad),
+                         (0, 0, 0, 0))
+        ImageDraw.Draw(tile).text((pad - l, pad - t), text, fill=fill,
+                                  font=font, anchor="lm")
+
+        ax = pad + {"center": tw / 2, "e": tw}.get(anchor, 0.0)
+        ay = pad - t  # 'lm' vertical-middle line within the tile
+
+        rotated = tile.rotate(angle, expand=True, resample=Image.BICUBIC)
+        rad = math.radians(angle)
+        cos, sin = math.cos(rad), math.sin(rad)
+        dx, dy = ax - tile.width / 2, ay - tile.height / 2
+        # PIL rotates counterclockwise; in image (y-down) coords that maps to:
+        rx = dx * cos + dy * sin
+        ry = -dx * sin + dy * cos
+        anchor_x = rotated.width / 2 + rx
+        anchor_y = rotated.height / 2 + ry
+        self.image.paste(rotated,
+                         (int(round(X - anchor_x)), int(round(Y - anchor_y))),
+                         rotated)
+
+    def _font(self, family, size):
+        key = (family.lower(), size)
+        if key in self._font_cache:
+            return self._font_cache[key]
+        from PIL import ImageFont
+
+        candidates = [
+            family, family + ".ttf", family + ".ttc",
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+        font = None
+        for name in candidates:
+            try:
+                font = ImageFont.truetype(name, size)
+                break
+            except Exception:
+                continue
+        if font is None:
+            try:
+                font = ImageFont.load_default(size)
+            except TypeError:
+                font = ImageFont.load_default()
+        self._font_cache[key] = font
+        return font

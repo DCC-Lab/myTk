@@ -42,9 +42,12 @@ if __name__ == "__main__":
     app = App(bring_to_front=True)
     app.window.widget.title("SVG viewer")
 
-    svg_view = SVGCanvas(width=620, height=620)
+    # antialias=True renders smoothly through Pillow (falls back to crisp vector
+    # items if Pillow is missing).
+    svg_view = SVGCanvas(width=620, height=620, antialias=True, background="white")
     svg_view.grid_into(
-        app.window, row=0, column=0, padx=10, pady=10, sticky="nsew"
+        app.window, row=0, column=0, columnspan=2,
+        padx=10, pady=10, sticky="nsew"
     )
 
     def load_file():
@@ -55,8 +58,18 @@ if __name__ == "__main__":
         if path and svg_view.load_file_or_warn(path):
             app.window.widget.title(f"SVG viewer — {path}")
 
+    def toggle_smoothing(button):
+        svg_view.antialias = not svg_view.antialias
+        button.widget.config(
+            text=f"Smoothing: {'on' if svg_view.antialias else 'off'}")
+        svg_view.refresh()
+
     Button("Load…", user_event_callback=lambda e, b: load_file()).grid_into(
         app.window, row=1, column=0, padx=10, pady=(0, 10), sticky="w"
+    )
+    Button("Smoothing: on",
+           user_event_callback=lambda e, b: toggle_smoothing(b)).grid_into(
+        app.window, row=1, column=1, padx=10, pady=(0, 10), sticky="e"
     )
 
     # Drop an .svg file onto the viewer; other files are ignored.
@@ -66,6 +79,7 @@ if __name__ == "__main__":
 
     app.window.row_resize_weight(0, 1)
     app.window.column_resize_weight(0, 1)
+    app.window.column_resize_weight(1, 1)
 
     if len(sys.argv) > 1:
         if svg_view.load_file_or_warn(sys.argv[1]):

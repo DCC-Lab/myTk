@@ -7,11 +7,13 @@ import envtest
 from mytk import SVGCanvas
 from mytk.draganddropcapable import DragAndDropCapable
 from mytk.dnd import ensure_tkdnd
-from mytk.svgcanvas import Matrix, parse_transform
+from mytk.svgcanvas import Matrix, parse_transform, _dash_segments
 
 # tkinterdnd2 (with a tkdnd build matching the running Tcl) is optional. Gate the
 # live drop-registration test behind its presence, mirroring testDragAndDrop.
 _has_tkinterdnd2 = importlib.util.find_spec("tkinterdnd2") is not None
+# Pillow is optional and only needed for the antialiased rendering backend.
+_has_pil = importlib.util.find_spec("PIL") is not None
 
 
 def svg(body, attrs='viewBox="0 0 200 200"'):
@@ -414,6 +416,69 @@ class TestSVGDragAndDrop(envtest.MyTkTestCase):
         self.assertTrue(self.canvas.accept_dropped_svg_files())
         self.assertTrue(self.canvas.widget.bind("<<Drop>>"))
         self.assertEqual(len(self.canvas._drop_callbacks), 1)
+
+
+class TestDashSegments(unittest.TestCase):
+    def test_no_pattern_yields_whole_line(self):
+        pts = [(0, 0), (10, 0)]
+        self.assertEqual(list(_dash_segments(pts, ())), [pts])
+
+    def test_pattern_splits_line(self):
+        # A 100-long line with a 10/10 dash -> several separate "on" spans.
+        pts = [(0, 0), (100, 0)]
+        segments = list(_dash_segments(pts, (10, 10)))
+        self.assertGreater(len(segments), 1)
+        # Every emitted span is itself a polyline of >= 2 points.
+        self.assertTrue(all(len(s) >= 2 for s in segments))
+
+    def test_zero_pattern_yields_whole_line(self):
+        pts = [(0, 0), (10, 0)]
+        self.assertEqual(list(_dash_segments(pts, (0, 0))), [pts])
+
+
+@unittest.skipUnless(_has_pil, "Pillow not available")
+class TestSVGAntialias(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        self.canvas = SVGCanvas(width=200, height=200, antialias=True,
+                                background="white")
+        self.canvas.grid_into(self.app.window, row=0, column=0)
+
+    def _types(self):
+        return {self.canvas.widget.type(i)
+                for i in self.canvas.widget.find_all()}
+
+    def test_antialias_produces_single_image(self):
+        self.canvas.load(svg('<rect x="10" y="10" width="80" height="80" '
+                             'fill="red"/><circle cx="150" cy="50" r="30" '
+                             'fill="blue"/>'))
+        self.assertEqual(self._types(), {"image"})
+        self.assertIsNotNone(self.canvas._photo)
+
+    def test_vector_mode_uses_no_image(self):
+        vec = SVGCanvas(width=200, height=200)  # antialias=False default
+        vec.grid_into(self.app.window, row=1, column=0)
+        vec.load(svg('<rect x="0" y="0" width="10" height="10" fill="red"/>'))
+        self.assertNotIn("image", {vec.widget.type(i)
+                                   for i in vec.widget.find_all()})
+
+    def test_refresh_after_toggling_mode(self):
+        self.canvas.load(svg('<rect x="0" y="0" width="10" height="10" '
+                             'fill="red"/>'))
+        self.assertEqual(self._types(), {"image"})
+        self.canvas.antialias = False
+        self.canvas.refresh()
+        self.assertNotIn("image", self._types())
+
+    def test_background_rgb_white(self):
+        self.assertEqual(self.canvas._background_rgb(), (255, 255, 255))
+
+    def test_rotated_text_renders_without_error(self):
+        # Exercises the Pillow rotate-and-paste text path.
+        self.canvas.load(svg(
+            '<g transform="rotate(-90)">'
+            '<text x="0" y="0" fill="black">Vertical</text></g>'))
+        self.assertEqual(self._types(), {"image"})
 
 
 class TestSVGMainloop(envtest.MyTkTestCase):
