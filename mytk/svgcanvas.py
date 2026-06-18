@@ -371,10 +371,16 @@ class SVGCanvas(CanvasView):
             self._draw_polygon_points(points, ctm, style, closed=True)
 
     def _draw_path(self, element, ctm, style):
-        for subpath, closed in self._parse_path(element.get("d", "")):
+        for subpath, closed, has_curve in self._parse_path(element.get("d", "")):
             if len(subpath) < 2:
                 continue
-            self._draw_polygon_points(subpath, ctm, style, closed=closed)
+            # Smooth open strokes (most paths trace curves; straight runs like
+            # tick marks have too few points for smoothing to alter them) and
+            # closed shapes only when they actually used curve commands, so a
+            # rectangle drawn as a closed path keeps sharp corners.
+            smooth = True if not closed else has_curve
+            self._draw_polygon_points(subpath, ctm, style, closed=closed,
+                                      smooth=smooth)
 
     def _draw_text(self, element, ctm, style):
         text = "".join(element.itertext()).strip()
@@ -402,8 +408,12 @@ class SVGCanvas(CanvasView):
 
     # -- low-level helpers ---------------------------------------------------
 
-    def _draw_polygon_points(self, points, ctm, style, closed):
-        """Draw a filled and/or stroked polygon/polyline from user-space points."""
+    def _draw_polygon_points(self, points, ctm, style, closed, smooth=False):
+        """Draw a filled and/or stroked polygon/polyline from user-space points.
+
+        ``smooth`` renders the outline as a Tk spline (used for curved paths and
+        ellipses); straight shapes pass ``smooth=False`` to keep sharp corners.
+        """
         pts = [ctm.apply(x, y) for x, y in points]
         fill = self._color(style.get("fill"), style, "fill-opacity")
         stroke = self._color(style.get("stroke"), style, "stroke-opacity")
@@ -415,13 +425,15 @@ class SVGCanvas(CanvasView):
                 flat, fill=fill,
                 outline=stroke if stroke != "" else "",
                 width=width if stroke != "" else 0,
+                smooth=smooth,
                 **self._dash(style),
             )
         elif stroke != "":
             line_pts = list(pts)
             if closed:
                 line_pts.append(pts[0])
-            self._stroke_polyline_pixels(line_pts, stroke, width, style)
+            self._stroke_polyline_pixels(line_pts, stroke, width, style,
+                                         smooth=smooth)
 
     def _stroke_polyline(self, points, ctm, style):
         stroke = self._color(style.get("stroke"), style, "stroke-opacity")
@@ -431,22 +443,25 @@ class SVGCanvas(CanvasView):
         self._stroke_polyline_pixels(pts, stroke, self._stroke_width(style, ctm),
                                      style)
 
-    def _stroke_polyline_pixels(self, pts, stroke, width, style):
+    def _stroke_polyline_pixels(self, pts, stroke, width, style, smooth=False):
         flat = [c for p in pts for c in p]
         cap = {"butt": "butt", "round": "round", "square": "projecting"}.get(
             style.get("stroke-linecap", "butt"), "butt")
         self.widget.create_line(
-            flat, fill=stroke, width=width, capstyle=cap,
+            flat, fill=stroke, width=width, capstyle=cap, smooth=smooth,
             **self._dash(style),
         )
 
     def _draw_ellipse_points(self, cx, cy, rx, ry, ctm, style):
-        """Flatten an ellipse to a closed polygon so transforms apply correctly."""
+        """Flatten an ellipse to a closed polygon so transforms apply correctly.
+
+        Drawn smoothed so the sampled polygon renders as a round curve.
+        """
         points = []
         for i in range(CURVE_STEPS):
             theta = 2 * math.pi * i / CURVE_STEPS
             points.append((cx + rx * math.cos(theta), cy + ry * math.sin(theta)))
-        self._draw_polygon_points(points, ctm, style, closed=True)
+        self._draw_polygon_points(points, ctm, style, closed=True, smooth=True)
 
     def _stroke_width(self, style, ctm):
         return max(self._length(style.get("stroke-width"), 1.0) * ctm.mean_scale,
@@ -546,9 +561,11 @@ class SVGCanvas(CanvasView):
     # -- path parsing --------------------------------------------------------
 
     def _parse_path(self, data):
-        """Parse path ``d`` data into a list of (points, closed) subpaths.
+        """Parse path ``d`` data into a list of (points, closed, has_curve) tuples.
 
-        Curves and arcs are flattened to line segments.
+        Curves and arcs are flattened to line segments; ``has_curve`` records
+        whether the subpath used any curve command (C/S/Q/T/A), so callers can
+        decide whether to render it smoothed.
         """
         tokens = _PATH_TOKEN_RE.findall(data or "")
         subpaths = []
@@ -557,6 +574,7 @@ class SVGCanvas(CanvasView):
         start = (0.0, 0.0)
         prev_ctrl = None  # last cubic control point (for S/s)
         prev_qctrl = None  # last quadratic control point (for T/t)
+        curved = False  # did the current subpath use a curve command?
 
         i = 0
         command = None
@@ -569,10 +587,11 @@ class SVGCanvas(CanvasView):
             return vals
 
         def flush(closed):
-            nonlocal points
+            nonlocal points, curved
             if len(points) >= 2:
-                subpaths.append((points, closed))
+                subpaths.append((points, closed, curved))
             points = []
+            curved = False
 
         while i < n:
             token = tokens[i]
@@ -636,6 +655,7 @@ class SVGCanvas(CanvasView):
                 current = (x, y)
                 prev_ctrl = (x2, y2)
                 prev_qctrl = None
+                curved = True
             elif cmd == "S":
                 x2, y2, x, y = read(4)
                 if rel:
@@ -650,6 +670,7 @@ class SVGCanvas(CanvasView):
                 current = (x, y)
                 prev_ctrl = (x2, y2)
                 prev_qctrl = None
+                curved = True
             elif cmd == "Q":
                 x1, y1, x, y = read(4)
                 if rel:
@@ -659,6 +680,7 @@ class SVGCanvas(CanvasView):
                 current = (x, y)
                 prev_qctrl = (x1, y1)
                 prev_ctrl = None
+                curved = True
             elif cmd == "T":
                 x, y = read(2)
                 if rel:
@@ -672,6 +694,7 @@ class SVGCanvas(CanvasView):
                 current = (x, y)
                 prev_qctrl = (x1, y1)
                 prev_ctrl = None
+                curved = True
             elif cmd == "A":
                 rx, ry, rot, large, sweep, x, y = read(7)
                 if rel:
@@ -680,6 +703,7 @@ class SVGCanvas(CanvasView):
                                   large, sweep, (x, y))
                 current = (x, y)
                 prev_ctrl = prev_qctrl = None
+                curved = True
             else:
                 i += 1  # unknown command token; skip defensively
 

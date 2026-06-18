@@ -248,24 +248,25 @@ class TestPathParsing(unittest.TestCase):
     def test_simple_move_line(self):
         subpaths = self.canvas._parse_path("M0 0 L10 0 L10 10")
         self.assertEqual(len(subpaths), 1)
-        points, closed = subpaths[0]
+        points, closed, has_curve = subpaths[0]
         self.assertFalse(closed)
+        self.assertFalse(has_curve)
         self.assertEqual(points[0], (0.0, 0.0))
         self.assertEqual(points[-1], (10.0, 10.0))
 
     def test_close_marks_closed(self):
         subpaths = self.canvas._parse_path("M0 0 L10 0 L10 10 Z")
-        _, closed = subpaths[0]
+        _, closed, _ = subpaths[0]
         self.assertTrue(closed)
 
     def test_relative_commands(self):
         subpaths = self.canvas._parse_path("M0 0 l10 0 l0 10")
-        points, _ = subpaths[0]
+        points, _, _ = subpaths[0]
         self.assertEqual(points[-1], (10.0, 10.0))
 
     def test_horizontal_vertical(self):
         subpaths = self.canvas._parse_path("M0 0 H20 V20")
-        points, _ = subpaths[0]
+        points, _, _ = subpaths[0]
         self.assertEqual(points[-1], (20.0, 20.0))
 
     def test_multiple_subpaths(self):
@@ -275,8 +276,25 @@ class TestPathParsing(unittest.TestCase):
     def test_implicit_lineto_after_moveto(self):
         # A second coordinate pair after M is an implicit L.
         subpaths = self.canvas._parse_path("M0 0 5 5")
-        points, _ = subpaths[0]
+        points, _, _ = subpaths[0]
         self.assertEqual(points[-1], (5.0, 5.0))
+
+    def test_straight_subpath_not_marked_curved(self):
+        # A closed rectangle-like path uses only L commands -> stays sharp.
+        subpaths = self.canvas._parse_path("M0 0 L10 0 L10 10 L0 10 Z")
+        _, _, has_curve = subpaths[0]
+        self.assertFalse(has_curve)
+
+    def test_cubic_subpath_marked_curved(self):
+        subpaths = self.canvas._parse_path("M0 0 C 10 0 10 10 0 10")
+        _, _, has_curve = subpaths[0]
+        self.assertTrue(has_curve)
+
+    def test_curved_flag_is_per_subpath(self):
+        # First subpath curves, second is straight: flags must not bleed across.
+        subpaths = self.canvas._parse_path("M0 0 Q 5 5 10 0 M0 20 L10 20")
+        self.assertTrue(subpaths[0][2])
+        self.assertFalse(subpaths[1][2])
 
 
 class TestSVGDragAndDrop(envtest.MyTkTestCase):
