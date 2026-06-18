@@ -232,6 +232,57 @@ class TestSVGColors(envtest.MyTkTestCase):
         self.assertIn("#00ff00", fills)
 
 
+class TestSVGOpacity(envtest.MyTkTestCase):
+    def setUp(self):
+        super().setUp()
+        # A known background makes the blended colour deterministic.
+        self.canvas = SVGCanvas(width=400, height=400, background="white")
+        self.canvas.grid_into(self.app.window, row=0, column=0)
+
+    def _fill_of_only_polygon(self):
+        polys = [i for i in self.canvas.widget.find_all()
+                 if self.canvas.widget.type(i) == "polygon"]
+        self.assertEqual(len(polys), 1)
+        return self.canvas.widget.itemcget(polys[0], "fill")
+
+    def test_half_red_over_white(self):
+        # red(255,0,0) at 0.5 over white -> #ff8080
+        self.assertEqual(
+            self.canvas._blend_with_background("#ff0000", 0.5), "#ff8080")
+
+    def test_full_alpha_is_unchanged(self):
+        style = {"fill": "#ff0000", "opacity": "1", "fill-opacity": "1"}
+        self.assertEqual(
+            self.canvas._color("#ff0000", style, "fill-opacity"), "#ff0000")
+
+    def test_opacity_multiplies_fill_opacity(self):
+        # opacity 0.5 * fill-opacity 0.5 = 0.25 effective alpha.
+        style = {"fill": "#000000", "opacity": "0.5", "fill-opacity": "0.5"}
+        # black at 0.25 over white -> 0.75*255 = 191.25 -> 191 = 0xbf
+        self.assertEqual(
+            self.canvas._color("#000000", style, "fill-opacity"), "#bfbfbf")
+
+    def test_fill_opacity_renders_blended_polygon(self):
+        self.canvas.load(svg('<rect x="0" y="0" width="20" height="20" '
+                             'fill="#ff0000" fill-opacity="0.5"/>'))
+        self.assertEqual(self._fill_of_only_polygon(), "#ff8080")
+
+    def test_stroke_opacity_blends(self):
+        self.canvas.load(svg('<line x1="0" y1="0" x2="20" y2="20" '
+                             'stroke="#0000ff" stroke-opacity="0.5"/>'))
+        lines = [i for i in self.canvas.widget.find_all()
+                 if self.canvas.widget.type(i) == "line"]
+        self.assertEqual(len(lines), 1)
+        # blue(0,0,255) at 0.5 over white -> #8080ff
+        self.assertEqual(
+            self.canvas.widget.itemcget(lines[0], "fill"), "#8080ff")
+
+    def test_unresolvable_color_drawn_opaque(self):
+        # An unknown colour name can't be blended; return it unchanged.
+        self.assertEqual(
+            self.canvas._blend_with_background("notacolor", 0.5), "notacolor")
+
+
 class TestMatrixAndTransforms(unittest.TestCase):
     def test_identity_apply(self):
         self.assertEqual(Matrix().apply(3, 4), (3, 4))

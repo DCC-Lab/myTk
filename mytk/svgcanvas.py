@@ -522,7 +522,14 @@ class SVGCanvas(CanvasView):
         return style
 
     def _color(self, value, style, opacity_key):
-        """Resolve an SVG paint value to a Tk color, or "" for no paint."""
+        """Resolve an SVG paint value to a Tk color, or "" for no paint.
+
+        The Tk canvas has no per-item alpha, so partial opacity
+        (``opacity`` x ``fill-opacity``/``stroke-opacity``) is faked by blending
+        the colour toward the canvas background. This looks correct for
+        translucent shapes drawn over the background, but does not composite
+        against other shapes underneath them.
+        """
         if value is None:
             value = ""
         value = value.strip()
@@ -539,7 +546,34 @@ class SVGCanvas(CanvasView):
         if alpha <= 0:
             return ""
 
-        return self._normalize_color(value)
+        color = self._normalize_color(value)
+        if alpha < 1:
+            color = self._blend_with_background(color, alpha)
+        return color
+
+    def _blend_with_background(self, color, alpha):
+        """Flatten ``color`` at opacity ``alpha`` onto the canvas background.
+
+        Returns ``#rrggbb`` for ``shown = color*alpha + background*(1-alpha)``,
+        or ``color`` unchanged if either colour cannot be resolved (so an
+        unknown name still draws, just opaque).
+        """
+        if self.widget is None:
+            return color
+        try:
+            fr, fg, fb = self.widget.winfo_rgb(color)
+            br, bg, bb = self.widget.winfo_rgb(self.widget.cget("background"))
+        except Exception:
+            return color
+
+        def mix(front, back):
+            # winfo_rgb returns 16-bit channels; /257 maps 0..65535 -> 0..255.
+            value = (front * alpha + back * (1 - alpha)) / 257
+            return max(0, min(255, int(round(value))))
+
+        return "#{:02x}{:02x}{:02x}".format(
+            mix(fr, br), mix(fg, bg), mix(fb, bb)
+        )
 
     @staticmethod
     def _normalize_color(value):
