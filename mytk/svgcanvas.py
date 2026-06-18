@@ -185,6 +185,31 @@ class SVGCanvas(CanvasView):
         with open(filepath, encoding="utf-8") as f:
             self.load(f.read())
 
+    def load_file_or_warn(self, path):
+        """Load an ``.svg`` file, warning in a dialog if it cannot be opened.
+
+        Unlike :meth:`load_from_file`, this never raises — it is meant for
+        dropped or user-picked files, where a missing or malformed file should
+        be reported in the UI rather than crash the app. Returns True if the
+        file loaded.
+        """
+        import os
+
+        from .dialog import Dialog
+
+        try:
+            self.load_from_file(path)
+            return True
+        except Exception:
+            Dialog.showwarning(
+                title="Could not open SVG",
+                message=(
+                    f"“{os.path.basename(path)}” could not be opened "
+                    f"as an SVG file.\n\nIt may be missing or not valid SVG."
+                ),
+            )
+            return False
+
     def accept_dropped_svg_files(self, on_load=None):
         """Accept ``.svg`` files dropped onto the canvas from the OS file manager.
 
@@ -204,8 +229,7 @@ class SVGCanvas(CanvasView):
             path = self._first_svg(paths)
             if path is None:
                 return
-            self.load_from_file(path)
-            if on_load is not None:
+            if self.load_file_or_warn(path) and on_load is not None:
                 on_load(path)
 
         return self.accept_dropped_files(handle_dropped)
@@ -244,26 +268,48 @@ class SVGCanvas(CanvasView):
         }
 
     def _root_transform(self, root):
-        """Map the SVG viewBox into the requested canvas size (xMidYMid meet)."""
+        """Fit the document into the canvas (xMidYMid meet).
+
+        Uses the ``viewBox`` when present, otherwise the root ``width``/``height``
+        so documents that only declare a pixel size still scale to fit instead
+        of overflowing.
+        """
         width = self.widget.winfo_reqwidth()
         height = self.widget.winfo_reqheight()
+        self.widget.configure(scrollregion=(0, 0, width, height))
 
-        view_box = root.get("viewBox")
-        if not view_box:
-            self.widget.configure(scrollregion=(0, 0, width, height))
+        box = self._source_box(root)
+        if box is None:
             return Matrix()
-
-        nums = _floats(view_box)
-        if len(nums) != 4 or nums[2] == 0 or nums[3] == 0:
-            return Matrix()
-        min_x, min_y, vb_w, vb_h = nums
+        min_x, min_y, vb_w, vb_h = box
 
         scale = min(width / vb_w, height / vb_h)
         tx = (width - vb_w * scale) / 2 - min_x * scale
         ty = (height - vb_h * scale) / 2 - min_y * scale
-
-        self.widget.configure(scrollregion=(0, 0, width, height))
         return Matrix.translate(tx, ty).multiply(Matrix.scale(scale))
+
+    @staticmethod
+    def _source_box(root):
+        """The user-space box to fit: the viewBox, else (0,0,width,height).
+
+        Returns ``(min_x, min_y, w, h)`` or None when no usable box is declared
+        (e.g. percentage sizes), in which case the document is drawn 1:1.
+        """
+        view_box = root.get("viewBox")
+        if view_box:
+            nums = _floats(view_box)
+            if len(nums) == 4 and nums[2] > 0 and nums[3] > 0:
+                return tuple(nums)
+            return None
+
+        raw_w, raw_h = root.get("width", ""), root.get("height", "")
+        if "%" in raw_w or "%" in raw_h:
+            return None
+        w = SVGCanvas._length(raw_w, 0)
+        h = SVGCanvas._length(raw_h, 0)
+        if w > 0 and h > 0:
+            return (0.0, 0.0, w, h)
+        return None
 
     def _draw_element(self, element, parent_ctm, parent_style):
         style = self._resolve_style(element, parent_style)

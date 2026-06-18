@@ -108,6 +108,65 @@ class TestSVGCanvasBasics(envtest.MyTkTestCase):
                              'fill="red"/>', attrs=""))
         self.assertGreaterEqual(len(self.canvas.widget.find_all()), 1)
 
+    def test_missing_file_warns_not_raises(self):
+        # load_file_or_warn must never raise, even for a missing path.
+        self.assertFalse(self.canvas.load_file_or_warn("/no/such/file.svg"))
+
+    def test_invalid_svg_warns_not_raises(self):
+        import tempfile, os
+        fd, path = tempfile.mkstemp(suffix=".svg")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write("this is not <xml")
+            self.assertFalse(self.canvas.load_file_or_warn(path))
+        finally:
+            os.unlink(path)
+
+    def test_valid_file_loads(self):
+        import tempfile, os
+        fd, path = tempfile.mkstemp(suffix=".svg")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(svg('<rect x="0" y="0" width="10" height="10" '
+                            'fill="red"/>'))
+            self.assertTrue(self.canvas.load_file_or_warn(path))
+            self.assertGreaterEqual(len(self.canvas.widget.find_all()), 1)
+        finally:
+            os.unlink(path)
+
+
+class TestSVGSourceBox(unittest.TestCase):
+    def test_viewbox_preferred(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg viewBox="10 20 100 200" width="5" '
+                             'height="5"/>')
+        self.assertEqual(SVGCanvas._source_box(root), (10.0, 20.0, 100.0, 200.0))
+
+    def test_width_height_fallback(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg width="1111" height="762"/>')
+        self.assertEqual(SVGCanvas._source_box(root), (0.0, 0.0, 1111.0, 762.0))
+
+    def test_width_height_with_units(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg width="300px" height="150px"/>')
+        self.assertEqual(SVGCanvas._source_box(root), (0.0, 0.0, 300.0, 150.0))
+
+    def test_percent_size_is_none(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg width="100%" height="100%"/>')
+        self.assertIsNone(SVGCanvas._source_box(root))
+
+    def test_no_dimensions_is_none(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg/>')
+        self.assertIsNone(SVGCanvas._source_box(root))
+
+    def test_degenerate_viewbox_is_none(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring('<svg viewBox="0 0 0 100"/>')
+        self.assertIsNone(SVGCanvas._source_box(root))
+
 
 class TestSVGColors(envtest.MyTkTestCase):
     def setUp(self):

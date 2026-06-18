@@ -52,8 +52,7 @@ if __name__ == "__main__":
             title="Open an SVG file",
             filetypes=[("SVG", "*.svg"), ("All files", "*.*")],
         )
-        if path:
-            svg_view.load_from_file(path)
+        if path and svg_view.load_file_or_warn(path):
             app.window.widget.title(f"SVG viewer — {path}")
 
     Button("Load…", user_event_callback=lambda e, b: load_file()).grid_into(
@@ -69,8 +68,8 @@ if __name__ == "__main__":
     app.window.column_resize_weight(0, 1)
 
     if len(sys.argv) > 1:
-        svg_view.load_from_file(sys.argv[1])
-        app.window.widget.title(f"SVG viewer — {sys.argv[1]}")
+        if svg_view.load_file_or_warn(sys.argv[1]):
+            app.window.widget.title(f"SVG viewer — {sys.argv[1]}")
     else:
         svg_view.load(SAMPLE_SVG)
 
