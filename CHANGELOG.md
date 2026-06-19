@@ -2,6 +2,25 @@
 
 All notable changes to myTk are documented here.
 
+## [1.4.0] - 2026-06-18
+### Added
+- **`SVGImage`** — a widget that displays an SVG document, rasterized with the
+  [`resvg`](https://pypi.org/project/resvg-py/) engine (full SVG fidelity,
+  including text, gradients and clipping) and shown through the existing
+  `Image`/`ttk.Label` pipeline. Because the source is vector, it re-renders on
+  resize for crisp output. Construct it from a path or string:
+  `SVGImage(filepath="drawing.svg")` / `SVGImage(data="<svg ...>")`. Accepts
+  dropped `.svg` files via `accept_dropped_svg_files()`.
+  - New optional extra `pip install mytk[svg]` (`resvg-py`); also installed on
+    demand at first use, like the other extras.
+- New example app `mytk.example_apps.svgviewer_app`.
+
+### Fixed
+- Drag-and-drop now accepts `file://` URIs (percent-encoded, possibly with a
+  trailing newline) delivered by GNOME/GTK file managers, which were previously
+  dropped silently. The fix is in the shared `dnd.dropped_paths` parser, so it
+  applies to every drop target (`SVGImage`, `View3D`, `TableView`, plots).
+
 ## [1.3.0] - 2026-06-13
 ### Changed
 - **Heavy/platform-sensitive features are now optional extras; the default

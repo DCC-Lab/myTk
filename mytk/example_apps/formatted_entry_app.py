@@ -1,3 +1,9 @@
+"""formatted_entry_app.py — Showcase of FormattedEntry number formatting.
+
+Lays out FormattedEntry widgets with different format strings and reverse-parse
+regexes (plain, fixed decimals, scientific, percentage), bound to values via
+bind_property_to_widget_value inside a Box layout.
+"""
 if __name__ == "__main__":
     from mytk import *
     from mytk.entries import FormattedEntry

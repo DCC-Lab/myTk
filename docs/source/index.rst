@@ -7,6 +7,7 @@ Welcome to myTk's documentation!
 
    readme
    design
+   examples
 
 .. toctree::
    :maxdepth: 2

@@ -1,3 +1,11 @@
+"""canvas_app.py — Interactive optical ray-tracing playground built on CanvasView.
+
+Draws lenses, apertures and rays on a CanvasView using its coordinate-system and
+dynamic-basis support, with a TableView to edit the optical elements and live
+canvas refreshes driven by property binding and notifications.
+
+Needs the optional ``raytracing`` package (and ``pyperclip`` for "Copy script").
+"""
 import colorsys
 from tkinter import filedialog
 

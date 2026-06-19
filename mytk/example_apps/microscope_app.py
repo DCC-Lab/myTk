@@ -1,5 +1,11 @@
+"""microscope_app.py — Live webcam microscope viewer.
 
+Wraps a VideoView with camera controls — zoom, exposure and gain — using two-way
+property binding (Sliders and an IntEntry to the VideoView) and a live histogram,
+plus VideoView's built-in start/save/stream buttons.
 
+Needs a connected camera (device 0) and a VideoView backend (e.g. OpenCV).
+"""
 from mytk import *
 
 

@@ -1,3 +1,9 @@
+"""file_calculator_app.py — File browser that runs a calculation on the selection.
+
+Combines a FileViewer (custom columns, directory picker) with property binding and a
+selection-changed delegate: picking a file triggers a calculation whose result is
+shown alongside an XYPlot.
+"""
 from tkinter import filedialog
 
 from mytk import *

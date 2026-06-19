@@ -1,3 +1,8 @@
+"""fileviewer_app.py — Minimal directory browser using FileViewer.
+
+Shows a FileViewer with configurable columns (name, size, modification date) and a
+directory picker, using PostponeChangeCalls for efficient data-source updates.
+"""
 from tkinter import filedialog
 
 from mytk import *

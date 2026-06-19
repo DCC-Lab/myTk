@@ -1,3 +1,11 @@
+"""pydatagraph_app.py — Plot tabular data with a per-column style inspector.
+
+Loads CSV/Excel into a TableView (with drag-and-drop) and plots columns on an XYPlot,
+with an inspector to set each column's marker, colour and line style live. Built on
+TabularData with pandas-backed import.
+
+Needs ``pandas`` to load files; a CSV/Excel file (e.g. ``test-excel.xlsx``) to plot.
+"""
 from pathlib import Path
 from tkinter import filedialog
 

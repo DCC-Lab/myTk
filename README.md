@@ -5,6 +5,8 @@
 
 by Daniel C. Côté
 
+📖 **Documentation:** [mytk.readthedocs.io](https://mytk.readthedocs.io/en/latest/)
+
 ## What is it?
 Making a UI interface should not be complicated. **myTk** is a set of UI classes that simplifies the use of Tkinter to make simple (and not so simple!) cross-platform GUIs in Python.
 
@@ -48,7 +50,8 @@ options:
 13. powermeter_app.py
 14. progressbar_app.py
 15. pydatagraph_app.py
-16. view3d_app.py
+16. svgviewer_app.py
+17. view3d_app.py
 
 % python -m mytk -e 3
 
@@ -121,15 +124,15 @@ Tk has no native OS drag-and-drop, so this builds on the optional `tkinterdnd2`/
 
 ## Getting started
 
-The best way to learn is to look at the example applications in mytk/example_apps/ (`mytk.py`, `lensviewer_app.py`, `filters_app.py`, `microscope_app.py`, etc...). But here it is:
+The best way to learn is to look at the example applications in mytk/example_apps/ (`example.py`, `lensviewer_app.py`, `filters_app.py`, `microscope_app.py`, etc...). But here it is:
 
 1. Create a subclass of `App`. 
-2. In you `__init__`, first call `super().__init__`, then add you interface to the window at `self.window`. See below for examples.
-   1. If you add a `Tableview`, set the `delegate` to an object of your own so that the functions are called when appropriate.  Everything is managed automatically.  The delegate can implement any or all of the following methods. 
+2. In your `__init__`, first call `super().__init__`, then add your interface to the window at `self.window`. See below for examples.
+   1. If you add a `TableView`, set the `delegate` to an object of your own so that the functions are called when appropriate.  Everything is managed automatically.  The delegate can implement any or all of the following methods. 
       * `selection_changed(event)`: there is no default behaviour
       * `click_header(column)`: the default behaviour will sort the rows by this column
       * `click_cell(item_id, column_id)`: if the text starts with `http`, will try to open the link in your default browser
-      * `doubleclick_header(column)`: there is no default behaviour`
+      * `doubleclick_header(column)`: there is no default behaviour
       * `doubleclick_cell(item_id, column_id)`: there is no default behaviour
    2. If you add a `PopupMenu`, set the `user_callback` to act upon a change.
    3. The matplotlib `Figure` can be used by providing your own plt.figure or using the one provided by the class. There is a `toolbar` that you can add to the interface.
