@@ -11,7 +11,6 @@ from .bindable import Bindable
 from .button import Button
 from .canvasview import CanvasView
 from .jsoncanvas import JSONCanvas
-from .svgcanvas import SVGCanvas
 from .checkbox import Checkbox
 from .configurable import (
     ConfigModel,
@@ -33,7 +32,7 @@ from .entries import (
 )
 from .figures import Figure, Histogram, XYPlot
 from .fileviewer import FileTreeData, FileViewer
-from .images import DynamicImage, Image, ImageWithGrid
+from .images import DynamicImage, Image, ImageWithGrid, SVGImage
 from .indicators import BooleanIndicator, Level, NumericIndicator
 from .labels import Label, URLLabel
 from .modulesmanager import ModulesManager
@@ -88,7 +87,7 @@ __all__ = [  # noqa: F405
     "ProgressBarNotification",
     "ProgressWindow",
     "RadioButton",
-    "SVGCanvas",
+    "SVGImage",
     "SimpleDialog",
     "Slider",
     "TabularData",
