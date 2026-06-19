@@ -24,8 +24,9 @@ Loads ``logo.png`` from this directory; View3D/VideoView/drag-and-drop are optio
 
 Run it with ``python -m mytk.example_apps.example``.
 
-.. note::
-   Screenshot not yet available — regenerate with ``make example-shots``.
+.. image:: /_static/examples/example.png
+   :alt: example.py screenshot
+   :width: 100%
 
 .. literalinclude:: ../../mytk/example_apps/example.py
    :language: python
@@ -65,9 +66,8 @@ Needs ``pandas`` and a directory of CSV files to plot.
 
 Run it with ``python -m mytk.example_apps.contrast_app``.
 
-.. image:: /_static/examples/contrast_app.png
-   :alt: contrast_app.py screenshot
-   :width: 100%
+.. note::
+   Screenshot not yet available — regenerate with ``make example-shots``.
 
 .. literalinclude:: ../../mytk/example_apps/contrast_app.py
    :language: python
@@ -123,9 +123,8 @@ shown alongside an XYPlot.
 
 Run it with ``python -m mytk.example_apps.file_calculator_app``.
 
-.. image:: /_static/examples/file_calculator_app.png
-   :alt: file_calculator_app.py screenshot
-   :width: 100%
+.. note::
+   Screenshot not yet available — regenerate with ``make example-shots``.
 
 .. literalinclude:: ../../mytk/example_apps/file_calculator_app.py
    :language: python
