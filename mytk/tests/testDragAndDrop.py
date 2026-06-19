@@ -48,6 +48,25 @@ class TestDropPathParsing(envtest.MyTkTestCase):
             ["/a/b c.txt", "/d/e.glb"],
         )
 
+    def test_file_uri_is_normalized(self):
+        self.assertEqual(
+            dropped_paths(self.app.root, "file:///a/b.svg"), ["/a/b.svg"]
+        )
+
+    def test_percent_encoded_file_uri(self):
+        self.assertEqual(
+            dropped_paths(self.app.root, "file:///a/my%20curve.svg"),
+            ["/a/my curve.svg"],
+        )
+
+    def test_trailing_whitespace_is_stripped(self):
+        self.assertEqual(
+            dropped_paths(self.app.root, "{file:///a/b.svg\n}"), ["/a/b.svg"]
+        )
+
+    def test_blank_entries_dropped(self):
+        self.assertEqual(dropped_paths(self.app.root, ""), [])
+
     def test_spec_matches_tcl_major_version(self):
         spec = _tkinterdnd2_spec(self.app.root)
         major = int(self.app.root.tk.call("info", "patchlevel").split(".")[0])

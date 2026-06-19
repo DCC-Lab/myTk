@@ -32,7 +32,7 @@ from .entries import (
 )
 from .figures import Figure, Histogram, XYPlot
 from .fileviewer import FileTreeData, FileViewer
-from .images import DynamicImage, Image, ImageWithGrid
+from .images import DynamicImage, Image, ImageWithGrid, SVGImage
 from .indicators import BooleanIndicator, Level, NumericIndicator
 from .labels import Label, URLLabel
 from .modulesmanager import ModulesManager
@@ -74,6 +74,7 @@ __all__ = [  # noqa: F405
     "Image",
     "ImageWithGrid",
     "IntEntry",
+    "JSONCanvas",
     "Label",
     "LabelledEntry",
     "Level",
@@ -86,6 +87,7 @@ __all__ = [  # noqa: F405
     "ProgressBarNotification",
     "ProgressWindow",
     "RadioButton",
+    "SVGImage",
     "SimpleDialog",
     "Slider",
     "TabularData",

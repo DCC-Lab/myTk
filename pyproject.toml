@@ -46,11 +46,12 @@ Repository = "https://github.com/DCC-Lab/myTk"
 video = ["opencv-python"]                            # VideoView (heavy)
 view3d = ["trimesh", "moderngl", "numpy", "Pillow"]  # View3D (needs an OpenGL context)
 dnd = ["tkinterdnd2"]                                # drag-and-drop (tkdnd; Tcl-version sensitive)
+svg = ["resvg-py"]                                   # SVGImage (self-contained cross-platform wheel)
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
 screenshot = ["pyobjc-framework-Quartz; sys_platform == 'darwin'"]  # `make screenshot`
 # Everything optional, in one go:
-all = ["mytk[video,view3d,dnd,optics]"]
+all = ["mytk[video,view3d,dnd,svg,optics]"]
 
 [tool.setuptools_scm]
 write_to = "mytk/_version.py"
