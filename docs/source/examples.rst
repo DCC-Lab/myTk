@@ -53,26 +53,6 @@ Run it with ``python -m mytk.example_apps.canvas_app``.
    :language: python
    :linenos:
 
-contrast_app.py
----------------
-
-**Browse a folder of CSV files and plot contrast vs. time.**
-
-Pairs a FileViewer (with custom columns and directory selection) with an XYPlot:
-selecting a CSV reads it and plots elapsed time against contrast, using property
-binding and PostponeChangeCalls for batched data-source updates.
-
-Needs ``pandas`` and a directory of CSV files to plot.
-
-Run it with ``python -m mytk.example_apps.contrast_app``.
-
-.. note::
-   Screenshot not yet available — regenerate with ``make example-shots``.
-
-.. literalinclude:: ../../mytk/example_apps/contrast_app.py
-   :language: python
-   :linenos:
-
 controlpanel_app.py
 -------------------
 
@@ -109,24 +89,6 @@ Run it with ``python -m mytk.example_apps.dnd_app``.
    :width: 100%
 
 .. literalinclude:: ../../mytk/example_apps/dnd_app.py
-   :language: python
-   :linenos:
-
-file_calculator_app.py
-----------------------
-
-**File browser that runs a calculation on the selection.**
-
-Combines a FileViewer (custom columns, directory picker) with property binding and a
-selection-changed delegate: picking a file triggers a calculation whose result is
-shown alongside an XYPlot.
-
-Run it with ``python -m mytk.example_apps.file_calculator_app``.
-
-.. note::
-   Screenshot not yet available — regenerate with ``make example-shots``.
-
-.. literalinclude:: ../../mytk/example_apps/file_calculator_app.py
    :language: python
    :linenos:
 
