@@ -1,3 +1,12 @@
+"""filters_app.py — Browse a spectral-filter database and plot transmission curves.
+
+A TableView of optical filters drives an XYPlot of the selected filter's spectrum,
+with JSON/ZIP data loading (local or downloaded), a preferences Dialog and clipboard
+export.
+
+Reads data from ``tpop_filters_data/`` (or downloads it); ``requests``/``pyperclip``
+are optional.
+"""
 import os
 import re
 import shutil

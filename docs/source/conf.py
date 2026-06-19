@@ -3,7 +3,13 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+import sys
 from importlib.metadata import version as get_version
+
+# Make the repo's scripts/ importable so we can regenerate the examples page.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.join(_REPO_ROOT, "scripts"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -75,3 +81,21 @@ intersphinx_mapping = {
 
 html_theme = "furo"
 html_static_path = ["_static"]
+
+
+# -- Generate the examples gallery page before each build --------------------
+# Keeps docs/source/examples.rst in sync with the example apps' docstrings and
+# the screenshots in _static/examples/ (so Read the Docs rebuilds it too).
+
+def _generate_examples_page(app):
+    try:
+        import gen_examples_doc
+
+        names = gen_examples_doc.generate()
+        print(f"[examples] regenerated examples.rst ({len(names)} examples)")
+    except Exception as err:  # never fail the whole build over the gallery
+        print(f"[examples] could not regenerate examples.rst: {err}")
+
+
+def setup(app):
+    app.connect("builder-inited", _generate_examples_page)

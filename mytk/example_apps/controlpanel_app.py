@@ -1,3 +1,9 @@
+"""controlpanel_app.py — Live acquisition control panel with a real-time plot.
+
+Simulates a continuous acquisition: an XYPlot is appended to on a scheduled timer,
+BooleanIndicator widgets show status, and property binding enables/disables the
+controls. Demonstrates the after()/ticker update pattern.
+"""
 import random
 
 from mytk import *

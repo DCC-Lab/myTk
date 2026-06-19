@@ -4,14 +4,22 @@
 PYTHON ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 
 .DEFAULT_GOAL := help
-.PHONY: help screenshot class-diagram readme-assets docs
+.PHONY: help screenshot class-diagram readme-assets example-shots examples-doc docs
 
 help:  ## List available targets
 	@echo "myTk make targets:"
 	@echo "  make screenshot     Regenerate README.assets/example-ui.png from example.py (macOS)"
 	@echo "  make class-diagram  Regenerate README.assets/class-hierarchy.png from docs/source/design.rst"
 	@echo "  make readme-assets  Regenerate both README images"
+	@echo "  make example-shots  Capture a screenshot of each example app (macOS)"
+	@echo "  make examples-doc   Regenerate docs/source/examples.rst from the example apps"
 	@echo "  make docs           Build the HTML documentation"
+
+example-shots:  ## Capture a screenshot of each example app (macOS, Screen Recording permission)
+	$(PYTHON) scripts/example_screenshots.py
+
+examples-doc:  ## Regenerate the examples gallery page from the example apps
+	$(PYTHON) scripts/gen_examples_doc.py
 
 screenshot:  ## Regenerate the example-app screenshot (macOS, needs Screen Recording permission)
 	$(PYTHON) scripts/screenshot.py

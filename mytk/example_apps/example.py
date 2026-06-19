@@ -1,3 +1,11 @@
+"""example.py — Comprehensive tour of myTk widgets in a single window.
+
+Lays out Labels, entries, PopupMenu, URLLabel, Image, TableView, Figure, Slider,
+Level, Checkbox and a CanvasView (raw and CanvasElement APIs), and conditionally
+adds View3D and VideoView when their optional dependencies are available.
+
+Loads ``logo.png`` from this directory; View3D/VideoView/drag-and-drop are optional.
+"""
 from pathlib import Path
 from tkinter import DoubleVar, filedialog
 

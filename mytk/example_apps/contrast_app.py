@@ -1,3 +1,11 @@
+"""contrast_app.py — Browse a folder of CSV files and plot contrast vs. time.
+
+Pairs a FileViewer (with custom columns and directory selection) with an XYPlot:
+selecting a CSV reads it and plots elapsed time against contrast, using property
+binding and PostponeChangeCalls for batched data-source updates.
+
+Needs ``pandas`` and a directory of CSV files to plot.
+"""
 from pathlib import Path
 from tkinter import filedialog
 

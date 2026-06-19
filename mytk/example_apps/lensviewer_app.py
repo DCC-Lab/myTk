@@ -1,3 +1,11 @@
+"""lensviewer_app.py — Catalogue viewer for optical lenses.
+
+A TableView of lens specifications (from the raytracing package) drives matplotlib
+Figures showing the ray-trace diagram and focal-shift dispersion of the selected
+lens, via the TableView delegate pattern.
+
+Needs the optional ``raytracing`` package.
+"""
 from contextlib import suppress
 
 import raytracing as rt

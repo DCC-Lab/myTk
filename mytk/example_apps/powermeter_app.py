@@ -1,3 +1,9 @@
+"""powermeter_app.py — Power-meter readout and logging panel.
+
+Streams readings into an XYPlot (live append), shows status via BooleanIndicator,
+and binds device state to Slider/LabelledEntry controls with an event-driven update
+loop. Runs in a debug/simulation mode when no hardware is present.
+"""
 import random
 from tkinter import filedialog
 
