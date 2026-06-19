@@ -6,10 +6,6 @@ sits between the narrative :doc:`README <readme>` and the per-module
 :doc:`API Reference <index>`: read the README to see what myTk does, read this
 to understand its structure, then dive into the API for details.
 
-.. contents::
-   :local:
-   :depth: 2
-
 
 Design goals
 ------------
