@@ -36,22 +36,20 @@ options:
 % python -m mytk -l
 
  1. canvas_app.py
- 2. contrast_app.py
- 3. controlpanel_app.py
- 4. dnd_app.py
- 5. example.py
- 6. file_calculator_app.py
- 7. fileviewer_app.py
- 8. filters_app.py
- 9. formatted_entry_app.py
-10. jsoncanvas_app.py
-11. lensviewer_app.py
-12. microscope_app.py
-13. powermeter_app.py
-14. progressbar_app.py
-15. pydatagraph_app.py
-16. svgviewer_app.py
-17. view3d_app.py
+ 2. controlpanel_app.py
+ 3. dnd_app.py
+ 4. example.py
+ 5. fileviewer_app.py
+ 6. filters_app.py
+ 7. formatted_entry_app.py
+ 8. jsoncanvas_app.py
+ 9. lensviewer_app.py
+10. microscope_app.py
+11. powermeter_app.py
+12. progressbar_app.py
+13. pydatagraph_app.py
+14. svgviewer_app.py
+15. view3d_app.py
 
 % python -m mytk -e 3
 
