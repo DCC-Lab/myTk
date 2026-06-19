@@ -5,6 +5,8 @@
 
 by Daniel C. Côté
 
+📖 **Documentation:** [mytk.readthedocs.io](https://mytk.readthedocs.io/en/latest/)
+
 ## What is it?
 Making a UI interface should not be complicated. **myTk** is a set of UI classes that simplifies the use of Tkinter to make simple (and not so simple!) GUIs in Python.
 
