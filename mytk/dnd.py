@@ -54,6 +54,19 @@ def dropped_paths(root, event_data):
     """Parse a tkdnd ``<<Drop>>`` payload into a list of filesystem paths.
 
     tkdnd hands over a Tcl list (paths with spaces are brace-wrapped);
-    ``splitlist`` turns it back into individual paths.
+    ``splitlist`` turns it back into individual paths. Some file managers
+    (notably GNOME/GTK) deliver ``file://`` URIs, sometimes percent-encoded
+    and with trailing newlines, instead of plain paths, so each entry is
+    normalized back to a local filesystem path. Blank entries are dropped.
     """
-    return list(root.tk.splitlist(event_data))
+    from urllib.parse import unquote, urlparse
+
+    paths = []
+    for entry in root.tk.splitlist(event_data):
+        entry = entry.strip()
+        if not entry:
+            continue
+        if entry.startswith("file://"):
+            entry = unquote(urlparse(entry).path)
+        paths.append(entry)
+    return paths
