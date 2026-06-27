@@ -1,4 +1,5 @@
 import unittest
+from tkinter import ttk
 
 import envtest
 
@@ -67,6 +68,35 @@ class TestCheckbox(envtest.MyTkTestCase):
         self.assertTrue(self.ui_object.is_selected)
         controller.to_property = False
         self.assertFalse(self.ui_object.is_selected)
+
+
+class TestBoxBackground(envtest.MyTkTestCase):
+    def test_uses_classic_labelframe(self):
+        # A classic tk.LabelFrame honors -background; ttk.LabelFrame does not
+        # and draws a contrasting native fill on aqua. The Box must be the
+        # classic widget so it can stay flat and blend into its parent.
+        box = Box(label="Test", width=100, height=100)
+        box.grid_into(self.app.window, row=0, column=0)
+
+        self.assertEqual(box.widget.winfo_class(), "Labelframe")
+        # cget("background") only succeeds on the classic widget.
+        self.assertTrue(box.widget.cget("background"))
+
+    def test_background_matches_themed_parent(self):
+        style = ttk.Style(self.app.root)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+
+        view = View(width=200, height=200)
+        view.grid_into(self.app.window, row=0, column=0)
+
+        box = Box(label="Test", width=100, height=100)
+        box.grid_into(view, row=0, column=0)
+
+        self.assertEqual(
+            str(box.widget.cget("background")),
+            str(style.lookup("TFrame", "background")),
+        )
 
 
 class TestBoxDisablePropagation(envtest.MyTkTestCase):

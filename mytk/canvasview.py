@@ -1,9 +1,10 @@
 import os
 import subprocess
-from tkinter import Canvas, TclError, font, ttk
+from tkinter import Canvas, font
 
 from .base import Base, BaseNotification
 from .notificationcenter import NotificationCenter
+from .utils import themed_background
 from .vectors import Basis, DynamicBasis, Point, Vector
 
 
@@ -44,31 +45,13 @@ class CanvasView(Base):
         """
         widget_args = dict(self._widget_args)
         if "background" not in widget_args and "bg" not in widget_args:
-            master_background = self._master_background(master)
+            master_background = themed_background(master)
             if master_background:
                 widget_args["background"] = master_background
 
         self.widget = Canvas(master=master, **widget_args)
         self.widget.bind("<Configure>", self.on_resize)
         self._update_relative_size_basis()
-
-    @staticmethod
-    def _master_background(master):
-        """Return the background color of the master widget, or None.
-
-        Classic Tk widgets expose ``-background`` directly; ``ttk`` widgets do
-        not, so their color must be looked up from the active theme via the
-        widget's style class.
-        """
-        try:
-            return master.cget("background")
-        except TclError:
-            pass
-
-        try:
-            return ttk.Style(master).lookup(master.winfo_class(), "background")
-        except TclError:
-            return None
 
     @property
     def is_disabled(self):

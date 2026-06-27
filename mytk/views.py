@@ -5,9 +5,11 @@ Classes:
     - Box: A labeled frame for grouping related widgets, with an optional label and fixed size.
 """
 
+import tkinter as tk
 from tkinter import ttk
 
 from .base import Base, _BaseWidget
+from .utils import themed_background
 
 
 def _honor_requested_size(widget, widget_args):
@@ -107,30 +109,70 @@ class Box(Base):
         self._widget_args = {"width": width, "height": height, "text": label}
 
     def create_widget(self, master, **kwargs):
-        """Creates the underlying ttk.LabelFrame widget.
+        """Creates the underlying tk.LabelFrame widget.
+
+        A classic ``tk.LabelFrame`` is used rather than ``ttk.LabelFrame``
+        because the macOS ``aqua`` theme draws ``ttk.LabelFrame`` with a native
+        gray "group box" fill that (1) contrasts with the surrounding window
+        and (2) cannot be queried or overridden through ttk, so classic Tk
+        children placed inside it (e.g. a ``tk.Canvas``) never match. The
+        classic widget honors ``background`` directly, so the box inherits the
+        parent's themed background and stays flat — just a titled border that
+        blends into the view containing it.
 
         Args:
             master (tk.Widget): The parent widget.
             **kwargs: Additional keyword arguments (unused).
         """
         self.parent = master
-        self.widget = ttk.LabelFrame(
-            master,
-            **self._widget_args,
-            **self.debug_kwargs,
-        )
+
+        # A flat, thin titled border that blends into the parent; debug_kwargs
+        # may override relief/borderwidth when Base.debug is on.
+        widget_args = {"relief": "solid", "borderwidth": 1}
+        widget_args.update(self._widget_args)
+
+        background = themed_background(master)
+        if background and "background" not in widget_args and "bg" not in widget_args:
+            widget_args["background"] = background
+
+        widget_args.update(self.debug_kwargs)
+
+        self.widget = tk.LabelFrame(master, **widget_args)
         _honor_requested_size(self.widget, self._widget_args)
 
     @property
     def is_disabled(self):
-        """Whether the box and its children are disabled."""
-        return super().is_disabled
+        """Whether the box and its children are disabled.
+
+        A classic ``tk.LabelFrame`` has no ttk ``state``/``instate`` support,
+        so the disabled flag is recorded on the Tk widget (the same place
+        ``_propagate_disabled`` writes it) and pushed down to the children
+        (which may be ttk or classic). Reading from the widget lets a nested
+        Box reflect a state propagated from an ancestor.
+        """
+        if self.widget is None:
+            return getattr(self, "_disabled", False)
+        return getattr(self.widget, "_mytk_disabled", False)
 
     @is_disabled.setter
     def is_disabled(self, value):
-        _BaseWidget.is_disabled.fset(self, value)
+        self._disabled = value
         if self.widget is not None:
+            self.widget._mytk_disabled = value
             self._propagate_disabled(self.widget, value)
+
+    @property
+    def is_selected(self):
+        """Whether the box is marked as selected.
+
+        ``tk.LabelFrame`` has no ttk ``selected`` state, so this is tracked as
+        a plain flag to keep the property bindable.
+        """
+        return getattr(self, "_selected", False)
+
+    @is_selected.setter
+    def is_selected(self, value):
+        self._selected = value
 
     @property
     def label(self):

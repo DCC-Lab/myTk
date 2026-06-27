@@ -1,10 +1,31 @@
 import re
 from threading import current_thread, main_thread
+from tkinter import TclError, ttk
 
 
 def is_main_thread() -> bool:
     """Check whether the current thread is the main thread."""
     return current_thread() == main_thread()
+
+
+def themed_background(widget):
+    """Return the background color of *widget*, or None if it cannot be found.
+
+    Classic Tk widgets expose ``-background`` directly through ``cget``; ``ttk``
+    widgets do not, so their color must be looked up from the active theme via
+    the widget's style class. This lets classic widgets (e.g. ``tk.Canvas``)
+    inherit the themed background of a ``ttk`` parent so they blend into it
+    instead of falling back to the Tk default.
+    """
+    try:
+        return widget.cget("background")
+    except TclError:
+        pass
+
+    try:
+        return ttk.Style(widget).lookup(widget.winfo_class(), "background")
+    except TclError:
+        return None
 
 
 def parse_geometry(geometry):

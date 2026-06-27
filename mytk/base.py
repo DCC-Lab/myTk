@@ -422,6 +422,10 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
             except AttributeError:
                 with contextlib.suppress(Exception):
                     child.configure(state="disabled" if disabled else "normal")
+            # Record the flag on the Tk widget so wrappers around classic
+            # widgets (e.g. Box's tk.LabelFrame, which has no ttk state to
+            # report back) can still reflect a propagated disabled state.
+            child._mytk_disabled = disabled
             self._propagate_disabled(child, disabled)
 
     def bind_textvariable(self, variable):
