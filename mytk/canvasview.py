@@ -1,6 +1,6 @@
 import os
 import subprocess
-from tkinter import Canvas, font
+from tkinter import Canvas, TclError, font, ttk
 
 from .base import Base, BaseNotification
 from .notificationcenter import NotificationCenter
@@ -33,10 +33,42 @@ class CanvasView(Base):
         self._relative_basis = Basis( Vector(w,0), Vector(0,h))
 
     def create_widget(self, master, **kwargs):
-        """Create the underlying tkinter Canvas widget."""
-        self.widget = Canvas(master=master, **self._widget_args)
+        """Create the underlying tkinter Canvas widget.
+
+        A ``tk.Canvas`` is a classic Tk widget that ignores the active ``ttk``
+        theme, so its default background (``systemWindowBackgroundColor`` on
+        macOS, ``#d9d9d9`` elsewhere) does not match a themed parent frame
+        (e.g. ``#dcdad5`` under the ``clam`` theme). Unless the caller asked
+        for an explicit background, inherit the master's themed background so
+        the canvas blends into the view that contains it.
+        """
+        widget_args = dict(self._widget_args)
+        if "background" not in widget_args and "bg" not in widget_args:
+            master_background = self._master_background(master)
+            if master_background:
+                widget_args["background"] = master_background
+
+        self.widget = Canvas(master=master, **widget_args)
         self.widget.bind("<Configure>", self.on_resize)
         self._update_relative_size_basis()
+
+    @staticmethod
+    def _master_background(master):
+        """Return the background color of the master widget, or None.
+
+        Classic Tk widgets expose ``-background`` directly; ``ttk`` widgets do
+        not, so their color must be looked up from the active theme via the
+        widget's style class.
+        """
+        try:
+            return master.cget("background")
+        except TclError:
+            pass
+
+        try:
+            return ttk.Style(master).lookup(master.winfo_class(), "background")
+        except TclError:
+            return None
 
     @property
     def is_disabled(self):

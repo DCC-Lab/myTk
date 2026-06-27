@@ -1,4 +1,5 @@
 import unittest
+from tkinter import ttk
 
 import envtest
 
@@ -14,6 +15,44 @@ class TestCanvasView(envtest.MyTkTestCase):
         c = CanvasView()
         self.assertIsNotNone(c)
         c.grid_into(self.app.window, row=0, column=0)
+
+
+class TestCanvasViewBackground(envtest.MyTkTestCase):
+    def _frame_background(self):
+        return ttk.Style(self.app.root).lookup("TFrame", "background")
+
+    def test_background_matches_themed_parent(self):
+        # 'clam' gives TFrame a concrete color (#dcdad5) while a bare
+        # tk.Canvas would default to systemWindowBackgroundColor, so this is
+        # where the mismatch shows up most clearly.
+        style = ttk.Style(self.app.root)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+
+        view = View(width=100, height=100)
+        view.grid_into(self.app.window, row=0, column=0)
+
+        canvas = CanvasView(width=50, height=50)
+        canvas.grid_into(view, row=0, column=0)
+
+        # ttk.Frame ignores -background via cget, so compare against the
+        # background the active theme assigns to TFrame widgets.
+        self.assertEqual(
+            str(canvas.widget.cget("background")),
+            str(self._frame_background()),
+        )
+
+    def test_explicit_background_is_respected(self):
+        canvas = CanvasView(width=50, height=50, background="red")
+        canvas.grid_into(self.app.window, row=0, column=0)
+
+        self.assertEqual(str(canvas.widget.cget("background")), "red")
+
+    def test_explicit_bg_alias_is_respected(self):
+        canvas = CanvasView(width=50, height=50, bg="blue")
+        canvas.grid_into(self.app.window, row=0, column=0)
+
+        self.assertEqual(str(canvas.widget.cget("background")), "blue")
 
 
 class TestCanvasViewDisablePropagation(envtest.MyTkTestCase):
