@@ -139,6 +139,23 @@ The best way to learn is to look at the example applications in mytk/example_app
 
 The real difficulty is to understand the Layout managers of Tkinter.
 
+## Using myTk with AI coding agents
+
+myTk ships an [agent skill](.claude/skills/mytk/SKILL.md) that teaches AI coding
+assistants (e.g. Claude Code) how to use myTk correctly — property bindings
+(connecting a variable to its on-screen control) and the `NotificationCenter`
+(Enum-based, one-to-many notifications). Agents working inside a clone of this
+repository pick it up automatically from `.claude/skills/`.
+
+If you installed myTk with `pip install mytk` and want the skill too, it is
+bundled with the package; install it (optional) into a location Claude Code
+discovers:
+
+```sh
+python -m mytk --install-skill            # into ~/.claude/skills/ (available everywhere)
+python -m mytk --install-skill --project  # into ./.claude/skills/ (current project only)
+```
+
 ## Examples
 
 ### Example 1: Demo of capabilities

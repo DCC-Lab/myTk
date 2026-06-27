@@ -1,9 +1,38 @@
 import argparse
+import importlib.resources as resources
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from mytk import Bindable
+
+SKILL_RESOURCE = "skills/mytk/SKILL.md"
+
+
+def install_skill(scope="user"):
+    """Copy the bundled mytk agent skill into a Claude Code skills directory.
+
+    The skill ships as package data so it is available after ``pip install
+    mytk``; this installs it where Claude Code can discover it. ``scope="user"``
+    targets ``~/.claude/skills/mytk/`` (available everywhere); ``scope="project"``
+    targets ``./.claude/skills/mytk/`` (the current directory only).
+    """
+    source = resources.files("mytk.resources").joinpath(SKILL_RESOURCE)
+    if not source.is_file():
+        print(f"Could not find the bundled skill at {SKILL_RESOURCE}.", file=sys.stderr)
+        return 1
+
+    base = Path.home() if scope == "user" else Path.cwd()
+    destination = base / ".claude" / "skills" / "mytk" / "SKILL.md"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    with resources.as_file(source) as source_path:
+        shutil.copyfile(source_path, destination)
+
+    print(f"Installed mytk skill to {destination}")
+    print("Claude Code will discover it from this .claude/skills/ directory.")
+    return 0
 
 
 def printClassHierarchy(aClass):  # noqa: N802, N803
@@ -62,12 +91,31 @@ def main():
         const=True,
         help="Run all Unit tests",
     )
+    ap.add_argument(
+        "--install-skill",
+        required=False,
+        action="store_const",
+        const=True,
+        help="Install the bundled mytk agent skill into a Claude Code skills directory",
+    )
+    ap.add_argument(
+        "--project",
+        required=False,
+        action="store_const",
+        const=True,
+        help="With --install-skill, install into ./.claude/ instead of ~/.claude/",
+    )
 
     args = vars(ap.parse_args())
     runExamples = args["examples"]  # noqa: N806
     runTests = args["tests"]  # noqa: N806
     printClasses = args["classes"]  # noqa: N806
     listExamples = args["list"]  # noqa: N806
+    installSkill = args["install_skill"]  # noqa: N806
+    skillScope = "project" if args["project"] else "user"  # noqa: N806
+
+    if installSkill:
+        sys.exit(install_skill(scope=skillScope))
 
     if runExamples == "all":
         runExamples = range(1, len(examples) + 1)  # noqa: N806

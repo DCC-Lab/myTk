@@ -65,7 +65,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-"mytk.resources" = ["*.png"]
+"mytk.resources" = ["*.png", "skills/**/*.md"]
 "mytk.example_apps" = ["logo.png"]
 
 [tool.setuptools.exclude-package-data]
