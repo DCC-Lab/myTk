@@ -36,6 +36,16 @@ class CanvasView(Base):
         """Create the underlying tkinter Canvas widget."""
         self.widget = Canvas(master=master, **self._widget_args)
         self.widget.bind("<Configure>", self.on_resize)
+        # A Canvas is opaque, so by default it adopts its container's background
+        # and blends in instead of showing a lighter rectangle (most visible on
+        # macOS inside a ttk.LabelFrame, which aqua draws a shade darker). Skip
+        # this when a background was requested explicitly — either via the
+        # background_color property or a background/bg constructor argument (e.g.
+        # a drawing surface that wants a fixed white background). See
+        # Base.background_color.
+        explicit_bg = "background" in self._widget_args or "bg" in self._widget_args
+        if self._background_color is None and not explicit_bg:
+            self._background_color = self._inherited_background_color()
         self._update_relative_size_basis()
 
     @property

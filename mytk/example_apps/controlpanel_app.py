@@ -43,6 +43,10 @@ class ControlPanelApp(App):
             self.window, column=1, row=1, columnspan=1, pady=10, padx=10, sticky="new"
         )
 
+        # BooleanIndicator is a classic tk.Canvas, which is opaque; by default it
+        # now adopts its container's background, so the round indicators blend
+        # into the Status box instead of sitting on a lighter square. Pass an
+        # explicit background_color to override (see Base.background_color).
         self.running_indicator = BooleanIndicator()
         self.running_indicator.grid_into(self.status, row=0, column=0, padx=5, pady=5, sticky='e')
         self.bind_property_to_widget_value('acquisition_is_running', self.running_indicator)
