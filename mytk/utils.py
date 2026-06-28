@@ -34,10 +34,12 @@ def parse_geometry(geometry):
 def apply_window_position(widget, position, size_str=None):
     """Set only the +X+Y offset of a Tk or Toplevel window.
 
-    The window size is never modified.  When *size_str* is provided the
-    offset is computed and applied immediately; otherwise the call is
-    deferred to the first idle tick (after the event loop has laid out all
-    content) and the window is briefly withdrawn to avoid a visible jump.
+    The window size is never modified.  In both cases the window is briefly
+    withdrawn while the offset is computed and applied, so it never flashes at
+    Tk's default (top-left) location before jumping to the requested spot.
+    When *size_str* is provided the offset is applied immediately; otherwise the
+    call is deferred to the first idle tick (after the event loop has laid out
+    all content).
 
     Args:
         widget: A tk.Tk or tk.Toplevel instance.
@@ -67,16 +69,21 @@ def apply_window_position(widget, position, size_str=None):
         x, y = offsets[position]
         widget.geometry(f"+{x}+{y}")  # position only — never overrides size
 
+    # Hide the window while we compute and apply its position so the user never
+    # sees it flash at Tk's default (top-left) location before it jumps to the
+    # requested spot. We restore visibility only after the offset is applied,
+    # and only if the caller had not already withdrawn it on purpose.
+    originally_withdrawn = widget.state() == "withdrawn"
+    widget.withdraw()
+
     if size_str:
         w, h = map(int, size_str.split("x"))
         widget.update_idletasks()
         _apply(w, h)
+        if not originally_withdrawn:
+            widget.deiconify()
     else:
         # Size not yet known; defer until after layout.
-        # Withdraw to avoid a visible jump to the default position.
-        originally_withdrawn = widget.state() == "withdrawn"
-        widget.withdraw()
-
         def _deferred():
             try:
                 if not widget.winfo_exists():
