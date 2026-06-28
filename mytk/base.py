@@ -57,6 +57,7 @@ class _BaseWidget:
         self.parent = None
         self.value_variable = None
         self._widget_args = {}
+        self._background_color = None
 
         self._grid_kwargs = None
         self.is_environment_valid()
@@ -151,6 +152,7 @@ class _BaseWidget:
             widget = parent.widget
 
         self._bind_destroy_cancel()
+        self._apply_background_color()
 
         column = 0
         if "column" in kwargs:
@@ -251,6 +253,7 @@ class _BaseWidget:
         self.create_widget(master=parent.widget)
         self.parent = parent
         self._bind_destroy_cancel()
+        self._apply_background_color()
 
         if self.widget is not None:
             self.widget.pack(kwargs)
@@ -268,6 +271,7 @@ class _BaseWidget:
         self.create_widget(master=parent.widget)
         self.parent = parent
         self._bind_destroy_cancel()
+        self._apply_background_color()
 
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)
@@ -376,6 +380,118 @@ class _BaseWidget:
             self._widget_args["height"] = value
         else:
             self.widget["height"] = value
+
+    @property
+    def background_color(self):
+        """The widget's background color (a Tk color name or ``#rrggbb`` string).
+
+        Set this to recolor the widget's background. The value is remembered even
+        before the widget exists (myTk creates widgets on placement) and is
+        applied as soon as it is created.
+
+        How it is applied depends on the kind of underlying widget:
+
+        - **Classic Tk widgets** (e.g. the ``Canvas`` behind ``CanvasView`` and
+          the indicators) honor it directly, including the focus-highlight
+          border, so the whole widget takes the color.
+        - **Themed ttk widgets** (``View``/``Box`` and most controls) get a
+          private ``ttk.Style`` configured with this background. This works on
+          the *clam*/*default*/*classic* themes (Linux, Windows). The macOS
+          **aqua** theme draws frames natively and ignores a style background,
+          so setting it on a ``View``/``Box`` has no visible effect there — set
+          it on the classic widget that sits on top (e.g. an indicator) instead.
+
+        Returns:
+            str | None: The configured color, or None if never set.
+        """
+        return self._background_color
+
+    @background_color.setter
+    def background_color(self, value):
+        self._background_color = value
+        self._apply_background_color()
+
+    def _apply_background_color(self):
+        """Apply ``background_color`` to the underlying widget, if both exist.
+
+        Called by the setter and by the placement methods (grid/pack/place)
+        once the widget has been created. No-op when either is missing.
+        """
+        import tkinter.ttk as ttk
+
+        color = self._background_color
+        if color is None or self.widget is None:
+            return
+
+        if isinstance(self.widget, ttk.Widget):
+            # Themed widgets don't take a -background option; route it through a
+            # private style derived from the widget's own class (e.g. TFrame).
+            base_class = self.widget.winfo_class()
+            style_name = f"bg{id(self):x}.{base_class}"
+            ttk.Style().configure(style_name, background=color)
+            with contextlib.suppress(Exception):
+                self.widget.configure(style=style_name)
+        else:
+            # Classic widgets take -background directly; also recolor the
+            # focus-highlight border so it blends instead of framing a square.
+            with contextlib.suppress(Exception):
+                self.widget.configure(background=color)
+            with contextlib.suppress(Exception):
+                self.widget.configure(highlightbackground=color)
+
+    def _inherited_background_color(self):
+        """Best-effort effective background color of this widget's container.
+
+        Used to blend a classic widget (e.g. the ``Canvas`` behind an indicator)
+        into whatever themed container holds it, instead of showing a lighter
+        square. Returns a Tk color *name* whenever possible so the result stays
+        correct when the system appearance changes (light/dark mode).
+
+        - A **classic** parent reports its real background via ``-background``.
+        - On macOS **aqua**, ttk reports ``systemWindowBackgroundColor`` for both
+          a plain ``Frame`` and a ``LabelFrame``, even though aqua draws each
+          nested group box one shade darker. macOS exposes that scale as the
+          dynamic colors ``systemWindowBackgroundColor`` (level 0),
+          ``systemWindowBackgroundColor1`` (level 1), … so we recover the right
+          shade by counting enclosing ``ttk.LabelFrame`` ancestors.
+        - On other themes a ttk parent honors its style background, so we use it.
+
+        Returns:
+            str | None: A color name/value, or None if it cannot be determined.
+        """
+        import tkinter.ttk as ttk
+        from tkinter import TclError
+
+        if self.widget is None:
+            return None
+        try:
+            parent = self.widget.nametowidget(self.widget.winfo_parent())
+        except Exception:
+            return None
+
+        # Classic containers expose their rendered background directly.
+        try:
+            return parent.cget("background")
+        except TclError:
+            pass  # themed widget: no -background option
+
+        try:
+            root = self.widget.winfo_toplevel()
+            if self.widget.tk.call("tk", "windowingsystem") == "aqua":
+                level, node = 0, parent
+                while True:
+                    if node.winfo_class() == "TLabelframe":
+                        level += 1
+                    if node == root:
+                        break
+                    node = node.nametowidget(node.winfo_parent())
+                if level == 0:
+                    return "systemWindowBackgroundColor"
+                return f"systemWindowBackgroundColor{min(level, 7)}"
+            style_name = parent.cget("style") or parent.winfo_class()
+            return ttk.Style().lookup(style_name, "background") or None
+        except Exception:
+            return None
 
     @property
     def is_enabled(self):
