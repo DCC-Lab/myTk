@@ -1,0 +1,154 @@
+import threading
+import unittest
+import xmlrpc.client
+
+import mytk
+from mytk import App, RemoteControllable
+
+
+class RemoteApp(App, RemoteControllable):
+    """An App made controllable by mixing in the capability."""
+
+
+class TestRemoteRegistration(unittest.TestCase):
+    """Pure registration behavior, no server or mainloop needed."""
+
+    def setUp(self):
+        self.app = RemoteApp(name=self.id())
+
+    def tearDown(self):
+        self.app.quit()
+
+    def test_app_is_remote_controllable(self):
+        self.assertIsInstance(self.app, RemoteControllable)
+
+    def test_remote_as_decorator(self):
+        @self.app.remote
+        def foo():
+            return 1
+
+        self.assertIn("foo", self.app.remote_functions)
+        self.assertIs(self.app.remote_functions["foo"], foo)
+
+    def test_remote_direct_call_with_name(self):
+        def bar():
+            return 2
+
+        returned = self.app.remote(bar, name="renamed")
+        self.assertIs(returned, bar)
+        self.assertIn("renamed", self.app.remote_functions)
+        self.assertNotIn("bar", self.app.remote_functions)
+
+    def test_remote_signatures(self):
+        @self.app.remote
+        def add(a, b):
+            return a + b
+
+        @self.app.remote
+        def greet(name, greeting="hello"):
+            return f"{greeting}, {name}"
+
+        signatures = self.app.remote_signatures()
+        self.assertEqual(signatures["add"], "(a, b)")
+        self.assertEqual(signatures["greet"], "(name, greeting='hello')")
+
+
+class TestRemoteServer(unittest.TestCase):
+    """End-to-end: a client thread calls the server while the app runs."""
+
+    def setUp(self):
+        self.app = RemoteApp(name=self.id())
+        self.result = None
+        self.title_result = None
+        self.blocked = False
+        self.fault_message = None
+
+    def tearDown(self):
+        self.app.quit()
+
+    def _run_with_client(self, client_call, timeout=1500):
+        # Client runs off the main thread; the Tk mainloop drains the queue.
+        thread = threading.Thread(target=client_call)
+        self.app.after(int(timeout / 4), thread.start)
+        self.app.after(timeout, self.app.quit)
+        self.app.mainloop()
+        thread.join(timeout=3)
+
+    def test_remote_call_returns_value(self):
+        @self.app.remote
+        def add(a, b):
+            return a + b
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            self.result = mytk.connect(port=port).add(2, 3)
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, 5)
+
+    def test_remote_runs_on_main_thread(self):
+        # Touching a Tk widget only works on the main thread; getting the
+        # value back proves the call was marshaled there.
+        @self.app.remote
+        def set_title(text):
+            self.app.window.widget.title(text)
+            return self.app.window.widget.title()
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            self.title_result = mytk.connect(port=port).set_title("hello-remote")
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.title_result, "hello-remote")
+
+    def test_remote_signatures_over_the_wire(self):
+        @self.app.remote
+        def add(a, b):
+            return a + b
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            self.result = mytk.connect(port=port).remote_signatures()
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result["add"], "(a, b)")
+
+    def test_unregistered_function_not_exposed(self):
+        @self.app.remote
+        def ping():
+            return "pong"
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            try:
+                mytk.connect(port=port).not_exposed()
+            except xmlrpc.client.Fault:
+                self.blocked = True
+
+        self._run_with_client(client_call)
+        self.assertTrue(self.blocked)
+
+    def test_remote_exception_propagates(self):
+        @self.app.remote
+        def boom():
+            raise ValueError("nope")
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            try:
+                mytk.connect(port=port).boom()
+            except xmlrpc.client.Fault as exc:
+                self.fault_message = str(exc)
+
+        self._run_with_client(client_call)
+        self.assertIsNotNone(self.fault_message)
+        self.assertIn("nope", self.fault_message)
+
+
+if __name__ == "__main__":
+    unittest.main()
