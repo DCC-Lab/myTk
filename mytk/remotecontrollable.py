@@ -89,6 +89,8 @@ class RemoteControllable:
         self.remote_server = None
         self.remote_call_timeout = 30
         self.app_name = None
+        self._zeroconf = None
+        self._remote_service_info = None
         super().__init__(*args, **kwargs)  # cooperative!
 
     def remote(self, fct=None, *, name=None):
@@ -226,8 +228,96 @@ class RemoteControllable:
         self.root.bind("<Destroy>", self.stop_remote_on_destroy, add="+")
         return server.server_address[1]
 
+    @staticmethod
+    def _lan_ip():
+        """Best-effort local network IP for the interface used to reach the LAN.
+
+        Opens a UDP socket toward a public address to learn which local
+        interface the OS would route through, without sending any packet. Falls
+        back to loopback if no route is available (e.g. offline machine).
+        """
+        import socket
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.connect(("8.8.8.8", 80))  # no packet is actually sent
+            return sock.getsockname()[0]
+        except OSError:
+            return "127.0.0.1"
+        finally:
+            sock.close()
+
+    def advertise_remote(
+        self,
+        port=0,
+        host="0.0.0.0",
+        service_type="_mytk._tcp.local.",
+        addr=None,
+    ):
+        """Start the remote server and announce it on the local network via mDNS.
+
+        Combines :meth:`start_remote` with a Zeroconf/Bonjour announcement so
+        clients can find the app with :func:`mytk.discover` instead of a
+        hard-coded port. The OS-picked port (``port=0``) is what gets
+        advertised, so ports never need to be fixed in advance.
+
+        The app's identity (:attr:`app_name`) becomes the service instance name
+        and is also placed in the TXT record, so :func:`mytk.discover` can target
+        a specific app when several are on the network.
+
+        Requires the optional ``zeroconf`` package; it is installed on demand
+        through :class:`ModulesManager` (a Tk app context is assumed here, as for
+        any :class:`RemoteControllable`).
+
+        Args:
+            port (int): Port to bind. Defaults to 0, letting the OS choose a free
+                one — the recommended mode, since the chosen port is advertised.
+            host (str): Interface the server binds. Defaults to all interfaces
+                (``0.0.0.0``) so the service is reachable from other machines;
+                pass ``127.0.0.1`` to keep it local (then discovery is
+                same-machine only).
+            service_type (str): DNS-SD service type. Describes the application
+                protocol (myTk/XML-RPC), not the transport.
+            addr (str, optional): IP address to advertise. Defaults to the
+                autodetected LAN address (see :meth:`_lan_ip`). Override when the
+                autodetected interface is not the one clients should use.
+
+        Returns:
+            int: The port actually bound and advertised.
+        """
+        import socket
+
+        from .modulesmanager import ModulesManager
+
+        ModulesManager.install_and_import_modules_if_absent({"zeroconf": "zeroconf"})
+        zeroconf = ModulesManager.imported["zeroconf"]
+
+        port = self.start_remote(port=port, host=host)
+
+        name = self.app_name or getattr(self, "name", None) or "myTk"
+        ip = addr or self._lan_ip()
+        info = zeroconf.ServiceInfo(
+            service_type,
+            f"{name}.{service_type}",
+            addresses=[socket.inet_aton(ip)],
+            port=port,
+            properties={"app": name, "path": "/"},
+        )
+        self._zeroconf = zeroconf.Zeroconf()
+        self._zeroconf.register_service(info)
+        self._remote_service_info = info
+        return port
+
     def stop_remote(self):
-        """Shuts down the remote server if it is running."""
+        """Shuts down the remote server and withdraws any mDNS announcement."""
+        if self._zeroconf is not None:
+            zc, self._zeroconf = self._zeroconf, None
+            info, self._remote_service_info = self._remote_service_info, None
+            with suppress(Exception):
+                if info is not None:
+                    zc.unregister_service(info)
+            with suppress(Exception):
+                zc.close()
         if self.remote_server is not None:
             server, self.remote_server = self.remote_server, None
             with suppress(Exception):

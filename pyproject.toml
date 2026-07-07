@@ -50,11 +50,12 @@ video = ["opencv-python"]                            # VideoView (heavy)
 view3d = ["trimesh", "moderngl", "numpy", "Pillow"]  # View3D (needs an OpenGL context)
 dnd = ["tkinterdnd2"]                                # drag-and-drop (tkdnd; Tcl-version sensitive)
 svg = ["resvg-py"]                                   # SVGImage (self-contained cross-platform wheel)
+remote = ["zeroconf"]                                # discover()/advertise_remote() (mDNS/Bonjour)
 optics = ["raytracing"]
 docs = ["furo", "sphinx", "myst-parser"]
 screenshot = ["pyobjc-framework-Quartz; sys_platform == 'darwin'"]  # `make screenshot`
 # Everything optional, in one go:
-all = ["mytk[video,view3d,dnd,svg,optics]"]
+all = ["mytk[video,view3d,dnd,svg,remote,optics]"]
 
 [tool.setuptools_scm]
 write_to = "mytk/_version.py"

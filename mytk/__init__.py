@@ -39,7 +39,7 @@ from .modulesmanager import ModulesManager
 from .popupmenu import PopupMenu
 from .progressbar import ProgressBar, ProgressBarNotification, ProgressWindow
 from .radiobutton import RadioButton
-from .remote import RemoteAppMismatch, connect, remote_app
+from .remote import RemoteAppMismatch, browse, connect, discover, remote_app
 from .remotecontrollable import RemoteControllable, remote_command
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
@@ -104,7 +104,9 @@ __all__ = [  # noqa: F405
     "View3DPyrender",
     "Window",
     "XYPlot",
+    "browse",
     "connect",
+    "discover",
     "remote_app",
     "remote_command",
     "tkFont",

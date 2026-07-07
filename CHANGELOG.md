@@ -2,6 +2,30 @@
 
 All notable changes to myTk are documented here.
 
+## [1.8.0]
+### Added
+- **Network discovery for remote apps (mDNS/Bonjour), so ports no longer need
+  to be hard-coded.** A `RemoteControllable` app can publish itself on the
+  local network with `app.advertise_remote()`, which starts the remote server
+  on an OS-picked free port (`port=0`) and announces it over mDNS. The app's
+  `app_name` becomes the service instance name and is placed in the TXT record.
+- **`mytk.discover(app_name=None, service_type="_mytk._tcp.local.", timeout=3.0)`**
+  finds an advertised server on the network and returns a proxy via the existing
+  `connect()` (so `RemoteAppMismatch` verification still applies). `app_name`
+  filters by the advertised identity.
+- **`mytk-remote --discover`** locates the server over mDNS instead of using
+  `--host`/`--port`; `--app-name` selects which advertised app to use, and
+  `--service-type`/`--timeout` tune the browse. Explicit `--host`/`--port`
+  behavior is unchanged.
+- **`mytk.browse(service_type="_mytk._tcp.local.", timeout=3.0)` and
+  `mytk-remote --browse`** list *every* myTk app advertised on the local
+  network (name and address) without connecting to any of them — handy for
+  seeing what is running before targeting one with `--discover --app-name`.
+- New optional dependency extra `mytk[remote]` (installs `zeroconf`). As with
+  other optional features, `zeroconf` is also installed on demand at first use
+  of `advertise_remote()`; `discover()` imports it directly and raises a clear
+  `ImportError` if missing (a client is often a plain script with no Tk root).
+
 ## [1.7.1]
 ### Changed
 - **`start_remote()` now auto-registers `@remote_command` methods**, so you no

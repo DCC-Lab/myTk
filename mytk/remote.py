@@ -65,6 +65,175 @@ def connect(host=DEFAULT_HOST, port=DEFAULT_PORT, app_name=None):
     return proxy
 
 
+DEFAULT_SERVICE_TYPE = "_mytk._tcp.local."
+
+
+def discover(app_name=None, service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
+    """Find a myTk remote server on the local network and connect to it.
+
+    Browses for services advertised by :meth:`~mytk.remotecontrollable.RemoteControllable.advertise_remote`
+    and returns a proxy to the first match, so callers never need a hard-coded
+    host or port::
+
+        far = mytk.discover(app_name="Microscope")
+        far.turn_on()
+
+    Requires the optional ``zeroconf`` package. Unlike the server side, this is
+    imported directly (not through ``ModulesManager``) because a client is often
+    a plain script with no Tk root, so a dialog-based installer would be wrong
+    here; a clear ImportError is raised instead if the package is missing.
+
+    Args:
+        app_name (str, optional): If given, only match a server advertising this
+            name (via its TXT record), and verify identity on connect. If None,
+            the first server found for ``service_type`` is used.
+        service_type (str): DNS-SD service type to browse. Must match what the
+            server advertised.
+        timeout (float): Seconds to wait for an advertisement before giving up.
+
+    Returns:
+        xmlrpc.client.ServerProxy: A proxy to the discovered server, as returned
+        by :func:`connect`.
+
+    Raises:
+        ImportError: If the ``zeroconf`` package is not installed.
+        TimeoutError: If no matching service appears within ``timeout``.
+    """
+    import time
+
+    try:
+        from zeroconf import ServiceBrowser, Zeroconf
+    except ImportError as err:
+        raise ImportError(
+            "discover() needs the 'zeroconf' package. Install it with "
+            "'pip install zeroconf'."
+        ) from err
+
+    found = {}
+
+    class _Listener:
+        def add_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def update_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def remove_service(self, zc, type_, name):
+            found.pop(name, None)
+
+    zc = Zeroconf()
+    ServiceBrowser(zc, service_type, _Listener())
+    try:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for info in list(found.values()):
+                properties = {
+                    key.decode(): (value or b"").decode()
+                    for key, value in info.properties.items()
+                }
+                if app_name is not None and properties.get("app") != app_name:
+                    continue
+                addresses = info.parsed_addresses()
+                if not addresses:
+                    continue
+                return connect(addresses[0], info.port, app_name)
+            time.sleep(0.05)
+    finally:
+        zc.close()
+
+    target = f" for app {app_name!r}" if app_name is not None else ""
+    raise TimeoutError(
+        f"No {service_type} server found{target} within {timeout}s"
+    )
+
+
+def browse(service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
+    """List every myTk remote server advertised on the local network.
+
+    Unlike :func:`discover`, which connects to the first match, this collects
+    every service seen within ``timeout`` and returns their addresses *without*
+    connecting, so a caller (or ``mytk-remote --browse``) can show what is
+    running::
+
+        for server in mytk.browse():
+            print(server["app"], server["host"], server["port"])
+
+    Requires the optional ``zeroconf`` package, imported directly (as in
+    :func:`discover`) so a plain client script gets a clear ImportError rather
+    than a Tk install dialog.
+
+    Args:
+        service_type (str): DNS-SD service type to browse. Must match what the
+            servers advertised.
+        timeout (float): Seconds to collect advertisements before returning.
+
+    Returns:
+        list[dict]: One entry per server, sorted by advertised name then
+        address, each with keys ``"app"`` (advertised name, or None), ``"host"``
+        (IP address), ``"port"`` (int), and ``"service"`` (the raw mDNS instance
+        name).
+
+    Raises:
+        ImportError: If the ``zeroconf`` package is not installed.
+    """
+    import time
+
+    try:
+        from zeroconf import ServiceBrowser, Zeroconf
+    except ImportError as err:
+        raise ImportError(
+            "browse() needs the 'zeroconf' package. Install it with "
+            "'pip install zeroconf'."
+        ) from err
+
+    found = {}
+
+    class _Listener:
+        def add_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def update_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def remove_service(self, zc, type_, name):
+            found.pop(name, None)
+
+    zc = Zeroconf()
+    ServiceBrowser(zc, service_type, _Listener())
+    try:
+        time.sleep(timeout)  # collect for the whole window, don't stop early
+    finally:
+        zc.close()
+
+    servers = []
+    for name, info in found.items():
+        addresses = info.parsed_addresses()
+        if not addresses:
+            continue
+        properties = {
+            key.decode(): (value or b"").decode()
+            for key, value in info.properties.items()
+        }
+        servers.append(
+            {
+                "app": properties.get("app"),
+                "host": addresses[0],
+                "port": info.port,
+                "service": name,
+            }
+        )
+    servers.sort(key=lambda server: (server["app"] or "", server["host"], server["port"]))
+    return servers
+
+
 class RemoteAppProxy:
     """Module-level proxy that connects on first use.
 
