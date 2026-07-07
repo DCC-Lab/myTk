@@ -2,6 +2,16 @@
 
 All notable changes to myTk are documented here.
 
+## [1.7.0]
+### Added
+- **Remote command-line client** for talking to a running
+  `RemoteControllable` app. Call a function and print its result with
+  `python -m mytk --remote "turn_on()"` or the standalone `mytk-remote`
+  console script (`mytk-remote "add(2, 3)" --port 9000`). `--list` prints the
+  exposed functions and their signatures; `--host`/`--port`/`--app-name`
+  select and verify the target. Arguments are parsed as Python literals with
+  `ast` (no code execution); a bare name means a no-argument call.
+
 ## [1.6.1]
 ### Added
 - **`remote_command`** decorator and

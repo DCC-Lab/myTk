@@ -51,6 +51,16 @@ def printClassHierarchy(aClass):  # noqa: N802, N803
 
 def main():
     """Run the mytk command-line interface for examples, tests, and class inspection."""
+    # `--remote` switches to the remote client; hand the rest of the arguments
+    # to it (kept separate from the example-launcher parser below, which has its
+    # own -l/--list). Example: python -m mytk --remote "turn_on()" --port 9000
+    argv = sys.argv[1:]
+    if "--remote" in argv:
+        from .remotecli import run
+
+        rest = [argument for argument in argv if argument != "--remote"]
+        sys.exit(run(rest, prog="python -m mytk --remote"))
+
     root = Path(__file__).parent
     examples_dir = root / "example_apps"
     examples = [
