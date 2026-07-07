@@ -116,6 +116,72 @@ class TestRemoteServer(unittest.TestCase):
         self._run_with_client(client_call)
         self.assertEqual(self.result["add"], "(a, b)")
 
+    def test_remote_app_name(self):
+        port = self.app.start_remote(port=0, app_name="Server-A")
+
+        def client_call():
+            self.result = mytk.connect(port=port).remote_app_name()
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, "Server-A")
+
+    def test_remote_app_name_defaults_to_app_name(self):
+        # No explicit app_name -> falls back to the App's name.
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            self.result = mytk.connect(port=port).remote_app_name()
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, self.app.name)
+
+    def test_connect_matching_app_name_ok(self):
+        @self.app.remote
+        def add(a, b):
+            return a + b
+
+        port = self.app.start_remote(port=0, app_name="Server-A")
+
+        def client_call():
+            self.result = mytk.connect(port=port, app_name="Server-A").add(1, 1)
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, 2)
+
+    def test_connect_wrong_app_name_raises(self):
+        port = self.app.start_remote(port=0, app_name="Server-A")
+
+        def client_call():
+            try:
+                mytk.connect(port=port, app_name="Server-B")
+            except mytk.RemoteAppMismatch:
+                self.blocked = True
+
+        self._run_with_client(client_call)
+        self.assertTrue(self.blocked)
+
+    def test_proxy_validates_against_signatures(self):
+        @self.app.remote
+        def add(a, b):
+            return a + b
+
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            from mytk.remote import RemoteAppProxy
+
+            proxy = RemoteAppProxy()
+            proxy.configure(port=port)
+            self.result = proxy.add(2, 3)  # known -> forwarded
+            try:
+                proxy.nope()  # unknown -> caught before the network call
+            except AttributeError:
+                self.blocked = True
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, 5)
+        self.assertTrue(self.blocked)
+
     def test_unregistered_function_not_exposed(self):
         @self.app.remote
         def ping():

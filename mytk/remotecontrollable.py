@@ -46,6 +46,7 @@ class RemoteControllable:
         self.remote_functions = {}
         self.remote_server = None
         self.remote_call_timeout = 30
+        self.app_name = None
         super().__init__(*args, **kwargs)  # cooperative!
 
     def remote(self, fct=None, *, name=None):
@@ -89,7 +90,19 @@ class RemoteControllable:
             for name, fct in self.remote_functions.items()
         }
 
-    def start_remote(self, port=8777, host="127.0.0.1"):
+    def remote_app_name(self):
+        """Returns this app's name so a client can confirm it reached the
+        intended server when several apps run on the same machine.
+
+        Exposed remotely and used by :func:`mytk.remote.connect` when its
+        ``app_name`` argument is given.
+
+        Returns:
+            str | None: The app name (see :meth:`start_remote`).
+        """
+        return self.app_name
+
+    def start_remote(self, port=8777, host="127.0.0.1", app_name=None):
         """Starts a background server exposing the functions registered with
         :meth:`remote`.
 
@@ -100,6 +113,9 @@ class RemoteControllable:
         Args:
             port (int): Port to bind. Use 0 to let the OS pick a free port.
             host (str): Interface to bind. Defaults to localhost.
+            app_name (str, optional): Identity clients can verify (see
+                :meth:`remote_app_name`). Defaults to ``self.app_name`` if
+                already set, otherwise the App's ``name``.
 
         Returns:
             int: The port actually bound (useful with ``port=0``).
@@ -110,15 +126,23 @@ class RemoteControllable:
         if self.remote_server is not None:
             return self.remote_server.server_address[1]
 
+        if app_name is not None:
+            self.app_name = app_name
+        if self.app_name is None:
+            self.app_name = getattr(self, "name", None)
+
         server = SimpleXMLRPCServer(
             (host, port), allow_none=True, logRequests=False
         )
         for exposed_name, fct in self.remote_functions.items():
             server.register_function(self.remote_wrapper(fct), exposed_name)
 
-        # Always let clients introspect the exposed API.
+        # Always let clients introspect the exposed API and verify identity.
         server.register_function(
             self.remote_wrapper(self.remote_signatures), "remote_signatures"
+        )
+        server.register_function(
+            self.remote_wrapper(self.remote_app_name), "remote_app_name"
         )
 
         self.remote_server = server
