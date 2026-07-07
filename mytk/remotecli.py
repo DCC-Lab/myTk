@@ -3,19 +3,20 @@
 Send a single call to a running app that exposed functions with
 :class:`~mytk.remotecontrollable.RemoteControllable` and print the result::
 
-    python -m mytk --remote "turn_on()"
+    mytk "add(2, 3)"                        # the `mytk` console script
+    mytk --app-name Acquisition "status()"
+    mytk --list                             # show the exposed functions
+    python -m mytk --remote "turn_on()"     # equivalent module form
     python -m mytk --remote "set_power(2.5)" --port 9000
-    mytk-remote "add(2, 3)"                  # standalone console script
-    mytk-remote --app-name Acquisition "status()"
-    mytk-remote --list                       # show the exposed functions
 
-Instead of a fixed ``--host``/``--port``, the server can be located on the
-local network via mDNS/Bonjour (as published by ``advertise_remote``)::
+(``mytk-remote`` is a kept-for-compatibility alias of ``mytk``.) Instead of a
+fixed ``--host``/``--port``, the server can be located on the local network via
+mDNS/Bonjour (as published by ``advertise_remote``)::
 
-    mytk-remote --discover "turn_on()"
-    mytk-remote --discover --app-name Microscope "status()"
-    mytk-remote --discover --list
-    mytk-remote --browse                     # list all apps on the network
+    mytk --discover "turn_on()"
+    mytk --discover --app-name Microscope "status()"
+    mytk --discover --list
+    mytk --browse                           # list all apps on the network
 
 Arguments in the call string must be Python literals (numbers, strings,
 True/False/None, lists, dicts, tuples); a bare ``"turn_on"`` is treated as
@@ -74,8 +75,15 @@ def parse_command(command):
     return node.func.id, args
 
 
-def build_parser(prog=None):
-    """Build the argument parser for the remote command-line client."""
+def build_parser(prog=None, *, default_host=DEFAULT_HOST,
+                 default_port=DEFAULT_PORT, default_app_name=None):
+    """Build the argument parser for the remote command-line client.
+
+    ``default_host``/``default_port``/``default_app_name`` let an embedding app
+    (see :func:`mytk.remote_cli`) bake in its own connection defaults while
+    still allowing the user to override them with ``--host``/``--port``/
+    ``--app-name``.
+    """
     parser = argparse.ArgumentParser(
         prog=prog,
         description="Call a function on a running RemoteControllable mytk app.",
@@ -86,14 +94,15 @@ def build_parser(prog=None):
         help='function call, e.g. "turn_on()" or "add(2, 3)"',
     )
     parser.add_argument(
-        "--host", default=DEFAULT_HOST, help=f"server host (default: {DEFAULT_HOST})"
+        "--host", default=default_host,
+        help=f"server host (default: {default_host})",
     )
     parser.add_argument(
-        "--port", type=int, default=DEFAULT_PORT,
-        help=f"server port (default: {DEFAULT_PORT})",
+        "--port", type=int, default=default_port,
+        help=f"server port (default: {default_port})",
     )
     parser.add_argument(
-        "--app-name", default=None,
+        "--app-name", default=default_app_name,
         help="verify the server identifies as this name before calling; "
              "with --discover, also selects which advertised app to use",
     )
@@ -123,18 +132,43 @@ def build_parser(prog=None):
     return parser
 
 
-def run(argv=None, prog=None):
+def _print_result(result):
+    """Print a remote call's return value.
+
+    A ``dict`` is shown as an aligned ``key  value`` table (nicer for status
+    snapshots); anything else is printed as-is. ``None`` prints nothing.
+    """
+    if result is None:
+        return
+    if isinstance(result, dict):
+        width = max((len(str(key)) for key in result), default=0)
+        for key, value in result.items():
+            print(f"{str(key):<{width}}  {value}")
+    else:
+        print(result)
+
+
+def run(argv=None, prog=None, *, default_host=DEFAULT_HOST,
+        default_port=DEFAULT_PORT, default_app_name=None):
     """Run one remote command-line invocation.
 
     Args:
         argv (list[str], optional): Arguments to parse (defaults to
             ``sys.argv[1:]``).
         prog (str, optional): Program name shown in usage/errors.
+        default_host (str): Host used when ``--host`` is not given. An embedding
+            app (via :func:`mytk.remote_cli`) can bake in its own default.
+        default_port (int): Port used when ``--port`` is not given.
+        default_app_name (str, optional): Identity to verify/select when
+            ``--app-name`` is not given.
 
     Returns:
         int: Process exit code (0 success, 1 runtime error, 2 usage/identity).
     """
-    parser = build_parser(prog)
+    parser = build_parser(
+        prog, default_host=default_host, default_port=default_port,
+        default_app_name=default_app_name,
+    )
     args = parser.parse_args(argv)
 
     if not args.list and not args.browse and not args.command:
@@ -166,8 +200,7 @@ def run(argv=None, prog=None):
 
         name, call_args = parse_command(args.command)
         result = getattr(proxy, name)(*call_args)
-        if result is not None:
-            print(result)
+        _print_result(result)
         return 0
     except ValueError as exc:  # bad command string
         print(f"error: {exc}", file=sys.stderr)
@@ -195,8 +228,8 @@ def run(argv=None, prog=None):
 
 
 def main():
-    """Console-script entry point (``mytk-remote``)."""
-    raise SystemExit(run(prog="mytk-remote"))
+    """Console-script entry point for ``mytk`` (and its ``mytk-remote`` alias)."""
+    raise SystemExit(run(prog="mytk"))
 
 
 if __name__ == "__main__":

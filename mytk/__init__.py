@@ -38,8 +38,16 @@ from .labels import Label, URLLabel
 from .modulesmanager import ModulesManager
 from .popupmenu import PopupMenu
 from .progressbar import ProgressBar, ProgressBarNotification, ProgressWindow
+from .clitools import install_command_on_path
 from .radiobutton import RadioButton
-from .remote import RemoteAppMismatch, browse, connect, discover, remote_app
+from .remote import (
+    RemoteAppMismatch,
+    browse,
+    connect,
+    discover,
+    remote_app,
+    remote_cli,
+)
 from .remotecontrollable import RemoteControllable, remote_command
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
@@ -107,7 +115,9 @@ __all__ = [  # noqa: F405
     "browse",
     "connect",
     "discover",
+    "install_command_on_path",
     "remote_app",
+    "remote_cli",
     "remote_command",
     "tkFont",
     "ttk",

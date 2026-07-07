@@ -234,6 +234,57 @@ def browse(service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
     return servers
 
 
+def remote_cli(argv=None, *, host=DEFAULT_HOST, port=DEFAULT_PORT,
+               app_name=None, prog="remote-ctl"):
+    """A ready-made command-line client for a RemoteControllable app.
+
+    A thin, embeddable wrapper over :func:`mytk.remotecli.run` — the same engine
+    behind the ``mytk`` command — so a downstream app gets a *branded* CLI from
+    its own entry point with almost no code::
+
+        import sys, mytk
+        sys.exit(mytk.remote_cli(app_name="My App", prog="my-cli"))
+
+    Then, with the app running (and its remote server started)::
+
+        my-cli "turn_on()"           # call an exposed function
+        my-cli --list                # show what the server exposes
+        my-cli "add(2, 3)"           # arguments are Python literals
+        my-cli --host H --port P …    # override the baked-in target
+
+    ``host``/``port``/``app_name`` become the defaults the user can still
+    override on the command line. Command syntax, the discovery flags
+    (``--discover``/``--browse``) and exit codes are exactly those of the
+    ``mytk`` command, so there is one CLI to learn and one implementation to
+    maintain. Pair it with :func:`mytk.install_command_on_path` to put the
+    branded command on the user's PATH.
+
+    Args:
+        argv (list[str], optional): Arguments to parse (defaults to
+            ``sys.argv[1:]``).
+        host (str): Default server host, overridable with ``--host``.
+        port (int): Default server port, overridable with ``--port``.
+        app_name (str, optional): Default identity to verify/select,
+            overridable with ``--app-name``.
+        prog (str): Program name shown in usage/errors (the branded command).
+
+    Returns:
+        int: exit code — 0 ok, 1 remote error, 2 connection/usage error.
+    """
+    from .remotecli import run
+
+    # run() parses with argparse, which raises SystemExit on a usage error
+    # (e.g. no command). As an embeddable function we return that code instead
+    # of letting SystemExit escape, so callers get the documented int contract.
+    try:
+        return run(
+            argv, prog=prog, default_host=host, default_port=port,
+            default_app_name=app_name,
+        )
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 2
+
+
 class RemoteAppProxy:
     """Module-level proxy that connects on first use.
 

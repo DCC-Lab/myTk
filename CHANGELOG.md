@@ -25,6 +25,25 @@ All notable changes to myTk are documented here.
   other optional features, `zeroconf` is also installed on demand at first use
   of `advertise_remote()`; `discover()` imports it directly and raises a clear
   `ImportError` if missing (a client is often a plain script with no Tk root).
+- **The remote command-line client is now the `mytk` command** (the
+  `mytk-remote` console script is kept as a compatibility alias; both are the
+  same tool). Use it to probe, `--list`, `--browse`, `--discover` and drive any
+  RemoteControllable app.
+- **`mytk.remote_cli(argv=None, *, host, port, app_name, prog)`** — a ready-made,
+  embeddable command-line client. A downstream app's entry point can
+  `sys.exit(mytk.remote_cli(app_name="My App", prog="my-cli"))` to get a
+  *branded* CLI with almost no code: it delegates to the same engine as the
+  `mytk` command, so there is one syntax, one set of exit codes, and one
+  implementation. `dict` return values now print as an aligned key/value table.
+- **`mytk.install_command_on_path(name, *, arguments=(), directories=None)`** —
+  install a launcher for the current program onto the user's PATH (first
+  writable of `/usr/local/bin`, `~/.local/bin`, `~/bin`), so an app can
+  distribute its branded CLI (e.g. `install_command_on_path("my-cli",
+  arguments=("ctl",))`). The wrapper uses `sys.executable` **verbatim** so the
+  command keeps this app's virtualenv/dependencies; POSIX-only for now (raises
+  `NotImplementedError` on Windows).
+- **`App.add_file_menu_command(label, command, *, before="Quit", separator=True)`**
+  inserts an item into the File menu without the tkinter menu-bar plumbing.
 
 ## [1.7.1]
 ### Changed

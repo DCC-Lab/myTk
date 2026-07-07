@@ -21,10 +21,24 @@ publishes them so external processes can call them::
     app.mainloop()
 
 Clients connect with ``mytk.connect(...)`` or ``mytk.remote_app`` (see
-:mod:`mytk.remote`), or from the command line with ``mytk-remote`` /
-``python -m mytk --remote`` (see :mod:`mytk.remotecli`). The transport is stdlib
-XML-RPC, so arguments and return values must be XML-RPC serializable (numbers,
-str, bool, None, list, dict).
+:mod:`mytk.remote`), or from the command line with the ``mytk`` command
+(``mytk-remote`` is a kept-for-compatibility alias) / ``python -m mytk
+--remote`` (see :mod:`mytk.remotecli`). The transport is stdlib XML-RPC, so
+arguments and return values must be XML-RPC serializable (numbers, str, bool,
+None, list, dict).
+
+To give your own app a *branded* control CLI, expose the functions, then have
+your entry point delegate to :func:`mytk.remote_cli`, and install it on the
+user's PATH with :func:`mytk.install_command_on_path`::
+
+    # your app's __main__: `myapp ctl <function> …` runs the control CLI
+    import sys, mytk
+    if sys.argv[1:2] == ["ctl"]:
+        sys.exit(mytk.remote_cli(sys.argv[2:], app_name="Server", prog="myapp"))
+
+    # one-time install (uses THIS app's interpreter/venv):
+    mytk.install_command_on_path("myapp", arguments=("ctl",))
+    # then, with the app running:  myapp "turn_on()"  /  myapp --list
 
 For a free function, or to register something dynamically at runtime, the
 low-level primitive ``app.remote(fct, name=...)`` registers it directly;

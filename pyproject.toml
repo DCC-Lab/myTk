@@ -34,7 +34,8 @@ classifiers = [
 ]
 
 [project.scripts]
-mytk-remote = "mytk.remotecli:main"
+mytk = "mytk.remotecli:main"
+mytk-remote = "mytk.remotecli:main"  # kept-for-compatibility alias of `mytk`
 
 [project.urls]
 Homepage = "https://github.com/DCC-Lab/myTk"

@@ -227,6 +227,36 @@ class App(Bindable, EventCapable):
         with suppress(TclError):
             self.root.createcommand("tk::mac::Quit", on_mac_quit)
 
+    def add_file_menu_command(self, label, command, *, before="Quit",
+                              separator=True):
+        """Insert a command into the File menu, above `before` (default Quit).
+
+        Saves subclasses the tkinter plumbing of reaching into the menu bar that
+        :meth:`create_menu` built. Call after the menu exists (e.g. after
+        ``super().__init__()``). If `before` is not found, the item is appended.
+
+        Args:
+            label (str): The menu item's label.
+            command (callable): Called when the item is chosen.
+            before (str): Label of the item to insert above. If absent, append.
+            separator (bool): Add a separator alongside the item.
+        """
+        menubar = self.root.nametowidget(self.root["menu"])
+        file_menu = self.root.nametowidget(menubar.entrycget("File", "menu"))
+        try:
+            index = file_menu.index(before)
+        except TclError:
+            index = None
+        if index is None:
+            if separator:
+                file_menu.add_separator()
+            file_menu.add_command(label=label, command=command)
+        else:
+            if separator:
+                file_menu.insert_separator(index)
+                index += 1
+            file_menu.insert_command(index, label=label, command=command)
+
     def reveal_path(self, path):
         """Reveals the file or directory path in the system's file browser.
 
