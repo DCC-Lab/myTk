@@ -34,7 +34,7 @@ classifiers = [
 ]
 
 [project.scripts]
-mytk-remote = "mytk.remotecli:main"
+mytk = "mytk.remotecli:main"
 
 [project.urls]
 Homepage = "https://github.com/DCC-Lab/myTk"

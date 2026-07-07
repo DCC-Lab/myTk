@@ -3,19 +3,19 @@
 Send a single call to a running app that exposed functions with
 :class:`~mytk.remotecontrollable.RemoteControllable` and print the result::
 
-    python -m mytk --remote "turn_on()"
+    mytk "add(2, 3)"                        # the `mytk` console script
+    mytk --app-name Acquisition "status()"
+    mytk --list                             # show the exposed functions
+    python -m mytk --remote "turn_on()"     # equivalent module form
     python -m mytk --remote "set_power(2.5)" --port 9000
-    mytk-remote "add(2, 3)"                  # standalone console script
-    mytk-remote --app-name Acquisition "status()"
-    mytk-remote --list                       # show the exposed functions
 
-Instead of a fixed ``--host``/``--port``, the server can be located on the
-local network via mDNS/Bonjour (as published by ``advertise_remote``)::
+Instead of a fixed ``--host``/``--port``, the server can be located on the local
+network via mDNS/Bonjour (as published by ``advertise_remote``)::
 
-    mytk-remote --discover "turn_on()"
-    mytk-remote --discover --app-name Microscope "status()"
-    mytk-remote --discover --list
-    mytk-remote --browse                     # list all apps on the network
+    mytk --discover "turn_on()"
+    mytk --discover --app-name Microscope "status()"
+    mytk --discover --list
+    mytk --browse                           # list all apps on the network
 
 Arguments in the call string must be Python literals (numbers, strings,
 True/False/None, lists, dicts, tuples); a bare ``"turn_on"`` is treated as
@@ -195,8 +195,8 @@ def run(argv=None, prog=None):
 
 
 def main():
-    """Console-script entry point (``mytk-remote``)."""
-    raise SystemExit(run(prog="mytk-remote"))
+    """Console-script entry point for the ``mytk`` command."""
+    raise SystemExit(run(prog="mytk"))
 
 
 if __name__ == "__main__":

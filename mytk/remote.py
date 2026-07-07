@@ -156,7 +156,7 @@ def browse(service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
 
     Unlike :func:`discover`, which connects to the first match, this collects
     every service seen within ``timeout`` and returns their addresses *without*
-    connecting, so a caller (or ``mytk-remote --browse``) can show what is
+    connecting, so a caller (or ``mytk --browse``) can show what is
     running::
 
         for server in mytk.browse():
