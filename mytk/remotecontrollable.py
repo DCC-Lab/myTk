@@ -18,6 +18,25 @@ external processes call selected functions on the running application::
     app.start_remote()      # localhost:8777
     app.mainloop()
 
+Methods declared in a class body cannot use ``@app.remote`` (there is no live
+app yet); tag them with ``@remote_command`` and register them in one call::
+
+    from mytk import App, RemoteControllable, remote_command
+
+    class MyApp(App, RemoteControllable):
+        @remote_command
+        def turn_on(self):
+            ...
+
+        @remote_command(name="status")
+        def read_status(self):
+            return {"on": True}
+
+    app = MyApp(name="Server")
+    app.register_remote_commands()   # expose every tagged method
+    app.start_remote()
+    app.mainloop()
+
 Clients connect with ``mytk.connect(...)`` or ``mytk.remote_app`` (see
 :mod:`mytk.remote`). The transport is stdlib XML-RPC, so arguments and return
 values must be XML-RPC serializable (numbers, str, bool, None, list, dict).
@@ -28,6 +47,39 @@ functions may safely touch widgets.
 """
 
 from contextlib import suppress
+
+
+def remote_command(fct=None, *, name=None):
+    """Mark a method for remote exposure by :class:`RemoteControllable`.
+
+    A *tag* only: it records the RPC name on the function and returns it
+    unchanged. Registration happens at runtime in
+    :meth:`RemoteControllable.register_remote_commands`, once an instance (and
+    its ``remote`` registry) exists — ``@app.remote`` cannot be used in a class
+    body because there is no live app there yet.
+
+    Use bare, or with an explicit name::
+
+        class MyApp(App, RemoteControllable):
+            @remote_command
+            def turn_on(self): ...
+
+            @remote_command(name="status")
+            def read_status(self): ...
+
+    Args:
+        fct (callable, optional): The method to tag. Omitted when used as
+            ``@remote_command(name=...)``.
+        name (str, optional): Name clients call it by. Defaults to the
+            method's own name.
+
+    Returns:
+        callable: The method, unchanged, so it works as a decorator.
+    """
+    if fct is None:
+        return lambda f: remote_command(f, name=name)
+    fct._remote_name = name or fct.__name__
+    return fct
 
 
 class RemoteControllable:
@@ -71,6 +123,26 @@ class RemoteControllable:
             return lambda f: self.remote(f, name=name)
         self.remote_functions[name or fct.__name__] = fct
         return fct
+
+    def register_remote_commands(self):
+        """Expose every method tagged with :func:`remote_command`.
+
+        Scans the class (not the instance, so property getters are never
+        triggered) for methods carrying the ``@remote_command`` marker and
+        registers each with :meth:`remote`. Call once, before or after
+        :meth:`start_remote`.
+
+        Returns:
+            list[str]: The RPC names that were registered.
+        """
+        registered = []
+        for attr_name in dir(type(self)):
+            tagged = getattr(type(self), attr_name, None)
+            remote_name = getattr(tagged, "_remote_name", None)
+            if remote_name is not None:
+                self.remote(getattr(self, attr_name), name=remote_name)
+                registered.append(remote_name)
+        return registered
 
     def remote_signatures(self):
         """Returns the signature of every exposed function.

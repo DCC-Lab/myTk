@@ -2,6 +2,16 @@
 
 All notable changes to myTk are documented here.
 
+## [1.6.1]
+### Added
+- **`remote_command`** decorator and
+  **`RemoteControllable.register_remote_commands()`** for exposing methods
+  declared in a class body. `@app.remote` cannot decorate methods at
+  class-definition time (there is no live app yet), so tag them with
+  `@remote_command` (bare or `@remote_command(name="...")`) and call
+  `app.register_remote_commands()` once to register them all. Purely additive:
+  existing `self.remote(...)` / `@app.remote` usage is unchanged.
+
 ## [1.4.0] - 2026-06-18
 ### Added
 - **`SVGImage`** — a widget that displays an SVG document, rasterized with the
