@@ -2,6 +2,15 @@
 
 All notable changes to myTk are documented here.
 
+## [1.7.1]
+### Changed
+- **`start_remote()` now auto-registers `@remote_command` methods**, so you no
+  longer need to call `register_remote_commands()` yourself — tagged methods
+  just work. The explicit call remains available and idempotent. `@remote_command`
+  is now the primary way to expose methods; `app.remote(...)` is documented as
+  the low-level primitive it builds on (still available for free functions or
+  dynamic registration).
+
 ## [1.7.0]
 ### Added
 - **Remote command-line client** for talking to a running

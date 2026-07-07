@@ -52,8 +52,7 @@ class TestRemoteCLI(unittest.TestCase):
     """End-to-end: the CLI drives a live server over a real socket."""
 
     def setUp(self):
-        self.app = CLIApp(name=self.id())
-        self.app.register_remote_commands()
+        self.app = CLIApp(name=self.id())  # start_remote auto-registers commands
         self.rc = None
         self.output = None
 

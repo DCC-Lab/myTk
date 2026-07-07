@@ -262,6 +262,13 @@ class TestRemoteCommands(unittest.TestCase):
         names = self.app.register_remote_commands()
         self.assertEqual(set(names), {"flip", "status"})
 
+    def test_start_remote_auto_registers_commands(self):
+        # No explicit register_remote_commands() call — start_remote does it.
+        self.app.start_remote(port=0)
+        signatures = self.app.remote_signatures()
+        self.assertIn("flip", signatures)
+        self.assertIn("status", signatures)
+
     def test_bare_command_uses_method_name(self):
         self.app.register_remote_commands()
         self.assertIn("flip", self.app.remote_signatures())
