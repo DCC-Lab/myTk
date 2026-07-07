@@ -15,6 +15,7 @@ local network via mDNS/Bonjour (as published by ``advertise_remote``)::
     mytk-remote --discover "turn_on()"
     mytk-remote --discover --app-name Microscope "status()"
     mytk-remote --discover --list
+    mytk-remote --browse                     # list all apps on the network
 
 Arguments in the call string must be Python literals (numbers, strings,
 True/False/None, lists, dicts, tuples); a bare ``"turn_on"`` is treated as
@@ -32,6 +33,7 @@ from .remote import (
     DEFAULT_PORT,
     DEFAULT_SERVICE_TYPE,
     RemoteAppMismatch,
+    browse,
     connect,
     discover,
 )
@@ -101,6 +103,11 @@ def build_parser(prog=None):
              "using --host/--port",
     )
     parser.add_argument(
+        "--browse", action="store_true",
+        help="list every myTk app advertised on the local network "
+             "(name and address), then exit; uses --service-type/--timeout",
+    )
+    parser.add_argument(
         "--service-type", default=DEFAULT_SERVICE_TYPE,
         help=f"mDNS service type to browse with --discover "
              f"(default: {DEFAULT_SERVICE_TYPE})",
@@ -130,10 +137,18 @@ def run(argv=None, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
 
-    if not args.list and not args.command:
-        parser.error("a command is required unless --list is given")
+    if not args.list and not args.browse and not args.command:
+        parser.error("a command is required unless --list or --browse is given")
 
     try:
+        if args.browse:
+            for server in browse(
+                service_type=args.service_type, timeout=args.timeout
+            ):
+                label = server["app"] or server["service"]
+                print(f"{label}\t{server['host']}:{server['port']}")
+            return 0
+
         if args.discover:
             proxy = discover(
                 app_name=args.app_name,

@@ -17,6 +17,10 @@ All notable changes to myTk are documented here.
   `--host`/`--port`; `--app-name` selects which advertised app to use, and
   `--service-type`/`--timeout` tune the browse. Explicit `--host`/`--port`
   behavior is unchanged.
+- **`mytk.browse(service_type="_mytk._tcp.local.", timeout=3.0)` and
+  `mytk-remote --browse`** list *every* myTk app advertised on the local
+  network (name and address) without connecting to any of them — handy for
+  seeing what is running before targeting one with `--discover --app-name`.
 - New optional dependency extra `mytk[remote]` (installs `zeroconf`). As with
   other optional features, `zeroconf` is also installed on demand at first use
   of `advertise_remote()`; `discover()` imports it directly and raises a clear

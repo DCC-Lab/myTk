@@ -151,6 +151,89 @@ def discover(app_name=None, service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
     )
 
 
+def browse(service_type=DEFAULT_SERVICE_TYPE, timeout=3.0):
+    """List every myTk remote server advertised on the local network.
+
+    Unlike :func:`discover`, which connects to the first match, this collects
+    every service seen within ``timeout`` and returns their addresses *without*
+    connecting, so a caller (or ``mytk-remote --browse``) can show what is
+    running::
+
+        for server in mytk.browse():
+            print(server["app"], server["host"], server["port"])
+
+    Requires the optional ``zeroconf`` package, imported directly (as in
+    :func:`discover`) so a plain client script gets a clear ImportError rather
+    than a Tk install dialog.
+
+    Args:
+        service_type (str): DNS-SD service type to browse. Must match what the
+            servers advertised.
+        timeout (float): Seconds to collect advertisements before returning.
+
+    Returns:
+        list[dict]: One entry per server, sorted by advertised name then
+        address, each with keys ``"app"`` (advertised name, or None), ``"host"``
+        (IP address), ``"port"`` (int), and ``"service"`` (the raw mDNS instance
+        name).
+
+    Raises:
+        ImportError: If the ``zeroconf`` package is not installed.
+    """
+    import time
+
+    try:
+        from zeroconf import ServiceBrowser, Zeroconf
+    except ImportError as err:
+        raise ImportError(
+            "browse() needs the 'zeroconf' package. Install it with "
+            "'pip install zeroconf'."
+        ) from err
+
+    found = {}
+
+    class _Listener:
+        def add_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def update_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info is not None:
+                found[name] = info
+
+        def remove_service(self, zc, type_, name):
+            found.pop(name, None)
+
+    zc = Zeroconf()
+    ServiceBrowser(zc, service_type, _Listener())
+    try:
+        time.sleep(timeout)  # collect for the whole window, don't stop early
+    finally:
+        zc.close()
+
+    servers = []
+    for name, info in found.items():
+        addresses = info.parsed_addresses()
+        if not addresses:
+            continue
+        properties = {
+            key.decode(): (value or b"").decode()
+            for key, value in info.properties.items()
+        }
+        servers.append(
+            {
+                "app": properties.get("app"),
+                "host": addresses[0],
+                "port": info.port,
+                "service": name,
+            }
+        )
+    servers.sort(key=lambda server: (server["app"] or "", server["host"], server["port"]))
+    return servers
+
+
 class RemoteAppProxy:
     """Module-level proxy that connects on first use.
 

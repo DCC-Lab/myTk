@@ -148,6 +148,47 @@ class TestDiscover(unittest.TestCase):
             remote.discover(timeout=0.2)
 
 
+class TestBrowse(unittest.TestCase):
+    """mytk.browse() collecting every advertised server without connecting."""
+
+    SERVICE_TYPE = "_mytk._tcp.local."
+
+    def _install_zeroconf(self, services):
+        fake = _make_fake_zeroconf(services)
+        patcher = mock.patch.dict(sys.modules, {"zeroconf": fake})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_browse_returns_all_advertised_servers_sorted(self):
+        self._install_zeroconf([
+            (self.SERVICE_TYPE, "B." + self.SERVICE_TYPE,
+             "192.168.1.20", 2222, {"app": "B"}),
+            (self.SERVICE_TYPE, "A." + self.SERVICE_TYPE,
+             "192.168.1.10", 1111, {"app": "A"}),
+        ])
+
+        servers = remote.browse(timeout=0.1)
+
+        # Both servers are reported, sorted by advertised name; none is connected.
+        self.assertEqual(
+            [(s["app"], s["host"], s["port"]) for s in servers],
+            [("A", "192.168.1.10", 1111), ("B", "192.168.1.20", 2222)],
+        )
+
+    def test_browse_empty_when_no_service(self):
+        self._install_zeroconf([])
+
+        self.assertEqual(remote.browse(timeout=0.1), [])
+
+    def test_browse_without_zeroconf_raises_importerror(self):
+        patcher = mock.patch.dict(sys.modules, {"zeroconf": None})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        with self.assertRaises(ImportError):
+            remote.browse(timeout=0.1)
+
+
 class TestRemoteCLIDiscovery(unittest.TestCase):
     """`mytk-remote --discover` wiring, with discover() itself stubbed out."""
 
@@ -212,6 +253,32 @@ class TestRemoteCLIDiscovery(unittest.TestCase):
             code, _, err = self._run(["--discover", "flip()"])
         self.assertEqual(code, 2)
         self.assertIn("zeroconf", err)
+
+    def test_browse_lists_all_apps(self):
+        servers = [
+            {"app": "Microscope", "host": "192.168.1.42",
+             "port": 55444, "service": "Microscope._mytk._tcp.local."},
+            {"app": "Laser", "host": "192.168.1.63",
+             "port": 44011, "service": "Laser._mytk._tcp.local."},
+        ]
+        with mock.patch(
+            "mytk.remotecli.browse", return_value=servers
+        ) as browse:
+            code, out, _ = self._run(["--browse"])
+        self.assertEqual(code, 0)
+        self.assertIn("Microscope\t192.168.1.42:55444", out)
+        self.assertIn("Laser\t192.168.1.63:44011", out)
+        browse.assert_called_once_with(
+            service_type="_mytk._tcp.local.", timeout=3.0
+        )
+
+    def test_browse_needs_no_command(self):
+        # --browse must not require a positional command, like --list.
+        with mock.patch("mytk.remotecli.browse", return_value=[]):
+            code, out, err = self._run(["--browse"])
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "")
+        self.assertEqual(err, "")
 
 
 if __name__ == "__main__":
