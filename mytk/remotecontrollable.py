@@ -1,25 +1,9 @@
 """remotecontrollable.py — Capability mixin exposing an App over RPC.
 
 `RemoteControllable` is a capability mixin, in the same spirit as
-`EventCapable` and `DragAndDropCapable`. Mix it into an `App` subclass to let
-external processes call selected functions on the running application::
-
-    from mytk import App, RemoteControllable
-
-    class MyApp(App, RemoteControllable):
-        pass
-
-    app = MyApp(name="Server")
-
-    @app.remote
-    def add(a, b):
-        return a + b
-
-    app.start_remote()      # localhost:8777
-    app.mainloop()
-
-Methods declared in a class body cannot use ``@app.remote`` (there is no live
-app yet); tag them with ``@remote_command`` and register them in one call::
+`EventCapable` and `DragAndDropCapable`. Mix it into an `App` subclass and tag
+the methods you want to expose with ``@remote_command``; ``start_remote()``
+publishes them so external processes can call them::
 
     from mytk import App, RemoteControllable, remote_command
 
@@ -33,13 +17,19 @@ app yet); tag them with ``@remote_command`` and register them in one call::
             return {"on": True}
 
     app = MyApp(name="Server")
-    app.register_remote_commands()   # expose every tagged method
-    app.start_remote()
+    app.start_remote()      # localhost:8777 — tagged methods are auto-registered
     app.mainloop()
 
 Clients connect with ``mytk.connect(...)`` or ``mytk.remote_app`` (see
-:mod:`mytk.remote`). The transport is stdlib XML-RPC, so arguments and return
-values must be XML-RPC serializable (numbers, str, bool, None, list, dict).
+:mod:`mytk.remote`), or from the command line with ``mytk-remote`` /
+``python -m mytk --remote`` (see :mod:`mytk.remotecli`). The transport is stdlib
+XML-RPC, so arguments and return values must be XML-RPC serializable (numbers,
+str, bool, None, list, dict).
+
+For a free function, or to register something dynamically at runtime, the
+low-level primitive ``app.remote(fct, name=...)`` registers it directly;
+``@remote_command`` is just a class-body-friendly marker that ``start_remote``
+feeds to it.
 
 The host class must provide ``schedule_on_main_thread`` and ``root`` (both are
 supplied by `App`): every call is marshaled onto the Tk main thread, so exposed
@@ -102,17 +92,19 @@ class RemoteControllable:
         super().__init__(*args, **kwargs)  # cooperative!
 
     def remote(self, fct=None, *, name=None):
-        """Exposes a function for remote invocation by clients.
+        """Low-level primitive: expose a function for remote invocation.
 
-        Usable as a decorator (``@app.remote``) or directly
-        (``app.remote(fct)``). Only exposed functions are reachable. The call
-        runs on the Tk main thread, so it may safely touch widgets. Arguments
-        and the return value must be XML-RPC serializable (numbers, str, bool,
-        None, list, dict).
+        Most code should prefer :func:`remote_command` on methods; this is the
+        underlying call it feeds (and what to use for a free function or dynamic
+        registration at runtime). Usable directly (``app.remote(fct)``) or as a
+        decorator. Only exposed functions are reachable. The call runs on the Tk
+        main thread, so it may safely touch widgets. Arguments and the return
+        value must be XML-RPC serializable (numbers, str, bool, None, list,
+        dict).
 
         Args:
             fct (callable, optional): The function to expose. Omitted when used
-                as a bare ``@app.remote`` decorator.
+                as a bare decorator.
             name (str, optional): Name clients use to call it. Defaults to the
                 function's own name.
 
@@ -129,8 +121,9 @@ class RemoteControllable:
 
         Scans the class (not the instance, so property getters are never
         triggered) for methods carrying the ``@remote_command`` marker and
-        registers each with :meth:`remote`. Call once, before or after
-        :meth:`start_remote`.
+        registers each with :meth:`remote`. Called automatically by
+        :meth:`start_remote`, so you rarely need to call it yourself; doing so
+        is safe and idempotent.
 
         Returns:
             list[str]: The RPC names that were registered.
@@ -175,12 +168,14 @@ class RemoteControllable:
         return self.app_name
 
     def start_remote(self, port=8777, host="127.0.0.1", app_name=None):
-        """Starts a background server exposing the functions registered with
-        :meth:`remote`.
+        """Starts a background server exposing the app's remote functions.
 
-        Localhost-only by default. The server runs in a daemon thread; each
-        call is marshaled onto the Tk main thread and its return value sent
-        back to the client. Safe to call once; further calls are no-ops.
+        Any method tagged with :func:`remote_command` is registered first (via
+        :meth:`register_remote_commands`), so tagged methods just work without a
+        separate call. Localhost-only by default. The server runs in a daemon
+        thread; each call is marshaled onto the Tk main thread and its return
+        value sent back to the client. Safe to call once; further calls are
+        no-ops.
 
         Args:
             port (int): Port to bind. Use 0 to let the OS pick a free port.
@@ -202,6 +197,8 @@ class RemoteControllable:
             self.app_name = app_name
         if self.app_name is None:
             self.app_name = getattr(self, "name", None)
+
+        self.register_remote_commands()
 
         server = SimpleXMLRPCServer(
             (host, port), allow_none=True, logRequests=False
