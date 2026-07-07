@@ -3,7 +3,7 @@ import unittest
 import xmlrpc.client
 
 import mytk
-from mytk import App, RemoteControllable
+from mytk import App, RemoteControllable, remote_command
 
 
 class RemoteApp(App, RemoteControllable):
@@ -214,6 +214,84 @@ class TestRemoteServer(unittest.TestCase):
         self._run_with_client(client_call)
         self.assertIsNotNone(self.fault_message)
         self.assertIn("nope", self.fault_message)
+
+
+class CommandApp(App, RemoteControllable):
+    """An App exposing methods declared in its class body via @remote_command."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.flag = False
+
+    @remote_command
+    def flip(self):
+        self.flag = True
+        return self.flag
+
+    @remote_command(name="status")
+    def read_status(self):
+        return {"flag": self.flag}
+
+    @property
+    def boom(self):  # scanning must never invoke this getter
+        raise RuntimeError("property getter triggered during scan")
+
+
+class TestRemoteCommands(unittest.TestCase):
+    """Class-body @remote_command markers registered via register_remote_commands()."""
+
+    def setUp(self):
+        self.app = CommandApp(name=self.id())
+        self.result = None
+
+    def tearDown(self):
+        self.app.quit()
+
+    def _run_with_client(self, client_call, timeout=1500):
+        thread = threading.Thread(target=client_call)
+        self.app.after(int(timeout / 4), thread.start)
+        self.app.after(timeout, self.app.quit)
+        self.app.mainloop()
+        thread.join(timeout=3)
+
+    def test_register_scans_class_without_triggering_properties(self):
+        # Sanity: the property really does raise when its getter runs...
+        with self.assertRaises(RuntimeError):
+            _ = self.app.boom
+        # ...yet scanning the class to register commands must not touch it.
+        names = self.app.register_remote_commands()
+        self.assertEqual(set(names), {"flip", "status"})
+
+    def test_bare_command_uses_method_name(self):
+        self.app.register_remote_commands()
+        self.assertIn("flip", self.app.remote_signatures())
+
+    def test_named_command_uses_custom_name(self):
+        self.app.register_remote_commands()
+        signatures = self.app.remote_signatures()
+        self.assertIn("status", signatures)
+        self.assertNotIn("read_status", signatures)
+
+    def test_command_round_trip(self):
+        self.app.register_remote_commands()
+        port = self.app.start_remote(port=0)
+
+        def client_call():
+            proxy = mytk.connect(port=port)
+            self.result = (proxy.flip(), proxy.status())
+
+        self._run_with_client(client_call)
+        self.assertEqual(self.result, (True, {"flag": True}))
+
+    def test_remote_still_works_alongside_commands(self):
+        # Backward-compat: imperative registration coexists with tagged methods.
+        self.app.register_remote_commands()
+
+        @self.app.remote
+        def extra():
+            return 42
+
+        self.assertEqual({"flip", "status", "extra"}, set(self.app.remote_signatures()))
 
 
 if __name__ == "__main__":

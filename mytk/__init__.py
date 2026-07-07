@@ -40,7 +40,7 @@ from .popupmenu import PopupMenu
 from .progressbar import ProgressBar, ProgressBarNotification, ProgressWindow
 from .radiobutton import RadioButton
 from .remote import RemoteAppMismatch, connect, remote_app
-from .remotecontrollable import RemoteControllable
+from .remotecontrollable import RemoteControllable, remote_command
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
 from .view3d import View3D, View3DModernGL, View3DPyrender
@@ -106,6 +106,7 @@ __all__ = [  # noqa: F405
     "XYPlot",
     "connect",
     "remote_app",
+    "remote_command",
     "tkFont",
     "ttk",
     # Re-exported tkinter variables and classes
