@@ -190,7 +190,7 @@ class TestBrowse(unittest.TestCase):
 
 
 class TestRemoteCLIDiscovery(unittest.TestCase):
-    """`mytk-remote --discover` wiring, with discover() itself stubbed out."""
+    """`mytk --discover` wiring, with discover() itself stubbed out."""
 
     class FakeProxy:
         def remote_signatures(self):
@@ -203,7 +203,7 @@ class TestRemoteCLIDiscovery(unittest.TestCase):
         out = io.StringIO()
         err = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = run(argv, prog="mytk-remote")
+            code = run(argv, prog="mytk")
         return code, out.getvalue(), err.getvalue()
 
     def test_discover_list(self):

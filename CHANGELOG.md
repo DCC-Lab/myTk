@@ -25,6 +25,10 @@ All notable changes to myTk are documented here.
   other optional features, `zeroconf` is also installed on demand at first use
   of `advertise_remote()`; `discover()` imports it directly and raises a clear
   `ImportError` if missing (a client is often a plain script with no Tk root).
+- **The remote command-line client is now the `mytk` command**, replacing the
+  short-lived `mytk-remote` console script (introduced in 1.7.0, now removed —
+  use `mytk`, or `python -m mytk --remote`). Use it to probe, `--list`,
+  `--browse`, `--discover` and drive any RemoteControllable app.
 
 ## [1.7.1]
 ### Changed

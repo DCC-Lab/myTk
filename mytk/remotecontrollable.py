@@ -21,7 +21,7 @@ publishes them so external processes can call them::
     app.mainloop()
 
 Clients connect with ``mytk.connect(...)`` or ``mytk.remote_app`` (see
-:mod:`mytk.remote`), or from the command line with ``mytk-remote`` /
+:mod:`mytk.remote`), or from the command line with the ``mytk`` command /
 ``python -m mytk --remote`` (see :mod:`mytk.remotecli`). The transport is stdlib
 XML-RPC, so arguments and return values must be XML-RPC serializable (numbers,
 str, bool, None, list, dict).
@@ -218,7 +218,7 @@ class RemoteControllable:
 
         self.remote_server = server
         thread = threading.Thread(
-            target=server.serve_forever, name="mytk-remote", daemon=True
+            target=server.serve_forever, name="mytk-server", daemon=True
         )
         thread.start()
 
