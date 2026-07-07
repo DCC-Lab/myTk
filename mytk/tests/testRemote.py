@@ -66,11 +66,26 @@ class TestRemoteServer(unittest.TestCase):
     def tearDown(self):
         self.app.quit()
 
-    def _run_with_client(self, client_call, timeout=1500):
+    def _run_with_client(self, client_call, timeout=5000):
         # Client runs off the main thread; the Tk mainloop drains the queue.
+        # Quit as soon as the client thread finishes (polled on the main
+        # thread) rather than after a fixed delay, so a slow runner gets as
+        # long as it needs — the queue keeps draining until the client is done.
+        # `timeout` is only a safety net so a genuinely hung call cannot wedge
+        # the suite.
         thread = threading.Thread(target=client_call)
-        self.app.after(int(timeout / 4), thread.start)
-        self.app.after(timeout, self.app.quit)
+
+        def check(remaining):
+            if not thread.is_alive() or remaining <= 0:
+                self.app.quit()
+            else:
+                self.app.after(25, lambda: check(remaining - 25))
+
+        def start():
+            thread.start()
+            check(timeout)
+
+        self.app.after(50, start)
         self.app.mainloop()
         thread.join(timeout=3)
 
@@ -247,10 +262,23 @@ class TestRemoteCommands(unittest.TestCase):
     def tearDown(self):
         self.app.quit()
 
-    def _run_with_client(self, client_call, timeout=1500):
+    def _run_with_client(self, client_call, timeout=5000):
+        # Quit as soon as the client thread finishes (polled on the main
+        # thread) instead of after a fixed delay; `timeout` is only a safety
+        # net. See TestRemoteServer._run_with_client for the rationale.
         thread = threading.Thread(target=client_call)
-        self.app.after(int(timeout / 4), thread.start)
-        self.app.after(timeout, self.app.quit)
+
+        def check(remaining):
+            if not thread.is_alive() or remaining <= 0:
+                self.app.quit()
+            else:
+                self.app.after(25, lambda: check(remaining - 25))
+
+        def start():
+            thread.start()
+            check(timeout)
+
+        self.app.after(50, start)
         self.app.mainloop()
         thread.join(timeout=3)
 
