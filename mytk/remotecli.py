@@ -9,6 +9,13 @@ Send a single call to a running app that exposed functions with
     mytk-remote --app-name Acquisition "status()"
     mytk-remote --list                       # show the exposed functions
 
+Instead of a fixed ``--host``/``--port``, the server can be located on the
+local network via mDNS/Bonjour (as published by ``advertise_remote``)::
+
+    mytk-remote --discover "turn_on()"
+    mytk-remote --discover --app-name Microscope "status()"
+    mytk-remote --discover --list
+
 Arguments in the call string must be Python literals (numbers, strings,
 True/False/None, lists, dicts, tuples); a bare ``"turn_on"`` is treated as
 ``"turn_on()"``. Keyword arguments are not supported — XML-RPC carries
@@ -20,7 +27,14 @@ import ast
 import sys
 import xmlrpc.client
 
-from .remote import DEFAULT_HOST, DEFAULT_PORT, RemoteAppMismatch, connect
+from .remote import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    DEFAULT_SERVICE_TYPE,
+    RemoteAppMismatch,
+    connect,
+    discover,
+)
 
 
 def parse_command(command):
@@ -78,7 +92,22 @@ def build_parser(prog=None):
     )
     parser.add_argument(
         "--app-name", default=None,
-        help="verify the server identifies as this name before calling",
+        help="verify the server identifies as this name before calling; "
+             "with --discover, also selects which advertised app to use",
+    )
+    parser.add_argument(
+        "--discover", action="store_true",
+        help="find the server on the local network via mDNS instead of "
+             "using --host/--port",
+    )
+    parser.add_argument(
+        "--service-type", default=DEFAULT_SERVICE_TYPE,
+        help=f"mDNS service type to browse with --discover "
+             f"(default: {DEFAULT_SERVICE_TYPE})",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=3.0,
+        help="seconds to wait for a service with --discover (default: 3.0)",
     )
     parser.add_argument(
         "--list", action="store_true",
@@ -105,7 +134,14 @@ def run(argv=None, prog=None):
         parser.error("a command is required unless --list is given")
 
     try:
-        proxy = connect(args.host, args.port, app_name=args.app_name)
+        if args.discover:
+            proxy = discover(
+                app_name=args.app_name,
+                service_type=args.service_type,
+                timeout=args.timeout,
+            )
+        else:
+            proxy = connect(args.host, args.port, app_name=args.app_name)
 
         if args.list:
             signatures = proxy.remote_signatures()
@@ -124,14 +160,22 @@ def run(argv=None, prog=None):
     except RemoteAppMismatch as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    except ImportError as exc:  # --discover without the zeroconf package
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except TimeoutError as exc:  # --discover found nothing in time
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     except xmlrpc.client.Fault as exc:
         print(f"error: remote call failed: {exc.faultString}", file=sys.stderr)
         return 1
     except (ConnectionError, OSError) as exc:
-        print(
-            f"error: could not reach a mytk app at {args.host}:{args.port} ({exc})",
-            file=sys.stderr,
+        target = (
+            "the discovered mytk app"
+            if args.discover
+            else f"a mytk app at {args.host}:{args.port}"
         )
+        print(f"error: could not reach {target} ({exc})", file=sys.stderr)
         return 1
 
 
