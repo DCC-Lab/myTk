@@ -79,6 +79,11 @@ class _BaseWidget:
         """No-op fallback. Overridden by EventCapable when present in the MRO."""
         pass
 
+    @staticmethod
+    def view_for(widget):
+        """Return the mytk View that owns this tkinter widget, or None."""
+        return getattr(widget, "mytk_view", None)
+
     """
     Placing widgets in other widgets
     """
@@ -152,6 +157,8 @@ class _BaseWidget:
             widget = parent.widget
 
         self._bind_destroy_cancel()
+        if self.widget is not None:
+            self.widget.mytk_view = self
         self._apply_background_color()
 
         column = 0
@@ -253,6 +260,8 @@ class _BaseWidget:
         self.create_widget(master=parent.widget)
         self.parent = parent
         self._bind_destroy_cancel()
+        if self.widget is not None:
+            self.widget.mytk_view = self
         self._apply_background_color()
 
         if self.widget is not None:
@@ -271,6 +280,8 @@ class _BaseWidget:
         self.create_widget(master=parent.widget)
         self.parent = parent
         self._bind_destroy_cancel()
+        if self.widget is not None:
+            self.widget.mytk_view = self
         self._apply_background_color()
 
         if self.widget is not None:
