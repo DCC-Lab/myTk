@@ -5,7 +5,7 @@ from tkinter import DoubleVar
 from .base import Base
 from .dialog import Dialog
 from .labels import Label
-from .notificationcenter import NotificationCenter
+from notificationcenter import NotificationCenter
 
 
 class ProgressBarNotification(Enum):
