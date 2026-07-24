@@ -18,7 +18,7 @@ from mytk.base import BaseNotification
 from mytk.canvasview import *
 from mytk.dataviews import *
 from mytk.labels import Label
-from mytk.notificationcenter import NotificationCenter
+from notificationcenter import NotificationCenter
 from mytk.vectors import DynamicBasis, Point, PointDefault
 
 
