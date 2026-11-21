@@ -2,6 +2,86 @@
 
 All notable changes to myTk are documented here.
 
+## [Unreleased]
+### Changed
+- **Simple requests are now answered before a widget is placed.** myTk creates the Tk widget on placement (`grid_into`, `pack_into`, `place_into`); until now, reading or setting a state before that raised an exception. States (`is_disabled`, `is_enabled`, `is_selected`, `Button.is_default`) and options (`width`, `height`, `Slider.minimum`/`maximum`, `IntEntry.minimum`/`maximum`/`increment`, `Entry.character_width`, `Box.label`) set before placement are remembered and applied when the widget is created. Once the widget exists it remains the single source of truth.
+- **Every widget creates its `value_variable` in its constructor.** `Button`, `Checkbox`, `PopupMenu`, `ProgressBar`, `BooleanIndicator`, `Level` and `LabelledEntry` used to create it on placement, so a binding made earlier was silently dead. Bindings (`bind_property_to_widget_value`, `bind_properties`) can now be made before or after placement, including bindings on `is_enabled`/`is_selected`.
+- **Placing a widget twice raises `RuntimeError`** instead of silently creating a second Tk widget. A widget whose Tk widget was destroyed can be placed again (this also makes `Dialog.run()` usable more than once on the same object).
+- `has_focus` returns `False` before placement; setting it before placement raises `WidgetNotYetCreatedError`.
+- `bind_property_to_widget_value` binds the widget's `value` (as its name says) when the widget is `ValueCapable`, and its `value_variable` otherwise. The result is the same, except that a value the widget cannot hold (a `Slider` or `IntEntry` out of range) is brought back within range and the bound property follows, instead of the two silently disagreeing.
+- A `Slider` delegate (`value_updated`) is now also called when the user moves the slider; it was only called when `value` was assigned from code.
+
+### Added
+- `mytk.base.WidgetOption` and `mytk.base.WidgetState`, the two descriptors that implement the behaviour above; use them in your own widgets instead of hand-written `if self.widget is None` properties.
+- `mytk.base.WidgetNotYetCreatedError` (a `RuntimeError`) for requests that genuinely need the Tk widget. `TableView.WidgetNotYetCreatedError` is now the same class.
+- `Base.attach_value_variable_to_widget()`, the call a `create_widget` makes to connect the widget's own `value_variable` to the Tk widget. It replaces the less explicit `self.bind_variable(self.value_variable)` / `self.bind_textvariable(self.value_variable)`; a widget class says which Tk option it uses with the class attribute `value_variable_option` (`"variable"` by default, `"textvariable"` for text widgets). `bind_variable(variable)` and `bind_textvariable(variable)` are unchanged and remain the way to make a widget use a variable created elsewhere.
+- **`ValueCapable`, a mixin that gathers the `value` / `value_variable` mechanism in one place** (`mytk/valuecapable.py`). It provides the `value` property, one hook to keep the value valid (`sanitize_value`) and one hook to react when it changes (`value_did_change`). A widget creates its Tk variable and hands it over with `self.use_value_variable(DoubleVar(value=0))` in its constructor, and connects it to the Tk widget with `attach_value_variable_to_widget()` in `create_widget`. `Checkbox`, `PopupMenu`, `Slider`, `Entry`, `IntEntry`, `LabelledEntry`, `Label`, `NumericIndicator`, `BooleanIndicator`, `Level` and `ProgressBar` now use it instead of their own copies.
+- **`value` exists on every one of those widgets** (new on `Label`, `LabelledEntry`, `NumericIndicator`, `BooleanIndicator` and `Level`), and **`value` can be observed and bound directly**: `model.bind_properties("threshold", slider, "value")`. Observers are notified exactly once whether the program or the user changed the value. `value_variable` and `bind_property_to_widget_value` are unchanged.
+- `NumericIndicator(value=...)` now sets the initial value (the argument was ignored).
+- **One rule for the two names**: `value` is what you read, write, observe and bind; `value_variable` is the Tk object, only needed to connect it to the Tk widget (`attach_value_variable_to_widget`) or to share it between widgets (`use_value_variable`, `bind_variable`). The example apps now bind `value`.
+- `Base.view_for(widget)` returns the myTk object that owns a given Tk widget (or `None`), and `App.widget_hierarchy(widget=None)` returns the Tk widget tree as a nested dict (`class`, `name`, `path`, `children`), from the app root by default.
+
+### Migration
+- Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.
+- A widget subclass that overrides `create_widget` needs no change. Code that called `create_widget` directly to place a widget should use `grid_into`/`pack_into`/`place_into`.
+
+## [1.8.0]
+### Added
+- **Network discovery for remote apps (mDNS/Bonjour), so ports no longer need
+  to be hard-coded.** A `RemoteControllable` app can publish itself on the
+  local network with `app.advertise_remote()`, which starts the remote server
+  on an OS-picked free port (`port=0`) and announces it over mDNS. The app's
+  `app_name` becomes the service instance name and is placed in the TXT record.
+- **`mytk.discover(app_name=None, service_type="_mytk._tcp.local.", timeout=3.0)`**
+  finds an advertised server on the network and returns a proxy via the existing
+  `connect()` (so `RemoteAppMismatch` verification still applies). `app_name`
+  filters by the advertised identity.
+- **`mytk-remote --discover`** locates the server over mDNS instead of using
+  `--host`/`--port`; `--app-name` selects which advertised app to use, and
+  `--service-type`/`--timeout` tune the browse. Explicit `--host`/`--port`
+  behavior is unchanged.
+- **`mytk.browse(service_type="_mytk._tcp.local.", timeout=3.0)` and
+  `mytk-remote --browse`** list *every* myTk app advertised on the local
+  network (name and address) without connecting to any of them — handy for
+  seeing what is running before targeting one with `--discover --app-name`.
+- New optional dependency extra `mytk[remote]` (installs `zeroconf`). As with
+  other optional features, `zeroconf` is also installed on demand at first use
+  of `advertise_remote()`; `discover()` imports it directly and raises a clear
+  `ImportError` if missing (a client is often a plain script with no Tk root).
+- **The remote command-line client is now the `mytk` command**, replacing the
+  short-lived `mytk-remote` console script (introduced in 1.7.0, now removed —
+  use `mytk`, or `python -m mytk --remote`). Use it to probe, `--list`,
+  `--browse`, `--discover` and drive any RemoteControllable app.
+
+## [1.7.1]
+### Changed
+- **`start_remote()` now auto-registers `@remote_command` methods**, so you no
+  longer need to call `register_remote_commands()` yourself — tagged methods
+  just work. The explicit call remains available and idempotent. `@remote_command`
+  is now the primary way to expose methods; `app.remote(...)` is documented as
+  the low-level primitive it builds on (still available for free functions or
+  dynamic registration).
+
+## [1.7.0]
+### Added
+- **Remote command-line client** for talking to a running
+  `RemoteControllable` app. Call a function and print its result with
+  `python -m mytk --remote "turn_on()"` or the standalone `mytk-remote`
+  console script (`mytk-remote "add(2, 3)" --port 9000`). `--list` prints the
+  exposed functions and their signatures; `--host`/`--port`/`--app-name`
+  select and verify the target. Arguments are parsed as Python literals with
+  `ast` (no code execution); a bare name means a no-argument call.
+
+## [1.6.1]
+### Added
+- **`remote_command`** decorator and
+  **`RemoteControllable.register_remote_commands()`** for exposing methods
+  declared in a class body. `@app.remote` cannot decorate methods at
+  class-definition time (there is no live app yet), so tag them with
+  `@remote_command` (bare or `@remote_command(name="...")`) and call
+  `app.register_remote_commands()` once to register them all. Purely additive:
+  existing `self.remote(...)` / `@app.remote` usage is unchanged.
+
 ## [1.4.0] - 2026-06-18
 ### Added
 - **`SVGImage`** — a widget that displays an SVG document, rasterized with the

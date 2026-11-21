@@ -2,13 +2,16 @@ import re
 import tkinter.ttk as ttk
 from tkinter import IntVar, StringVar
 
-from .base import Base
+from .base import Base, WidgetOption
 from .labels import Label
+from .valuecapable import ValueCapable
 from .views import View
 
 
-class Entry(Base):
+class Entry(Base, ValueCapable):
     """A single-line text entry widget wrapping ttk.Entry."""
+
+    value_variable_option = "textvariable"
 
     def __init__(
         self,
@@ -19,33 +22,19 @@ class Entry(Base):
     ):
         super().__init__(*args, **kwargs)
         self._widget_args["width"] = character_width
-        self.value = value
-        self.value_variable = StringVar(value=value)
-        self.bind_properties("value", self, "value_variable")
+        self.use_value_variable(StringVar(value=value))
 
     def create_widget(self, master):
         """Create the ttk.Entry widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
         self.widget.bind("<Return>", self.event_return_callback)
         self.widget.update()
 
-    @property
-    def character_width(self):
-        """Get or set the entry width in characters."""
-        if self.widget is None:
-            return self._widget_args["width"]
-        else:
-            return self.widget["width"]
-
-    @character_width.setter
-    def character_width(self, value):
-        if self.widget is None:
-            self._widget_args["width"] = value
-        else:
-            self.widget["width"] = value
+    character_width = WidgetOption("width")
+    """The entry width in characters. Can be set before placement."""
 
     @property
     def width(self):
@@ -75,6 +64,8 @@ class Entry(Base):
 
 class FormattedEntry(Base):
     """A text entry that formats its numeric value using a format string and regex."""
+
+    value_variable_option = "textvariable"
 
     def __init__(
         self,
@@ -118,27 +109,15 @@ class FormattedEntry(Base):
                 value=self.format_string.format(self._value)
             )
 
-    @property
-    def character_width(self):
-        """Get or set the entry width in characters."""
-        if self.widget is None:
-            return self._widget_args["width"]
-        else:
-            return self.widget["width"]
-
-    @character_width.setter
-    def character_width(self, value):
-        if self.widget is None:
-            self._widget_args["width"] = value
-        else:
-            self.widget["width"] = value
+    character_width = WidgetOption("width")
+    """The entry width in characters. Can be set before placement."""
 
     def create_widget(self, master):
         """Create the ttk.Entry widget with format and focus bindings."""
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
         self.widget.bind("<Return>", self.event_return_callback)
         self.widget.bind("<FocusOut>", self.event_focus_out)
         self.widget.update()
@@ -229,8 +208,10 @@ class CellEntry(Base):
 
 
 
-class IntEntry(Base):
+class IntEntry(Base, ValueCapable):
     """An integer spinbox entry with configurable minimum, maximum, and increment."""
+
+    value_variable_option = "textvariable"
 
     def __init__(
         self,
@@ -249,84 +230,39 @@ class IntEntry(Base):
             "to": maximum,
             "increment": increment,
         }
-        self.value_variable = IntVar(value=value)
+        self.use_value_variable(IntVar(value=value))
 
     def create_widget(self, master):
         """Create the ttk.Spinbox widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Spinbox(master, **self._widget_args)
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
-    @property
-    def value(self):
-        """Get or set the integer value, clamped to the configured range."""
-        return self.value_variable.get()
+    def sanitize_value(self, value):
+        """Keep the value between minimum and maximum."""
+        return min(max(value, self.minimum), self.maximum)
 
-    @value.setter
-    def value(self, value):
-        if value > self.maximum:
-            self.value_variable.set(value=self.maximum)
-        elif value < self.minimum:
-            self.value_variable.set(value=self.minimum)
-        else:
-            self.value_variable.set(value=value)
+    minimum = WidgetOption("from")
+    """The minimum allowed value. Can be set before placement."""
 
-    @property
-    def minimum(self):
-        """Get or set the minimum allowed value."""
-        if self.widget is None:
-            return self._widget_args.get("from")
-        else:
-            return self.widget["from"]
+    maximum = WidgetOption("to")
+    """The maximum allowed value. Can be set before placement."""
 
-    @minimum.setter
-    def minimum(self, value):
-        if self.widget is None:
-            self._widget_args["from"] = value
-        else:
-            self.widget["from"] = value
-
-    @property
-    def maximum(self):
-        """Get or set the maximum allowed value."""
-        if self.widget is None:
-            return self._widget_args.get("to")
-        else:
-            return self.widget["to"]
-
-    @maximum.setter
-    def maximum(self, value):
-        if self.widget is None:
-            self._widget_args["to"] = value
-        else:
-            self.widget["to"] = value
-
-    @property
-    def increment(self):
-        """Get or set the step increment for the spinbox."""
-        if self.widget is None:
-            return self._widget_args.get("increment")
-        else:
-            return self.widget["increment"]
-
-    @increment.setter
-    def increment(self, value):
-        if self.widget is None:
-            self._widget_args["increment"] = value
-        else:
-            self.widget["increment"] = value
+    increment = WidgetOption("increment")
+    """The step increment of the spinbox. Can be set before placement."""
 
 
 NumericEntry = IntEntry  # backward-compatible alias
 
 
-class LabelledEntry(View):
+class LabelledEntry(View, ValueCapable):
     """A composite widget combining a Label and an Entry side by side."""
 
     def __init__(self, *args, label, text="", character_width=None, **kwargs):
         super().__init__(*args, width=200, height=25, **kwargs)
         self.entry = Entry(value=text, character_width=character_width)
         self.label = Label(text=label)
+        self.use_value_variable(self.entry.value_variable)  # the entry's value is ours
 
     def create_widget(self, master):
         """Create the label and entry widgets arranged in a single row."""
@@ -334,4 +270,3 @@ class LabelledEntry(View):
         self.all_resize_weight(1)
         self.label.grid_into(self, row=0, column=0, padx=5)
         self.entry.grid_into(self, row=0, column=1, padx=5)
-        self.value_variable = self.entry.value_variable

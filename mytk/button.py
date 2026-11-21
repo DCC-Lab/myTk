@@ -9,7 +9,7 @@ Classes:
 
 from tkinter import StringVar, ttk
 
-from .base import Base
+from .base import Base, WidgetState
 
 
 class Button(Base):
@@ -21,6 +21,8 @@ class Button(Base):
         width (int, optional): Width of the button in characters.
         user_event_callback (callable, optional): A function to call when the button is pressed.
     """
+
+    value_variable_option = "textvariable"
 
     def __init__(
         self,
@@ -46,6 +48,8 @@ class Button(Base):
         self.width = width
         self.user_action_callback = user_event_callback
         self.default = default
+        self.value_variable = StringVar(value=label)
+        self.is_default = default
 
     @property
     def label(self):
@@ -75,9 +79,7 @@ class Button(Base):
         self.widget = ttk.Button(
             master, width=self.width, command=self.action_callback
         )
-        self.bind_textvariable(StringVar(value=self.initial_label))
-        # self.widget.bind("<ButtonRelease>", self.event_callback)
-        self.is_default = self.default
+        self.attach_value_variable_to_widget()
 
     def action_callback(self):
         """Invoke the user-supplied callback when the button is pressed."""
@@ -88,40 +90,8 @@ class Button(Base):
             except Exception as err:
                 print(err)
 
-    @property
-    def is_default(self):
-        """Gets or sets whether the button is marked as the active (default) button.
-
-        Returns:
-            bool: True if the button is active, False otherwise.
-
-        Raises:
-            RuntimeError: If the widget has not yet been placed on screen.
-        """
-        if self.widget is None:
-            raise RuntimeError(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        return self.widget.instate(["active"])
-
-    @is_default.setter
-    def is_default(self, value):
-        """Sets whether the button is the default active button.
-
-        Args:
-            value (bool): True to activate the button, False to deactivate.
-
-        Raises:
-            RuntimeError: If the widget has not yet been placed on screen.
-        """
-        if self.widget is None:
-            raise RuntimeError(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["active"])
-        else:
-            self.widget.state(["!active"])
+    is_default = WidgetState("active")
+    """Whether the button is the default (active) button. Can be set before placement."""
 
     def set_as_default(self):
         """Mark the button as the default active button."""

@@ -1,7 +1,7 @@
 import unittest
 from enum import Enum
 
-from mytk.notificationcenter import NotificationCenter, ObserverInfo
+from notificationcenter import NotificationCenter, ObserverInfo
 
 
 class TestNotificationName(Enum):

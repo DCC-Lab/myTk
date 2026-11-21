@@ -11,7 +11,7 @@ import time
 
 if __name__ == "__main__":
     from mytk import *
-    from mytk.notificationcenter import NotificationCenter
+    from notificationcenter import NotificationCenter
 
     app = App(bring_to_front=True)
     app.window.widget.title("ProgressBar demo")

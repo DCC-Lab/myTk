@@ -39,8 +39,11 @@ from .modulesmanager import ModulesManager
 from .popupmenu import PopupMenu
 from .progressbar import ProgressBar, ProgressBarNotification, ProgressWindow
 from .radiobutton import RadioButton
+from .remote import RemoteAppMismatch, browse, connect, discover, remote_app
+from .remotecontrollable import RemoteControllable, remote_command
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
+from .valuecapable import ValueCapable
 from .view3d import View3D, View3DModernGL, View3DPyrender
 from .videoview import VideoView
 from .views import Box, View
@@ -87,12 +90,15 @@ __all__ = [  # noqa: F405
     "ProgressBarNotification",
     "ProgressWindow",
     "RadioButton",
+    "RemoteAppMismatch",
+    "RemoteControllable",
     "SVGImage",
     "SimpleDialog",
     "Slider",
     "TabularData",
     "TableView",
     "URLLabel",
+    "ValueCapable",
     "VideoView",
     "View",
     "View3D",
@@ -100,6 +106,11 @@ __all__ = [  # noqa: F405
     "View3DPyrender",
     "Window",
     "XYPlot",
+    "browse",
+    "connect",
+    "discover",
+    "remote_app",
+    "remote_command",
     "tkFont",
     "ttk",
     # Re-exported tkinter variables and classes

@@ -3,7 +3,7 @@ import subprocess
 from tkinter import Canvas, font
 
 from .base import Base, BaseNotification
-from .notificationcenter import NotificationCenter
+from notificationcenter import NotificationCenter
 from .vectors import Basis, DynamicBasis, Point, Vector
 
 

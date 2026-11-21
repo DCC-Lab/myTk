@@ -49,7 +49,7 @@ if __name__ == "__main__":
     linked_label.grid_into(view, column=0, columnspan=2, row=1, pady=2, padx=3, sticky="w")
     linked_label2 = Label(text='')
     linked_label2.grid_into(view, column=0, row=2, pady=2, padx=3, sticky="n")
-    popup.bind_properties("value_variable", linked_label2, "value_variable")
+    popup.bind_properties("value", linked_label2, "value")
     popup.selection_changed(0)
     def choose_file(event, button):
         filedialog.askopenfilename()

@@ -12,3 +12,4 @@ openpyxl
 pyperclip
 requests
 Pillow
+notifcenter>=1.0

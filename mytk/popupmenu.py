@@ -3,10 +3,13 @@ from functools import partial
 from tkinter import Menu, StringVar
 
 from .base import Base
+from .valuecapable import ValueCapable
 
 
-class PopupMenu(Base):
+class PopupMenu(Base, ValueCapable):
     """A dropdown menu button that lets the user pick from a list of items."""
+
+    value_variable_option = "textvariable"
 
     def __init__(self, menu_items=None, user_callback=None):
         Base.__init__(self)
@@ -15,25 +18,14 @@ class PopupMenu(Base):
         self.user_callback = user_callback
         self.menu_items = menu_items
         self.menu = None
-
-    @property
-    def value(self):
-        """The currently selected menu item text."""
-        return self.value_variable.get()
-
-    @value.setter
-    def value(self, value):
-        return self.value_variable.set(value=value)
+        self.use_value_variable(StringVar(value="Select menu item"))
 
     def create_widget(self, master):
         """Create the underlying ttk.Menubutton and associated Menu."""
         self.parent = master
         self.menu = Menu(master, tearoff=0)
         self.widget = ttk.Menubutton(master, text="-", menu=self.menu)
-        if self.value_variable is None:
-            self.value_variable = StringVar(value="Select menu item")
-
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)

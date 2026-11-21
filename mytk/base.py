@@ -13,6 +13,7 @@ from enum import Enum
 from .bindable import Bindable
 from .draganddropcapable import DragAndDropCapable
 from .eventcapable import EventCapable
+from .valuecapable import ValueCapable
 
 
 def _class_nice_(cls):
@@ -36,6 +37,76 @@ class BaseNotification(Enum):
     did_resize = "did_resize"
 
 
+class WidgetNotYetCreatedError(RuntimeError):
+    """Raised when a request can only be answered by the real Tk widget.
+
+    myTk creates the underlying Tk widget on placement (grid_into, pack_into,
+    place_into). Simple options and states can be set and read before that;
+    anything that needs the widget itself raises this error.
+    """
+
+
+class WidgetOption:
+    """Descriptor for a Tk configuration option that works before placement.
+
+    Before the Tk widget exists, the value is kept in ``_widget_args`` (and is
+    handed to the Tk constructor on creation). Once the widget exists, the
+    widget itself is the single source of truth.
+
+    Args:
+        tk_name (str): Key used in ``_widget_args``, i.e. the keyword accepted
+            by the Tk constructor (``"width"``, ``"from_"``, ``"text"``...).
+        default: Value returned before placement if the option was never set.
+    """
+
+    def __init__(self, tk_name, default=None):
+        self.tk_name = tk_name
+        self.default = default
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if obj.widget is None:
+            return obj._widget_args.get(self.tk_name, self.default)
+        return obj.widget[self.tk_name.rstrip("_")]
+
+    def __set__(self, obj, value):
+        if obj.widget is None:
+            obj._widget_args[self.tk_name] = value
+        else:
+            obj.widget[self.tk_name.rstrip("_")] = value
+
+
+class WidgetState:
+    """Descriptor for a ttk state flag that works before placement.
+
+    Before the Tk widget exists, the requested state is kept in
+    ``_pending_states`` and applied by ``_create_and_setup_widget`` right after
+    creation. Once the widget exists, the widget is the single source of truth.
+
+    Args:
+        name (str): The ttk state name (``"disabled"``, ``"selected"``...).
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if obj.widget is None:
+            return obj._pending_states.get(self.name, False)
+        return obj.widget.instate([self.name])
+
+    def __set__(self, obj, value):
+        if obj.widget is None:
+            obj._pending_states[self.name] = bool(value)
+        elif value:
+            obj.widget.state([self.name])
+        else:
+            obj.widget.state(["!" + self.name])
+
+
 class _BaseWidget:
     """Abstract base class for all UI related methods in the framework.
 
@@ -57,6 +128,7 @@ class _BaseWidget:
         self.parent = None
         self.value_variable = None
         self._widget_args = {}
+        self._pending_states = {}
         self._background_color = None
 
         self._grid_kwargs = None
@@ -83,6 +155,57 @@ class _BaseWidget:
     def view_for(widget):
         """Return the mytk View that owns this tkinter widget, or None."""
         return getattr(widget, "mytk_view", None)
+
+    def _widget_is_alive(self):
+        """Whether the Tk widget has been created and not destroyed since."""
+        if self.widget is None:
+            return False
+        try:
+            return bool(self.widget.winfo_exists())
+        except Exception:
+            return False  # the whole Tk application is gone
+
+    def _create_and_setup_widget(self, master):
+        """Create the Tk widget and apply everything requested before it existed.
+
+        This is the single point through which a widget comes to life: the
+        placement methods (grid_into, pack_into, place_into) and Dialog.run()
+        all go through it. Subclasses override ``create_widget``, never this.
+
+        Args:
+            master (tk.Widget): The Tk parent of the widget to create.
+
+        Raises:
+            RuntimeError: If the widget already exists (placing a widget twice
+                would silently create a second Tk widget).
+        """
+        if self._widget_is_alive():
+            raise RuntimeError(
+                f"{_class_nice_(self)} is already placed: a widget can only be "
+                "created once. Create a new object to place it elsewhere."
+            )
+
+        # A widget destroyed since its creation is created anew: forget the dead
+        # Tk widget first, so options are read from the remembered arguments
+        # again instead of from a widget that no longer exists.
+        self.widget = None
+
+        self.create_widget(master=master)
+        if self.widget is not None:
+            # Stamp the owner on the Tk widget, for Base.view_for().
+            self.widget.mytk_view = self
+        self._apply_pending_states()
+        self._bind_destroy_cancel()
+        self._apply_background_color()
+
+    def _apply_pending_states(self):
+        """Apply the ttk states requested before the widget existed."""
+        if self.widget is None:
+            return
+        for name, value in self._pending_states.items():
+            with contextlib.suppress(Exception):  # classic Tk widgets have no state()
+                self.widget.state([name if value else "!" + name])
+        self._pending_states = {}
 
     """
     Placing widgets in other widgets
@@ -150,16 +273,9 @@ class _BaseWidget:
                 )
             kwargs["sticky"] = fill_sticky
 
-        if widget is not None:
-            self.create_widget(master=widget)
-        else:
-            self.create_widget(master=parent.widget)
+        if widget is None:
             widget = parent.widget
-
-        self._bind_destroy_cancel()
-        if self.widget is not None:
-            self.widget.mytk_view = self
-        self._apply_background_color()
+        self._create_and_setup_widget(master=widget)
 
         column = 0
         if "column" in kwargs:
@@ -257,12 +373,8 @@ class _BaseWidget:
             parent (Base): Parent widget.
             **kwargs: Pack options.
         """
-        self.create_widget(master=parent.widget)
+        self._create_and_setup_widget(master=parent.widget)
         self.parent = parent
-        self._bind_destroy_cancel()
-        if self.widget is not None:
-            self.widget.mytk_view = self
-        self._apply_background_color()
 
         if self.widget is not None:
             self.widget.pack(kwargs)
@@ -277,12 +389,8 @@ class _BaseWidget:
             width (int): Width in pixels.
             height (int): Height in pixels.
         """
-        self.create_widget(master=parent.widget)
+        self._create_and_setup_widget(master=parent.widget)
         self.parent = parent
-        self._bind_destroy_cancel()
-        if self.widget is not None:
-            self.widget.mytk_view = self
-        self._apply_background_color()
 
         if self.widget is not None:
             self.widget.place(x=x, y=y, width=width, height=height)
@@ -302,95 +410,37 @@ class _BaseWidget:
         """Validates the runtime environment."""
         return True
 
-    @property
-    def is_disabled(self):
-        """Whether the widget is currently disabled (grayed out)."""
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        return self.widget.instate(["disabled"])
+    is_disabled = WidgetState("disabled")
+    """Whether the widget is disabled (grayed out). Can be set before placement."""
 
-    @is_disabled.setter
-    def is_disabled(self, value):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["disabled"])
-        else:
-            self.widget.state(["!disabled"])
-
-    @property
-    def is_selected(self):
-        """Whether the widget is currently in the 'selected' state."""
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        return self.widget.instate(["selected"])
-
-    @is_selected.setter
-    def is_selected(self, value):
-        if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
-        if value:
-            self.widget.state(["selected"])
-        else:
-            self.widget.state(["!selected"])
+    is_selected = WidgetState("selected")
+    """Whether the widget is in the 'selected' state. Can be set before placement."""
 
     @property
     def has_focus(self):
-        """Whether the widget currently has focus."""
+        """Whether the widget currently has focus (always False before placement)."""
         if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
-            )
+            return False
         self.widget.update()
         return self.widget.instate(["focus"])
 
     @has_focus.setter
     def has_focus(self, value):
         if self.widget is None:
-            raise Exception(
-                "You can only query or change the state once it has been placed on screen. myTk creates the widget upon placement."
+            raise WidgetNotYetCreatedError(
+                "Focus can only be changed once the widget has been placed on "
+                "screen. myTk creates the widget upon placement."
             )
         if value:
             self.widget.state(["focus"])
         else:
             self.widget.state(["!focus"])
 
-    @property
-    def width(self):
-        """Gets or sets the widget width."""
-        if self.widget is None:
-            return self._widget_args.get("width")
+    width = WidgetOption("width")
+    """The widget width. Can be set before placement."""
 
-        return self.widget["width"]
-
-    @width.setter
-    def width(self, value):
-        if self.widget is None:
-            self._widget_args["width"] = value
-        else:
-            self.widget["width"] = value
-
-    @property
-    def height(self):
-        """Gets or sets the widget height."""
-        if self.widget is None:
-            return self._widget_args.get("height")
-        return self.widget["height"]
-
-    @height.setter
-    def height(self, value):
-        if self.widget is None:
-            self._widget_args["height"] = value
-        else:
-            self.widget["height"] = value
+    height = WidgetOption("height")
+    """The widget height. Can be set before placement."""
 
     @property
     def background_color(self):
@@ -551,24 +601,58 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
                     child.configure(state="disabled" if disabled else "normal")
             self._propagate_disabled(child, disabled)
 
-    def bind_textvariable(self, variable):
-        """Binds a textvariable (e.g., StringVar) to the widget.
+    def _adopt_value_variable(self, variable):
+        """Make ``variable`` this widget's value variable, if it is not already."""
+        if variable is self.value_variable:
+            return
+        if isinstance(self, ValueCapable):
+            self.use_value_variable(variable)
+        else:
+            self.value_variable = variable
 
-        Args:
-            variable (tk.Variable): The variable to bind.
+    value_variable_option = "variable"
+    """Name of the tk widget option that takes the value variable: "variable"
+    (Checkbutton, Radiobutton, Scale) or "textvariable" (Label, Button, Entry,
+    Spinbox, Menubutton). Subclasses set it once at class level."""
+
+    def attach_value_variable_to_widget(self):
+        """Makes the tk widget display and edit ``self.value_variable``.
+
+        Called from ``create_widget`` once the tk widget exists: until then,
+        ``value_variable`` holds the value but no widget is connected to it.
         """
         if self.widget is not None:
-            self.value_variable = variable
+            self.widget.configure(
+                **{self.value_variable_option: self.value_variable}
+            )
+            self.widget.update()
+
+    def bind_textvariable(self, variable):
+        """Replaces ``value_variable`` and attaches it as the widget's textvariable.
+
+        To attach the widget's own ``value_variable``, use
+        ``attach_value_variable_to_widget()``.
+
+        Args:
+            variable (tk.Variable): The variable to bind (e.g., StringVar).
+        """
+        if self.widget is not None:
+            self._adopt_value_variable(variable)
             self.widget.configure(textvariable=variable)
             self.widget.update()
 
     def bind_variable(self, variable):
-        """Binds a general-purpose variable (e.g., BooleanVar, IntVar).
+        """Replaces ``value_variable`` and attaches it as the widget's variable.
+
+        Use this to make a widget use a variable created elsewhere, for
+        instance one shared by a group of radio buttons. To attach the
+        widget's own ``value_variable``, use
+        ``attach_value_variable_to_widget()``.
 
         Args:
-            variable (tk.Variable): The variable to bind.
+            variable (tk.Variable): The variable to bind (e.g., BooleanVar, IntVar).
         """
         if self.widget is not None:
-            self.value_variable = variable
+            self._adopt_value_variable(variable)
             self.widget.configure(variable=variable)
             self.widget.update()
