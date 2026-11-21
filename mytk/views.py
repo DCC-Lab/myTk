@@ -7,7 +7,7 @@ Classes:
 
 from tkinter import ttk
 
-from .base import Base, _BaseWidget
+from .base import Base, WidgetOption, _BaseWidget
 
 
 def _honor_requested_size(widget, widget_args):
@@ -77,7 +77,7 @@ class View(Base):
 
     @is_disabled.setter
     def is_disabled(self, value):
-        _BaseWidget.is_disabled.fset(self, value)
+        _BaseWidget.is_disabled.__set__(self, value)
         if self.widget is not None:
             self._propagate_disabled(self.widget, value)
 
@@ -128,30 +128,9 @@ class Box(Base):
 
     @is_disabled.setter
     def is_disabled(self, value):
-        _BaseWidget.is_disabled.fset(self, value)
+        _BaseWidget.is_disabled.__set__(self, value)
         if self.widget is not None:
             self._propagate_disabled(self.widget, value)
 
-    @property
-    def label(self):
-        """Gets or sets the label text of the Box.
-
-        Returns:
-            str: The current label text.
-        """
-        if self.widget is None:
-            return self._widget_args.get("text")
-        else:
-            return self.widget["text"]
-
-    @label.setter
-    def label(self, value):
-        """Sets the label text of the Box.
-
-        Args:
-            value (str): The new label text to display.
-        """
-        if self.widget is None:
-            self._widget_args["text"] = value
-        else:
-            self.widget["text"] = value
+    label = WidgetOption("text", default="")
+    """The title displayed on the box. Can be set before placement."""

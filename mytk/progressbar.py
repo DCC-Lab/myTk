@@ -23,11 +23,11 @@ class ProgressBar(Base):
         Base.__init__(self)
         self.maximum = maximum
         self.mode = mode
+        self.value_variable = DoubleVar(value=0)
 
     def create_widget(self, master):
         """Create the underlying ttk.Progressbar widget."""
         self.parent = master
-        self.value_variable = DoubleVar(value=0)
         self.widget = ttk.Progressbar(
             master,
             variable=self.value_variable,

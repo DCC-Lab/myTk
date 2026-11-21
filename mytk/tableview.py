@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from contextlib import suppress
 from tkinter import END
 
-from .base import Base
+from .base import Base, WidgetNotYetCreatedError
 from .entries import CellEntry
 from .tabulardata import TabularData
 
@@ -14,8 +14,7 @@ class TableView(Base):
     class DelegateError(Exception):
         """Raised when a delegate callback raises an unexpected error."""
 
-    class WidgetNotYetCreatedError(Exception):
-        """Raised when accessing widget properties before the widget is created."""
+    WidgetNotYetCreatedError = WidgetNotYetCreatedError  # shared with all widgets
 
     def __init__(self, columns_labels, is_treetable=False, create_data_source=True):
         Base.__init__(self)

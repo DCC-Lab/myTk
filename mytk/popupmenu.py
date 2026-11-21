@@ -15,6 +15,7 @@ class PopupMenu(Base):
         self.user_callback = user_callback
         self.menu_items = menu_items
         self.menu = None
+        self.value_variable = StringVar(value="Select menu item")
 
     @property
     def value(self):
@@ -30,9 +31,6 @@ class PopupMenu(Base):
         self.parent = master
         self.menu = Menu(master, tearoff=0)
         self.widget = ttk.Menubutton(master, text="-", menu=self.menu)
-        if self.value_variable is None:
-            self.value_variable = StringVar(value="Select menu item")
-
         self.bind_textvariable(self.value_variable)
 
         if self.menu_items is not None:

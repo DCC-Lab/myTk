@@ -2,6 +2,21 @@
 
 All notable changes to myTk are documented here.
 
+## [Unreleased]
+### Changed
+- **Simple requests are now answered before a widget is placed.** myTk creates the Tk widget on placement (`grid_into`, `pack_into`, `place_into`); until now, reading or setting a state before that raised an exception. States (`is_disabled`, `is_enabled`, `is_selected`, `Button.is_default`) and options (`width`, `height`, `Slider.minimum`/`maximum`, `IntEntry.minimum`/`maximum`/`increment`, `Entry.character_width`, `Box.label`) set before placement are remembered and applied when the widget is created. Once the widget exists it remains the single source of truth.
+- **Every widget creates its `value_variable` in its constructor.** `Button`, `Checkbox`, `PopupMenu`, `ProgressBar`, `BooleanIndicator`, `Level` and `LabelledEntry` used to create it on placement, so a binding made earlier was silently dead. Bindings (`bind_property_to_widget_value`, `bind_properties`) can now be made before or after placement, including bindings on `is_enabled`/`is_selected`.
+- **Placing a widget twice raises `RuntimeError`** instead of silently creating a second Tk widget. A widget whose Tk widget was destroyed can be placed again (this also makes `Dialog.run()` usable more than once on the same object).
+- `has_focus` returns `False` before placement; setting it before placement raises `WidgetNotYetCreatedError`.
+
+### Added
+- `mytk.base.WidgetOption` and `mytk.base.WidgetState`, the two descriptors that implement the behaviour above; use them in your own widgets instead of hand-written `if self.widget is None` properties.
+- `mytk.base.WidgetNotYetCreatedError` (a `RuntimeError`) for requests that genuinely need the Tk widget. `TableView.WidgetNotYetCreatedError` is now the same class.
+
+### Migration
+- Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.
+- A widget subclass that overrides `create_widget` needs no change. Code that called `create_widget` directly to place a widget should use `grid_into`/`pack_into`/`place_into`.
+
 ## [1.8.0]
 ### Added
 - **Network discovery for remote apps (mDNS/Bonjour), so ports no longer need

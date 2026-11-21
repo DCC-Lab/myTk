@@ -42,6 +42,7 @@ class Checkbox(Base):
         super().__init__(*args, **kwargs)
         self.label = label
         self.user_callback = user_callback
+        self.value_variable = BooleanVar(value=True)
 
     @property
     def value(self):
@@ -76,10 +77,7 @@ class Checkbox(Base):
             command=self.value_changed,
         )
 
-        if self.value_variable is None:
-            self.bind_variable(BooleanVar(value=True))
-        else:
-            self.bind_variable(self.value_variable)
+        self.bind_variable(self.value_variable)
 
     def value_changed(self):
         """Called when the checkbox value changes. Invokes the user callback if defined.

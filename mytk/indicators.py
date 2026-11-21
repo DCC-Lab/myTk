@@ -44,12 +44,12 @@ class BooleanIndicator(CanvasView):
     def __init__(self, diameter=15):
         super().__init__(width=diameter + 4, height=diameter + 4)
         self.diameter = diameter
+        self.value_variable = BooleanVar(value=False)
+        self.value_variable.trace_add("write", self.value_updated)
 
     def create_widget(self, master, **kwargs):
         """Create the canvas widget and draw the initial indicator."""
         super().create_widget(master, *kwargs)
-        self.value_variable = BooleanVar(value=False)
-        self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
 
     def value_updated(self, var, index, mode):
@@ -58,6 +58,8 @@ class BooleanIndicator(CanvasView):
 
     def draw_canvas(self):
         """Draw the indicator circle with the appropriate color."""
+        if self.widget is None:
+            return  # value changed before placement: drawn on creation
         border = 1
 
         value = self.value_variable.get()
@@ -79,12 +81,12 @@ class Level(CanvasView):
         self.maximum = maximum
         self.width = width
         self.height = height
+        self.value_variable = DoubleVar()
+        self.value_variable.trace_add("write", self.value_updated)
 
     def create_widget(self, master, **kwargs):
         """Create the canvas widget and draw the initial level bar."""
         super().create_widget(master, *kwargs)
-        self.value_variable = DoubleVar()
-        self.value_variable.trace_add("write", self.value_updated)
         self.draw_canvas()
 
     def value_updated(self, var, index, mode):
@@ -103,6 +105,8 @@ class Level(CanvasView):
 
     def draw_canvas(self):
         """Draw the level bar reflecting the current value."""
+        if self.widget is None:
+            return  # value changed before placement: drawn on creation
         border = 2
 
         width = float(self.widget["width"])

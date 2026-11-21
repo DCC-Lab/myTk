@@ -162,7 +162,7 @@ class Dialog(Base):
 
     def run(self):
         """Display the dialog modally and return the user reply."""
-        self.create_widget(master=None)
+        self._create_and_setup_widget(master=None)
 
         if self.auto_click is not None:
             _button = self.buttons[self.auto_click]
