@@ -1,7 +1,7 @@
 import tkinter.ttk as ttk
 from tkinter import HORIZONTAL, DoubleVar
 
-from .base import Base
+from .base import Base, WidgetOption
 
 
 class Slider(Base):
@@ -53,35 +53,11 @@ class Slider(Base):
         else:
             self.value_variable.set(value=value)
 
-    @property
-    def minimum(self):
-        """The minimum allowed value of the slider."""
-        if self.widget is None:
-            return self._widget_args.get("from_")
-        else:
-            return self.widget["from"]
+    minimum = WidgetOption("from_")
+    """The minimum allowed value of the slider. Can be set before placement."""
 
-    @minimum.setter
-    def minimum(self, value):
-        if self.widget is None:
-            self._widget_args["from_"] = value
-        else:
-            self.widget["from"] = value
-
-    @property
-    def maximum(self):
-        """The maximum allowed value of the slider."""
-        if self.widget is None:
-            return self._widget_args.get("to")
-        else:
-            return self.widget["to"]
-
-    @maximum.setter
-    def maximum(self, value):
-        if self.widget is None:
-            self._widget_args["to"] = value
-        else:
-            self.widget["to"] = value
+    maximum = WidgetOption("to")
+    """The maximum allowed value of the slider. Can be set before placement."""
 
     def observed_property_changed(
         self, observed_object, observed_property_name, new_value, context

@@ -3,6 +3,7 @@ import unittest
 import envtest
 
 from mytk import *
+from mytk.base import WidgetNotYetCreatedError
 
 
 class TestController(Bindable):
@@ -61,29 +62,27 @@ class TestBaseView(envtest.MyTkTestCase):
         self.start_timed_mainloop(timeout=300)
         self.app.mainloop()
 
-    def test_error_nowidget_enable_disable(self):
+    def test_nowidget_enable_disable_is_remembered(self):
+        # Before placement there is no Tk widget: the requested state is kept
+        # and applied on creation instead of raising.
         widget = TestWidget()
+        self.assertFalse(widget.is_disabled)
+        self.assertTrue(widget.is_enabled)
 
-        with self.assertRaises(Exception):
-            widget.is_disabled = False
+        widget.is_disabled = True
+        self.assertTrue(widget.is_disabled)
+        widget.enable()
+        self.assertTrue(widget.is_enabled)
+        widget.disable()
+        self.assertFalse(widget.is_enabled)
+        widget.is_enabled = True
+        self.assertFalse(widget.is_disabled)
+        widget.is_enabled = False
+        self.assertTrue(widget.is_disabled)
 
-        with self.assertRaises(Exception):
-            widget.is_disabled = True
-
-        with self.assertRaises(Exception):
-            widget.enable()
-
-        with self.assertRaises(Exception):
-            widget.disable()
-
-        with self.assertRaises(Exception):
-            widget.is_enabled = True
-
-        with self.assertRaises(Exception):
-            widget.is_enabled = False
-
-        self.start_timed_mainloop(timeout=300)
-        self.app.mainloop()
+        widget.grid_into(self.app.window, column=0, row=0)
+        self.assertTrue(widget.widget.instate(["disabled"]))
+        self.assertTrue(widget.is_disabled)
 
     def test_select_is_selected(self):
         widget = TestWidget()
@@ -100,20 +99,46 @@ class TestBaseView(envtest.MyTkTestCase):
         self.start_timed_mainloop(timeout=300)
         self.app.mainloop()
 
-    def test_error_nowidget_select_is_selected(self):
+    def test_nowidget_select_is_remembered(self):
         widget = TestWidget()
+        self.assertFalse(widget.is_selected)
 
-        with self.assertRaises(Exception):
-            widget.select()
+        widget.select()
+        self.assertTrue(widget.is_selected)
+        widget.deselect()
+        self.assertFalse(widget.is_selected)
+        widget.is_selected = True
 
-        with self.assertRaises(Exception):
-            widget.deselect()
+        widget.grid_into(self.app.window, column=0, row=0)
+        self.assertTrue(widget.widget.instate(["selected"]))
+        self.assertTrue(widget.is_selected)
 
-        with self.assertRaises(Exception):
-            widget.is_selected = True
+    def test_nowidget_state_untouched_if_never_set(self):
+        widget = TestWidget()
+        widget.grid_into(self.app.window, column=0, row=0)
+        self.assertFalse(widget.is_disabled)
+        self.assertFalse(widget.is_selected)
 
-        with self.assertRaises(Exception):
-            widget.is_selected = False
+    def test_nowidget_has_focus(self):
+        widget = TestWidget()
+        self.assertFalse(widget.has_focus)
+        with self.assertRaises(WidgetNotYetCreatedError):
+            widget.has_focus = True
+
+    def test_placing_twice_raises(self):
+        widget = TestWidget()
+        widget.grid_into(self.app.window, column=0, row=0)
+        with self.assertRaises(RuntimeError):
+            widget.grid_into(self.app.window, column=1, row=0)
+        with self.assertRaises(RuntimeError):
+            widget.pack_into(self.app.window)
+
+    def test_placing_again_after_destroy(self):
+        widget = TestWidget()
+        widget.grid_into(self.app.window, column=0, row=0)
+        widget.widget.destroy()
+        widget.grid_into(self.app.window, column=0, row=0)
+        self.assertTrue(widget.widget.winfo_exists())
 
     def test_widget_width(self):
         widget = TestWidget()
