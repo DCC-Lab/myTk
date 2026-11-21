@@ -2,7 +2,20 @@
 
 Provides the `ValueCapable` class, a mixin for widgets that hold one value the
 user can see or change (a checkbox state, a slider position, the text of an
-entry). It gathers in one place what every such widget needs:
+entry).
+
+Why it exists: it is the interface with ``tkinter.Variable``. A Tk widget does
+not keep its value in a Python attribute. It reads and writes a Tk variable
+(``StringVar``, ``IntVar``, ``DoubleVar``, ``BooleanVar``) that lives on the
+Tcl side: the widget and the variable talk to each other without Python
+knowing, and Python only reaches the value with ``get()`` and ``set()`` and
+only learns of a change through a trace. The rest of myTk works with plain
+Python properties that are assigned, observed and bound. `ValueCapable` is
+the single place where the two meet: it owns the Tk variable, exposes its
+content as the plain ``value`` property, and turns a change made on the Tk
+side into the notification that `Bindable` observers expect.
+
+It gathers in one place what every such widget needs:
 
 - a plain ``value`` property over the widget's Tk ``value_variable``,
 - one place to keep the value valid (``sanitize_value``),
@@ -39,7 +52,12 @@ from tkinter import TclError
 
 
 class ValueCapable:
-    """Mixin adding a ``value`` property backed by a Tk variable."""
+    """Mixin that interfaces a widget with its ``tkinter.Variable``.
+
+    A Tk widget keeps its value in a Tk variable, not in a Python attribute.
+    This mixin owns that variable (``value_variable``) and exposes its content
+    as the plain, observable ``value`` property.
+    """
 
     def __init__(self, *args, **kwargs):
         """Initialize value state for cooperative multiple inheritance."""
