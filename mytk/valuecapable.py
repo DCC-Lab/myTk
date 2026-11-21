@@ -15,15 +15,14 @@ Two names, one rule:
 - ``value`` is what you read, write, observe and bind:
   ``model.bind_properties("threshold", slider, "value")``.
 - ``value_variable`` is the Tk object that holds it. It is only needed to
-  connect it to a Tk widget (``bind_variable``, ``bind_textvariable``) or to
+  connect it to the Tk widget (``attach_value_variable_to_widget``) or to
   share it between widgets (``use_value_variable``).
 
 Like `EventCapable` and `DragAndDropCapable`, it is combined with `Base` and
 never used on its own: it relies on `Bindable` to notify observers.
 
 A widget creates its own Tk variable and hands it over once, in its
-constructor, then connects it to the Tk widget in ``create_widget`` exactly as
-before::
+constructor, then connects it to the Tk widget in ``create_widget``::
 
     class Checkbox(Base, ValueCapable):
         def __init__(self, label=""):
@@ -32,7 +31,7 @@ before::
 
         def create_widget(self, master):
             self.widget = ttk.Checkbutton(master, text=self.label)
-            self.bind_variable(self.value_variable)
+            self.attach_value_variable_to_widget()
 """
 
 from contextlib import suppress

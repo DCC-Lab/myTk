@@ -8,21 +8,17 @@ All notable changes to myTk are documented here.
 - **Every widget creates its `value_variable` in its constructor.** `Button`, `Checkbox`, `PopupMenu`, `ProgressBar`, `BooleanIndicator`, `Level` and `LabelledEntry` used to create it on placement, so a binding made earlier was silently dead. Bindings (`bind_property_to_widget_value`, `bind_properties`) can now be made before or after placement, including bindings on `is_enabled`/`is_selected`.
 - **Placing a widget twice raises `RuntimeError`** instead of silently creating a second Tk widget. A widget whose Tk widget was destroyed can be placed again (this also makes `Dialog.run()` usable more than once on the same object).
 - `has_focus` returns `False` before placement; setting it before placement raises `WidgetNotYetCreatedError`.
+- `bind_property_to_widget_value` binds the widget's `value` (as its name says) when the widget is `ValueCapable`, and its `value_variable` otherwise. The result is the same, except that a value the widget cannot hold (a `Slider` or `IntEntry` out of range) is brought back within range and the bound property follows, instead of the two silently disagreeing.
+- A `Slider` delegate (`value_updated`) is now also called when the user moves the slider; it was only called when `value` was assigned from code.
 
 ### Added
 - `mytk.base.WidgetOption` and `mytk.base.WidgetState`, the two descriptors that implement the behaviour above; use them in your own widgets instead of hand-written `if self.widget is None` properties.
 - `mytk.base.WidgetNotYetCreatedError` (a `RuntimeError`) for requests that genuinely need the Tk widget. `TableView.WidgetNotYetCreatedError` is now the same class.
-
-### Added
-- **`ValueCapable`, a mixin that gathers the `value` / `value_variable` mechanism in one place** (`mytk/valuecapable.py`). It provides the `value` property, one hook to keep the value valid (`sanitize_value`) and one hook to react when it changes (`value_did_change`). A widget creates its Tk variable and hands it over with `self.use_value_variable(DoubleVar(value=0))` in its constructor, and still connects it to the Tk widget with `bind_variable` / `bind_textvariable` in `create_widget`. `Checkbox`, `PopupMenu`, `Slider`, `Entry`, `IntEntry`, `LabelledEntry`, `Label`, `NumericIndicator`, `BooleanIndicator`, `Level` and `ProgressBar` now use it instead of their own copies.
+- `Base.attach_value_variable_to_widget()`, the call a `create_widget` makes to connect the widget's own `value_variable` to the Tk widget. It replaces the less explicit `self.bind_variable(self.value_variable)` / `self.bind_textvariable(self.value_variable)`; a widget class says which Tk option it uses with the class attribute `value_variable_option` (`"variable"` by default, `"textvariable"` for text widgets). `bind_variable(variable)` and `bind_textvariable(variable)` are unchanged and remain the way to make a widget use a variable created elsewhere.
+- **`ValueCapable`, a mixin that gathers the `value` / `value_variable` mechanism in one place** (`mytk/valuecapable.py`). It provides the `value` property, one hook to keep the value valid (`sanitize_value`) and one hook to react when it changes (`value_did_change`). A widget creates its Tk variable and hands it over with `self.use_value_variable(DoubleVar(value=0))` in its constructor, and connects it to the Tk widget with `attach_value_variable_to_widget()` in `create_widget`. `Checkbox`, `PopupMenu`, `Slider`, `Entry`, `IntEntry`, `LabelledEntry`, `Label`, `NumericIndicator`, `BooleanIndicator`, `Level` and `ProgressBar` now use it instead of their own copies.
 - **`value` exists on every one of those widgets** (new on `Label`, `LabelledEntry`, `NumericIndicator`, `BooleanIndicator` and `Level`), and **`value` can be observed and bound directly**: `model.bind_properties("threshold", slider, "value")`. Observers are notified exactly once whether the program or the user changed the value. `value_variable` and `bind_property_to_widget_value` are unchanged.
 - `NumericIndicator(value=...)` now sets the initial value (the argument was ignored).
-
-- **One rule for the two names**: `value` is what you read, write, observe and bind; `value_variable` is the Tk object, only needed to connect it to a Tk widget or to share it between widgets. The example apps now bind `value`.
-
-### Changed
-- `bind_property_to_widget_value` binds the widget's `value` (as its name says) when the widget is `ValueCapable`, and its `value_variable` otherwise. The result is the same, except that a value the widget cannot hold (a `Slider` or `IntEntry` out of range) is brought back within range and the bound property follows, instead of the two silently disagreeing.
-- A `Slider` delegate (`value_updated`) is now also called when the user moves the slider; it was only called when `value` was assigned from code.
+- **One rule for the two names**: `value` is what you read, write, observe and bind; `value_variable` is the Tk object, only needed to connect it to the Tk widget (`attach_value_variable_to_widget`) or to share it between widgets (`use_value_variable`, `bind_variable`). The example apps now bind `value`.
 
 ### Migration
 - Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.

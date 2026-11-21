@@ -40,6 +40,8 @@ class Delegate:
 class Thermometer(Base, ValueCapable):
     """A minimal custom widget, written the way the documentation shows."""
 
+    value_variable_option = "textvariable"
+
     def __init__(self):
         super().__init__()
         self.use_value_variable(DoubleVar(value=20))
@@ -47,7 +49,7 @@ class Thermometer(Base, ValueCapable):
 
     def create_widget(self, master):
         self.widget = ttk.Label(master)
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def sanitize_value(self, value):
         return max(value, -273.15)
@@ -301,8 +303,8 @@ class TestDisplayFollowsValue(envtest.MyTkTestCase):
     """The Tk widget must show `value`.
 
     Each widget connects its variable to its Tk widget with one line in
-    create_widget (bind_variable or bind_textvariable). These tests fail if
-    that line is forgotten.
+    create_widget (attach_value_variable_to_widget). These tests fail if that
+    line is forgotten.
     """
 
     def place(self, widget):

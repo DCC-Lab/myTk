@@ -11,6 +11,8 @@ from .views import View
 class Entry(Base, ValueCapable):
     """A single-line text entry widget wrapping ttk.Entry."""
 
+    value_variable_option = "textvariable"
+
     def __init__(
         self,
         *args,
@@ -27,7 +29,7 @@ class Entry(Base, ValueCapable):
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
         self.widget.bind("<Return>", self.event_return_callback)
         self.widget.update()
 
@@ -62,6 +64,8 @@ class Entry(Base, ValueCapable):
 
 class FormattedEntry(Base):
     """A text entry that formats its numeric value using a format string and regex."""
+
+    value_variable_option = "textvariable"
 
     def __init__(
         self,
@@ -113,7 +117,7 @@ class FormattedEntry(Base):
         self.parent = master
         self.widget = ttk.Entry(master, width=self.character_width)
 
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
         self.widget.bind("<Return>", self.event_return_callback)
         self.widget.bind("<FocusOut>", self.event_focus_out)
         self.widget.update()
@@ -207,6 +211,8 @@ class CellEntry(Base):
 class IntEntry(Base, ValueCapable):
     """An integer spinbox entry with configurable minimum, maximum, and increment."""
 
+    value_variable_option = "textvariable"
+
     def __init__(
         self,
         *args,
@@ -230,7 +236,7 @@ class IntEntry(Base, ValueCapable):
         """Create the ttk.Spinbox widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Spinbox(master, **self._widget_args)
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def sanitize_value(self, value):
         """Keep the value between minimum and maximum."""

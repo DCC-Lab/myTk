@@ -82,7 +82,7 @@ class RadioButton(Base):
             value=self.value,
             command=self.value_changed,
         )
-        self.bind_variable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def value_changed(self):
         """Invoke the user-defined callback when the radio button is selected."""
@@ -91,6 +91,11 @@ class RadioButton(Base):
                 self.user_callback(self)
             except Exception as err:
                 raise RuntimeError("Unable complete callback") from err
+
+    def attach_value_variable_to_widget(self):
+        """Attaches the value variable and observes it for programmatic changes."""
+        super().attach_value_variable_to_widget()
+        self.add_observer(self, "value_variable", context="radiobutton-changed")
 
     def bind_variable(self, variable):
         """Binds the radio button to a shared IntVar and sets up an observer for changes.

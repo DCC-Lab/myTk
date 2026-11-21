@@ -9,6 +9,8 @@ from .valuecapable import ValueCapable
 class Label(Base, ValueCapable):
     """A text label widget wrapping ttk.Label with optional word wrapping."""
 
+    value_variable_option = "textvariable"
+
     def __init__(self, text=None, wrapping=False, **kwargs):
         Base.__init__(self)
         self.wrapping = wrapping
@@ -28,7 +30,7 @@ class Label(Base, ValueCapable):
         """Create the underlying ttk.Label widget and bind its text variable."""
         self.parent = master
         self.widget = ttk.Label(master, **self._widget_args, **self.debug_kwargs)
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
         if self.wrapping:
             self.widget.bind("<Configure>", self.set_label_wrap)

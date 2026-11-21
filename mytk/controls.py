@@ -34,7 +34,7 @@ class Slider(Base, ValueCapable):
     def create_widget(self, master, **kwargs):
         """Create the underlying ttk.Scale widget."""
         self.widget = ttk.Scale(master, **self._widget_args)
-        self.bind_variable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def sanitize_value(self, value):
         """Keep the value between minimum and maximum."""
