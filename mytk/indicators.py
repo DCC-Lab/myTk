@@ -1,22 +1,20 @@
-import contextlib
 import tkinter.ttk as ttk
-from tkinter import BooleanVar, DoubleVar, TclError
+from tkinter import BooleanVar, DoubleVar
 
 from .base import Base
 from .canvasview import CanvasView
+from .valuecapable import ValueCapable
 
 
-class NumericIndicator(Base):
+class NumericIndicator(Base, ValueCapable):
     """A label that displays a formatted numeric value from a tkinter variable."""
 
     def __init__(self, value_variable=None, value=0, format_string="{0}"):
         Base.__init__(self)
         self.format_string = format_string
-        if value_variable is not None:
-            self.value_variable = value_variable
-        else:
-            self.value_variable = DoubleVar()
-        self.value_variable.trace_add("write", self.value_updated)
+        if value_variable is None:
+            value_variable = DoubleVar(value=value)
+        self.use_value_variable(value_variable)
 
     def create_widget(self, master):
         """Create the label widget and display the initial value."""
@@ -24,8 +22,8 @@ class NumericIndicator(Base):
         self.widget = ttk.Label(master, **self.debug_kwargs)
         self.update_text()
 
-    def value_updated(self, var, index, mode):
-        """Callback triggered when the value variable changes."""
+    def value_did_change(self, value):
+        """Show the new value."""
         self.update_text()
 
     def update_text(self):
@@ -38,22 +36,21 @@ class NumericIndicator(Base):
             print(err)
 
 
-class BooleanIndicator(CanvasView):
+class BooleanIndicator(CanvasView, ValueCapable):
     """A colored circle indicator that is green when True and red when False."""
 
     def __init__(self, diameter=15):
         super().__init__(width=diameter + 4, height=diameter + 4)
         self.diameter = diameter
-        self.value_variable = BooleanVar(value=False)
-        self.value_variable.trace_add("write", self.value_updated)
+        self.use_value_variable(BooleanVar(value=False))
 
     def create_widget(self, master, **kwargs):
         """Create the canvas widget and draw the initial indicator."""
         super().create_widget(master, *kwargs)
         self.draw_canvas()
 
-    def value_updated(self, var, index, mode):
-        """Callback triggered when the boolean variable changes."""
+    def value_did_change(self, value):
+        """Redraw the indicator with the color of the new value."""
         self.draw_canvas()
 
     def draw_canvas(self):
@@ -73,7 +70,7 @@ class BooleanIndicator(CanvasView):
         )
 
 
-class Level(CanvasView):
+class Level(CanvasView, ValueCapable):
     """A horizontal bar indicator that fills proportionally to a value."""
 
     def __init__(self, maximum=100, width=200, height=20):
@@ -81,27 +78,24 @@ class Level(CanvasView):
         self.maximum = maximum
         self.width = width
         self.height = height
-        self.value_variable = DoubleVar()
-        self.value_variable.trace_add("write", self.value_updated)
+        self.use_value_variable(DoubleVar())
 
     def create_widget(self, master, **kwargs):
         """Create the canvas widget and draw the initial level bar."""
         super().create_widget(master, *kwargs)
         self.draw_canvas()
 
-    def value_updated(self, var, index, mode):
-        """Clamp the value to the valid range and redraw the bar."""
-        value = 0
-        with contextlib.suppress(TclError):
-            value = self.value_variable.get()
+    def sanitize_value(self, value):
+        """Keep the value between 0 and maximum."""
+        return min(max(value, 0), self.maximum)
 
-        if value < 0:
-            value = 0
-        elif value > self.maximum:
-            value = self.maximum
-
-        self.value_variable.set(value)
-        self.draw_canvas()
+    def value_did_change(self, value):
+        """Redraw the bar; a value written out of range is brought back first."""
+        valid_value = self.sanitize_value(value)
+        if valid_value != value:
+            self.value_variable.set(valid_value)  # comes back here, then draws
+        else:
+            self.draw_canvas()
 
     def draw_canvas(self):
         """Draw the level bar reflecting the current value."""

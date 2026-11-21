@@ -5,6 +5,7 @@ from tkinter import DoubleVar
 from .base import Base
 from .dialog import Dialog
 from .labels import Label
+from .valuecapable import ValueCapable
 from notificationcenter import NotificationCenter
 
 
@@ -16,14 +17,14 @@ class ProgressBarNotification(Enum):
     stop = "stop"
 
 
-class ProgressBar(Base):
+class ProgressBar(Base, ValueCapable):
     """A determinate or indeterminate progress bar widget."""
 
     def __init__(self, maximum=100, mode="determinate"):
         Base.__init__(self)
         self.maximum = maximum
         self.mode = mode
-        self.value_variable = DoubleVar(value=0)
+        self.use_value_variable(DoubleVar(value=0))
 
     def create_widget(self, master):
         """Create the underlying ttk.Progressbar widget."""
@@ -41,18 +42,6 @@ class ProgressBar(Base):
         nc.add_observer(self, self.handle_notification, notification_name=ProgressBarNotification.step)
         nc.add_observer(self, self.handle_notification, notification_name=ProgressBarNotification.start)
         nc.add_observer(self, self.handle_notification, notification_name=ProgressBarNotification.stop)
-
-    @property
-    def value(self):
-        """The current progress value."""
-        if self.value_variable is not None:
-            return self.value_variable.get()
-        return 0
-
-    @value.setter
-    def value(self, v):
-        if self.value_variable is not None:
-            self.value_variable.set(v)
 
     def handle_notification(self, notification):
         """Respond to step, start, and stop notifications."""

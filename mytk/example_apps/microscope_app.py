@@ -75,7 +75,7 @@ class MicroscopeApp(App):
             self.controls, column=1, row=6, pady=5, padx=10, sticky="w"
         )
         self.camera.bind_properties(
-            "zoom_level", self.zoom_level_control, "value_variable"
+            "zoom_level", self.zoom_level_control, "value"
         )
 
         self.camera.histogram_xyplot = Histogram(figsize=(3.5, 1))

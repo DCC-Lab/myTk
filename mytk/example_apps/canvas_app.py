@@ -286,27 +286,27 @@ class CanvasApp(App):
         optics_basis = DynamicBasis(self.coords, "basis")
 
         self.bind_properties(
-            "number_of_heights", self.number_heights_entry, "value_variable"
+            "number_of_heights", self.number_heights_entry, "value"
         )
         self.bind_properties(
-            "number_of_angles", self.number_angles_entry, "value_variable"
+            "number_of_angles", self.number_angles_entry, "value"
         )
 
         # self.bind_properties('maximum_x', self.maximum_x_entry, 'value_variable')
         self.bind_properties(
-            "dont_show_blocked_rays", self.blocked_rays_checkbox, "value_variable"
+            "dont_show_blocked_rays", self.blocked_rays_checkbox, "value"
         )
         self.bind_properties(
-            "show_apertures", self.apertures_checkbox, "value_variable"
+            "show_apertures", self.apertures_checkbox, "value"
         )
-        self.bind_properties("show_labels", self.show_labels_checkbox, "value_variable")
+        self.bind_properties("show_labels", self.show_labels_checkbox, "value")
         self.bind_properties("show_principal_rays", radio_principal, "value_variable")
 
         self.bind_properties(
-            "show_conjugates", self.show_conjugates_checkbox, "value_variable"
+            "show_conjugates", self.show_conjugates_checkbox, "value"
         )
-        self.bind_properties("max_height", self.max_heights_entry, "value_variable")
-        self.bind_properties("max_fan_angle", self.fan_angles_entry, "value_variable")
+        self.bind_properties("max_height", self.max_heights_entry, "value")
+        self.bind_properties("max_fan_angle", self.fan_angles_entry, "value")
         self.number_heights_entry.bind_properties(
             "is_disabled", self, "show_principal_rays"
         )

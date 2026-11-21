@@ -98,7 +98,7 @@ class PyDatagraphApp(App):
         self.plot.grid_into(self.window, row=2, column=0, columnspan=2, padx=10, pady=10, sticky='nsew')
 
 
-        self.name_menu.add_observer(self, "value_variable", 'inspected_variable_changed')
+        self.name_menu.add_observer(self, "value", 'inspected_variable_changed')
 
         self.disable_inspector_values_changed = False
 

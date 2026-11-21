@@ -22,6 +22,8 @@ class Button(Base):
         user_event_callback (callable, optional): A function to call when the button is pressed.
     """
 
+    value_variable_option = "textvariable"
+
     def __init__(
         self,
         label="Button",
@@ -77,7 +79,7 @@ class Button(Base):
         self.widget = ttk.Button(
             master, width=self.width, command=self.action_callback
         )
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def action_callback(self):
         """Invoke the user-supplied callback when the button is pressed."""
