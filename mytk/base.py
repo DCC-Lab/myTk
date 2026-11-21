@@ -592,11 +592,31 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
                     child.configure(state="disabled" if disabled else "normal")
             self._propagate_disabled(child, disabled)
 
+    value_variable_option = "variable"
+    """Name of the tk widget option that takes the value variable: "variable"
+    (Checkbutton, Radiobutton, Scale) or "textvariable" (Label, Button, Entry,
+    Spinbox, Menubutton). Subclasses set it once at class level."""
+
+    def attach_value_variable_to_widget(self):
+        """Makes the tk widget display and edit ``self.value_variable``.
+
+        Called from ``create_widget`` once the tk widget exists: until then,
+        ``value_variable`` holds the value but no widget is connected to it.
+        """
+        if self.widget is not None:
+            self.widget.configure(
+                **{self.value_variable_option: self.value_variable}
+            )
+            self.widget.update()
+
     def bind_textvariable(self, variable):
-        """Binds a textvariable (e.g., StringVar) to the widget.
+        """Replaces ``value_variable`` and attaches it as the widget's textvariable.
+
+        To attach the widget's own ``value_variable``, use
+        ``attach_value_variable_to_widget()``.
 
         Args:
-            variable (tk.Variable): The variable to bind.
+            variable (tk.Variable): The variable to bind (e.g., StringVar).
         """
         if self.widget is not None:
             self.value_variable = variable
@@ -604,10 +624,15 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
             self.widget.update()
 
     def bind_variable(self, variable):
-        """Binds a general-purpose variable (e.g., BooleanVar, IntVar).
+        """Replaces ``value_variable`` and attaches it as the widget's variable.
+
+        Use this to make a widget use a variable created elsewhere, for
+        instance one shared by a group of radio buttons. To attach the
+        widget's own ``value_variable``, use
+        ``attach_value_variable_to_widget()``.
 
         Args:
-            variable (tk.Variable): The variable to bind.
+            variable (tk.Variable): The variable to bind (e.g., BooleanVar, IntVar).
         """
         if self.widget is not None:
             self.value_variable = variable

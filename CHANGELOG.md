@@ -12,6 +12,7 @@ All notable changes to myTk are documented here.
 ### Added
 - `mytk.base.WidgetOption` and `mytk.base.WidgetState`, the two descriptors that implement the behaviour above; use them in your own widgets instead of hand-written `if self.widget is None` properties.
 - `mytk.base.WidgetNotYetCreatedError` (a `RuntimeError`) for requests that genuinely need the Tk widget. `TableView.WidgetNotYetCreatedError` is now the same class.
+- `Base.attach_value_variable_to_widget()`, the call a `create_widget` makes to connect the widget's own `value_variable` to the Tk widget. It replaces the less explicit `self.bind_variable(self.value_variable)` / `self.bind_textvariable(self.value_variable)`; a widget class says which Tk option it uses with the class attribute `value_variable_option` (`"variable"` by default, `"textvariable"` for text widgets). `bind_variable(variable)` and `bind_textvariable(variable)` are unchanged and remain the way to make a widget use a variable created elsewhere.
 
 ### Migration
 - Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.

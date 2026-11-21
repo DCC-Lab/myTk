@@ -77,7 +77,7 @@ class Checkbox(Base):
             command=self.value_changed,
         )
 
-        self.bind_variable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
     def value_changed(self):
         """Called when the checkbox value changes. Invokes the user callback if defined.

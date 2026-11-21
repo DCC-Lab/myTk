@@ -8,6 +8,8 @@ from .base import Base
 class PopupMenu(Base):
     """A dropdown menu button that lets the user pick from a list of items."""
 
+    value_variable_option = "textvariable"
+
     def __init__(self, menu_items=None, user_callback=None):
         Base.__init__(self)
 
@@ -31,7 +33,7 @@ class PopupMenu(Base):
         self.parent = master
         self.menu = Menu(master, tearoff=0)
         self.widget = ttk.Menubutton(master, text="-", menu=self.menu)
-        self.bind_textvariable(self.value_variable)
+        self.attach_value_variable_to_widget()
 
         if self.menu_items is not None:
             self.add_menu_items(self.menu_items)
