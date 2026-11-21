@@ -3,9 +3,10 @@ import tkinter.ttk as ttk
 from tkinter import StringVar
 
 from .base import Base
+from .valuecapable import ValueCapable
 
 
-class Label(Base):
+class Label(Base, ValueCapable):
     """A text label widget wrapping ttk.Label with optional word wrapping."""
 
     def __init__(self, text=None, wrapping=False, **kwargs):
@@ -18,7 +19,7 @@ class Label(Base):
         else:
             self.text = text
 
-        self.value_variable = StringVar()
+        self.use_value_variable(StringVar())
         self.bind_properties(
             "text", self, "value_variable"
         )  # binding this way will set value_variable to 'text'

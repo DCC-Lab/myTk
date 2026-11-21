@@ -43,6 +43,7 @@ from .remote import RemoteAppMismatch, browse, connect, discover, remote_app
 from .remotecontrollable import RemoteControllable, remote_command
 from .tableview import TableView
 from .tabulardata import PostponeChangeCalls, TabularData
+from .valuecapable import ValueCapable
 from .view3d import View3D, View3DModernGL, View3DPyrender
 from .videoview import VideoView
 from .views import Box, View
@@ -97,6 +98,7 @@ __all__ = [  # noqa: F405
     "TabularData",
     "TableView",
     "URLLabel",
+    "ValueCapable",
     "VideoView",
     "View",
     "View3D",

@@ -13,6 +13,7 @@ from enum import Enum
 from .bindable import Bindable
 from .draganddropcapable import DragAndDropCapable
 from .eventcapable import EventCapable
+from .valuecapable import ValueCapable
 
 
 def _class_nice_(cls):
@@ -592,6 +593,15 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
                     child.configure(state="disabled" if disabled else "normal")
             self._propagate_disabled(child, disabled)
 
+    def _adopt_value_variable(self, variable):
+        """Make ``variable`` this widget's value variable, if it is not already."""
+        if variable is self.value_variable:
+            return
+        if isinstance(self, ValueCapable):
+            self.use_value_variable(variable)
+        else:
+            self.value_variable = variable
+
     def bind_textvariable(self, variable):
         """Binds a textvariable (e.g., StringVar) to the widget.
 
@@ -599,7 +609,7 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
             variable (tk.Variable): The variable to bind.
         """
         if self.widget is not None:
-            self.value_variable = variable
+            self._adopt_value_variable(variable)
             self.widget.configure(textvariable=variable)
             self.widget.update()
 
@@ -610,6 +620,6 @@ class Base(_BaseWidget, Bindable, EventCapable, DragAndDropCapable):
             variable (tk.Variable): The variable to bind.
         """
         if self.widget is not None:
-            self.value_variable = variable
+            self._adopt_value_variable(variable)
             self.widget.configure(variable=variable)
             self.widget.update()

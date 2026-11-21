@@ -19,9 +19,10 @@ Example:
 from tkinter import BooleanVar, ttk
 
 from .base import Base
+from .valuecapable import ValueCapable
 
 
-class Checkbox(Base):
+class Checkbox(Base, ValueCapable):
     """A wrapper around ttk.Checkbutton that supports data binding and a user callback.
 
     Provides:
@@ -42,25 +43,7 @@ class Checkbox(Base):
         super().__init__(*args, **kwargs)
         self.label = label
         self.user_callback = user_callback
-        self.value_variable = BooleanVar(value=True)
-
-    @property
-    def value(self):
-        """Gets the current checked state of the checkbox.
-
-        Returns:
-            bool: True if checked, False if unchecked.
-        """
-        return self.value_variable.get()
-
-    @value.setter
-    def value(self, value):
-        """Sets the checked state of the checkbox.
-
-        Args:
-            value (bool): True to check the box, False to uncheck.
-        """
-        return self.value_variable.set(value=value)
+        self.use_value_variable(BooleanVar(value=True))
 
     def create_widget(self, master, **kwargs):
         """Creates the ttk.Checkbutton widget and binds its variable.

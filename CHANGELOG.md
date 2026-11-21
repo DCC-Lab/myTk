@@ -13,6 +13,17 @@ All notable changes to myTk are documented here.
 - `mytk.base.WidgetOption` and `mytk.base.WidgetState`, the two descriptors that implement the behaviour above; use them in your own widgets instead of hand-written `if self.widget is None` properties.
 - `mytk.base.WidgetNotYetCreatedError` (a `RuntimeError`) for requests that genuinely need the Tk widget. `TableView.WidgetNotYetCreatedError` is now the same class.
 
+### Added
+- **`ValueCapable`, a mixin that gathers the `value` / `value_variable` mechanism in one place** (`mytk/valuecapable.py`). It provides the `value` property, one hook to keep the value valid (`sanitize_value`) and one hook to react when it changes (`value_did_change`). A widget creates its Tk variable and hands it over with `self.use_value_variable(DoubleVar(value=0))` in its constructor, and still connects it to the Tk widget with `bind_variable` / `bind_textvariable` in `create_widget`. `Checkbox`, `PopupMenu`, `Slider`, `Entry`, `IntEntry`, `LabelledEntry`, `Label`, `NumericIndicator`, `BooleanIndicator`, `Level` and `ProgressBar` now use it instead of their own copies.
+- **`value` exists on every one of those widgets** (new on `Label`, `LabelledEntry`, `NumericIndicator`, `BooleanIndicator` and `Level`), and **`value` can be observed and bound directly**: `model.bind_properties("threshold", slider, "value")`. Observers are notified exactly once whether the program or the user changed the value. `value_variable` and `bind_property_to_widget_value` are unchanged.
+- `NumericIndicator(value=...)` now sets the initial value (the argument was ignored).
+
+- **One rule for the two names**: `value` is what you read, write, observe and bind; `value_variable` is the Tk object, only needed to connect it to a Tk widget or to share it between widgets. The example apps now bind `value`.
+
+### Changed
+- `bind_property_to_widget_value` binds the widget's `value` (as its name says) when the widget is `ValueCapable`, and its `value_variable` otherwise. The result is the same, except that a value the widget cannot hold (a `Slider` or `IntEntry` out of range) is brought back within range and the bound property follows, instead of the two silently disagreeing.
+- A `Slider` delegate (`value_updated`) is now also called when the user moves the slider; it was only called when `value` was assigned from code.
+
 ### Migration
 - Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.
 - A widget subclass that overrides `create_widget` needs no change. Code that called `create_widget` directly to place a widget should use `grid_into`/`pack_into`/`place_into`.

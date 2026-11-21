@@ -34,6 +34,8 @@ from collections import namedtuple
 from contextlib import suppress
 from tkinter import Variable
 
+from .valuecapable import ValueCapable
+
 ObserverInfo = namedtuple(
     "ObserverInfo", ["observer", "observed_property_name", "context"]
 )
@@ -237,12 +239,20 @@ class Bindable:
     def bind_property_to_widget_value(
         self, property_name: str, control_widget: "Base"  # noqa: F821
     ):
-        """Binds an object property to the `value_variable` of a widget-like object.
+        """Binds an object property to the value of a widget.
 
-        The `control_widget` must define a `value_variable` attribute (typically a
-        Tkinter Variable) which will remain synchronized with the given property
-        of this object. This allows direct model-view bindings in Tkinter.
+        The property of this object and the value shown by `control_widget`
+        remain synchronized, whichever changes. This object wins the initial
+        synchronization: the widget takes the current value of the property.
+
+        It is the same as ``self.bind_properties(property_name, control_widget,
+        "value")``. A widget that does not have a ``value`` to bind (it is not
+        `ValueCapable`, like `RadioButton`) is bound through its
+        ``value_variable`` instead.
         """
-        self.bind_properties(
-            property_name, control_widget, other_property_name="value_variable"
-        )
+        if isinstance(control_widget, ValueCapable):
+            other_property_name = "value"
+        else:
+            other_property_name = "value_variable"
+
+        self.bind_properties(property_name, control_widget, other_property_name)

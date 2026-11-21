@@ -54,9 +54,9 @@ class PowerMeterApp(App):
         self.is_refreshing = False
 
 
-        self.device.bind_properties("wavelength", self.wavelength_entry.entry, "value_variable")
-        self.device.bind_properties("firmware", self.firmware_label, "value_variable")
-        self.bind_properties("is_refreshing", self.running_indicator, "value_variable")
+        self.device.bind_properties("wavelength", self.wavelength_entry, "value")
+        self.device.bind_properties("firmware", self.firmware_label, "value")
+        self.bind_properties("is_refreshing", self.running_indicator, "value")
         self.bind_properties("is_refreshing", self.save_button, "is_disabled")
         self.bind_properties("is_refreshing", self.wavelength_entry.entry, "is_disabled")
 

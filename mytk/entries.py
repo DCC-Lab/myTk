@@ -4,10 +4,11 @@ from tkinter import IntVar, StringVar
 
 from .base import Base, WidgetOption
 from .labels import Label
+from .valuecapable import ValueCapable
 from .views import View
 
 
-class Entry(Base):
+class Entry(Base, ValueCapable):
     """A single-line text entry widget wrapping ttk.Entry."""
 
     def __init__(
@@ -19,9 +20,7 @@ class Entry(Base):
     ):
         super().__init__(*args, **kwargs)
         self._widget_args["width"] = character_width
-        self.value = value
-        self.value_variable = StringVar(value=value)
-        self.bind_properties("value", self, "value_variable")
+        self.use_value_variable(StringVar(value=value))
 
     def create_widget(self, master):
         """Create the ttk.Entry widget and bind its text variable."""
@@ -205,7 +204,7 @@ class CellEntry(Base):
 
 
 
-class IntEntry(Base):
+class IntEntry(Base, ValueCapable):
     """An integer spinbox entry with configurable minimum, maximum, and increment."""
 
     def __init__(
@@ -225,7 +224,7 @@ class IntEntry(Base):
             "to": maximum,
             "increment": increment,
         }
-        self.value_variable = IntVar(value=value)
+        self.use_value_variable(IntVar(value=value))
 
     def create_widget(self, master):
         """Create the ttk.Spinbox widget and bind its text variable."""
@@ -233,19 +232,9 @@ class IntEntry(Base):
         self.widget = ttk.Spinbox(master, **self._widget_args)
         self.bind_textvariable(self.value_variable)
 
-    @property
-    def value(self):
-        """Get or set the integer value, clamped to the configured range."""
-        return self.value_variable.get()
-
-    @value.setter
-    def value(self, value):
-        if value > self.maximum:
-            self.value_variable.set(value=self.maximum)
-        elif value < self.minimum:
-            self.value_variable.set(value=self.minimum)
-        else:
-            self.value_variable.set(value=value)
+    def sanitize_value(self, value):
+        """Keep the value between minimum and maximum."""
+        return min(max(value, self.minimum), self.maximum)
 
     minimum = WidgetOption("from")
     """The minimum allowed value. Can be set before placement."""
@@ -260,14 +249,14 @@ class IntEntry(Base):
 NumericEntry = IntEntry  # backward-compatible alias
 
 
-class LabelledEntry(View):
+class LabelledEntry(View, ValueCapable):
     """A composite widget combining a Label and an Entry side by side."""
 
     def __init__(self, *args, label, text="", character_width=None, **kwargs):
         super().__init__(*args, width=200, height=25, **kwargs)
         self.entry = Entry(value=text, character_width=character_width)
         self.label = Label(text=label)
-        self.value_variable = self.entry.value_variable
+        self.use_value_variable(self.entry.value_variable)  # the entry's value is ours
 
     def create_widget(self, master):
         """Create the label and entry widgets arranged in a single row."""
