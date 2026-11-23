@@ -112,6 +112,26 @@ class App(Bindable, EventCapable):
         """
         return self.root
 
+    def widget_hierarchy(self, widget=None):
+        """Return the tkinter widget tree as a nested dict, using only
+        tkinter's built-in winfo_* introspection methods.
+
+        Args:
+            widget: The tkinter widget to root the tree at. Defaults to the
+                application's root window.
+        """
+        if widget is None:
+            widget = self.root
+
+        def node(w):
+            return {
+                "class": w.winfo_class(),      # e.g. "TButton", "TLabel", "Frame"
+                "name": w.winfo_name(),        # last path component
+                "path": str(w),                # full Tk path, e.g. ".!frame.!button2"
+                "children": [node(c) for c in w.winfo_children()],
+            }
+        return node(widget)
+
     @property
     def root(self):
         """Returns the root window widget.

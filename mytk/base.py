@@ -151,6 +151,11 @@ class _BaseWidget:
         """No-op fallback. Overridden by EventCapable when present in the MRO."""
         pass
 
+    @staticmethod
+    def view_for(widget):
+        """Return the mytk View that owns this tkinter widget, or None."""
+        return getattr(widget, "mytk_view", None)
+
     def _widget_is_alive(self):
         """Whether the Tk widget has been created and not destroyed since."""
         if self.widget is None:
@@ -186,6 +191,9 @@ class _BaseWidget:
         self.widget = None
 
         self.create_widget(master=master)
+        if self.widget is not None:
+            # Stamp the owner on the Tk widget, for Base.view_for().
+            self.widget.mytk_view = self
         self._apply_pending_states()
         self._bind_destroy_cancel()
         self._apply_background_color()

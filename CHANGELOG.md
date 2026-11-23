@@ -19,6 +19,7 @@ All notable changes to myTk are documented here.
 - **`value` exists on every one of those widgets** (new on `Label`, `LabelledEntry`, `NumericIndicator`, `BooleanIndicator` and `Level`), and **`value` can be observed and bound directly**: `model.bind_properties("threshold", slider, "value")`. Observers are notified exactly once whether the program or the user changed the value. `value_variable` and `bind_property_to_widget_value` are unchanged.
 - `NumericIndicator(value=...)` now sets the initial value (the argument was ignored).
 - **One rule for the two names**: `value` is what you read, write, observe and bind; `value_variable` is the Tk object, only needed to connect it to the Tk widget (`attach_value_variable_to_widget`) or to share it between widgets (`use_value_variable`, `bind_variable`). The example apps now bind `value`.
+- `Base.view_for(widget)` returns the myTk object that owns a given Tk widget (or `None`), and `App.widget_hierarchy(widget=None)` returns the Tk widget tree as a nested dict (`class`, `name`, `path`, `children`), from the app root by default.
 
 ### Migration
 - Code that relied on an exception when touching `is_disabled`/`is_selected` before placement no longer gets one.
