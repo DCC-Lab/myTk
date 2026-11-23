@@ -141,11 +141,7 @@ The real difficulty is to understand the Layout managers of Tkinter.
 
 ## Using myTk with AI coding agents
 
-myTk ships an [agent skill](.claude/skills/mytk/SKILL.md) that teaches AI coding
-assistants (e.g. Claude Code) how to use myTk correctly — property bindings
-(connecting a variable to its on-screen control) and the `NotificationCenter`
-(Enum-based, one-to-many notifications). Agents working inside a clone of this
-repository pick it up automatically from `.claude/skills/`.
+myTk ships an [agent skill](.claude/skills/mytk/SKILL.md) that teaches AI coding assistants (e.g. Claude Code) how to use myTk correctly: the `App` class, layout, every widget, dialogs and settings, tables, property bindings and the `NotificationCenter`. Its first purpose is to keep an agent from re-coding with raw tkinter what myTk already provides. Agents working inside a clone of this repository pick it up automatically from `.claude/skills/`, and [`AGENTS.md`](AGENTS.md) tells any agent where the skill is and how to install it.
 
 If you installed myTk with `pip install mytk` and want the skill too, it is
 bundled with the package; install it (optional) into a location Claude Code
