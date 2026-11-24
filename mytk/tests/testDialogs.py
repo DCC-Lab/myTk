@@ -115,5 +115,44 @@ class TestDialogDisablePropagation(envtest.MyTkTestCase):
         self.assertFalse(ok_button.is_disabled)
 
 
+
+def _label_texts(widget):
+    """Text of every ttk label under a Tk widget, recursively."""
+    texts = []
+    for child in widget.winfo_children():
+        if child.winfo_class() == "TLabel":
+            texts.append(str(child.cget("text")))
+        texts.extend(_label_texts(child))
+    return texts
+
+
+class TestDialogEdgeCases(envtest.MyTkTestCase):
+    """Bugs found while verifying the agent skill."""
+
+    # Known bug: remove @expectedFailure once fixed (an unexpected success fails the run).
+    @unittest.expectedFailure
+    def test_dialog_without_body_runs(self):
+        # populate_buttons spans the button row over grid_size() columns,
+        # which is 0 when populate_widget_body added nothing:
+        # TclError 'bad columnspan value "0"'.
+        dialog = Dialog(title="Empty", auto_click=(Dialog.Replies.Ok, 100))
+        self.assertEqual(dialog.run(), Dialog.Replies.Ok)
+
+    # Known bug: remove @expectedFailure once fixed (an unexpected success fails the run).
+    @unittest.expectedFailure
+    def test_showprogress_shows_its_message(self):
+        # showprogress builds a plain Dialog with dialog_type= and message=,
+        # which Dialog does not accept: they are silently dropped, the body
+        # stays empty and the message is never shown.
+        texts = []
+
+        def collect():
+            texts.extend(_label_texts(self.app.root))
+
+        self.app.after(100, collect)
+        Dialog.showprogress("Copying files", auto_click=(Dialog.Replies.Ok, 400))
+        self.assertIn("Copying files", texts)
+
+
 if __name__ == "__main__":
     unittest.main()

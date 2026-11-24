@@ -77,5 +77,16 @@ class TestURLLabel(envtest.MyTkTestCase):
         self.assertEqual(controller.to_property, "Reverse")
 
 
+
+class TestURLLabelArguments(envtest.MyTkTestCase):
+    # Known bug: remove @expectedFailure once fixed (an unexpected success fails the run).
+    @unittest.expectedFailure
+    def test_text_argument_is_not_taken_as_wrapping(self):
+        # URLLabel.__init__ calls super().__init__(self, text): self becomes
+        # Label's text and the text becomes Label's wrapping flag.
+        label = URLLabel(url="https://example.org", text="Example")
+        self.assertFalse(label.wrapping)
+
+
 if __name__ == "__main__":
     unittest.main()

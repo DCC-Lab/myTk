@@ -599,5 +599,26 @@ class TestTabularDataRecordOps(unittest.TestCase):
         self.assertEqual(call_count, 0)
 
 
+
+class TestTabularDataFromFiles(unittest.TestCase):
+    # Known bug: remove @expectedFailure once fixed (an unexpected success fails the run).
+    @unittest.expectedFailure
+    @unittest.skipUnless(_has_pandas, "pandas not available")
+    def test_dataframe_from_tabular_file_can_be_loaded(self):
+        # load_tabular_data reads without a header row, so the dataframe
+        # columns are integers; set_records_from_dataframe then fails on them
+        # ('int' object has no attribute 'startswith'). The two calls are
+        # meant to be used together.
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "data.csv"
+            # No spaces in the values: load_tabular_data also splits on
+            # whitespace, which is a separate matter.
+            path.write_text("name,power\nL1,2\nL2,4\n")
+            data = TabularData()
+            frame = data.load_tabular_data(path)
+            data.set_records_from_dataframe(frame)
+            self.assertEqual(data.record_count, len(frame))
+
+
 if __name__ == "__main__":
     unittest.main()
