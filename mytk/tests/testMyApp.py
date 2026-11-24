@@ -1,3 +1,5 @@
+import contextlib
+import io
 import unittest
 from functools import partial
 
@@ -87,6 +89,25 @@ class TestMyApp(envtest.MyTkTestCase):
 
         self.start_timed_mainloop(timeout=500)
         self.app.mainloop()
+
+
+
+class TestMainQueueErrors(envtest.MyTkTestCase):
+    # Known bug: remove @expectedFailure once fixed (an unexpected success fails the run).
+    @unittest.expectedFailure
+    def test_error_message_names_the_failing_function(self):
+        # The message in run_main_queue is not an f-string: it prints the
+        # literal "{fct}" and "{args}" instead of the function and arguments.
+        def failing_function():
+            raise RuntimeError("boom")
+
+        self.app.schedule_on_main_thread(failing_function)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.app.run_main_queue()
+
+        self.assertNotIn("{fct}", output.getvalue())
+        self.assertIn("failing_function", output.getvalue())
 
 
 if __name__ == "__main__":
